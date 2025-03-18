@@ -11,18 +11,17 @@ class _HomePageState extends State<HomePage> {
   bool isSwitch = false;
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
+    return Center(
+      child: Column(
         children: [
+          const Spacer(flex: 1),
           Image.asset(
             'images/djungelskog.jpg',
             height: 200,
             width: 200,
           ),
-          const SizedBox(
-            height: 10,
-          ),
-          const Text("Are you in the mood?"),
+          const Spacer(flex: 2),
+          const Text("Are you in the mood?", style: TextStyle(fontSize: 24)),
           Switch(
               value: isSwitch,
               onChanged: (bool newBool) {
@@ -30,6 +29,7 @@ class _HomePageState extends State<HomePage> {
                   isSwitch = newBool;
                 });
               }),
+          const Spacer(flex: 2),
         ],
       ),
     );
