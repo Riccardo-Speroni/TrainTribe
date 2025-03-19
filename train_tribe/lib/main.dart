@@ -3,7 +3,7 @@ import 'home_page.dart';
 import 'friends_page.dart';
 import 'trains_page.dart';
 import 'calendar_page.dart';
-import 'settings_page.dart';
+import 'profile_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -38,7 +38,7 @@ class _RootPageState extends State<RootPage> {
     FriendsPage(),
     TrainsPage(),
     CalendarPage(),
-    SettingsPage(),
+    ProfilePage(),
   ];
   @override
   Widget build(BuildContext context) {
@@ -54,7 +54,7 @@ class _RootPageState extends State<RootPage> {
           NavigationDestination(icon: Icon(Icons.train), label: 'Trains'),
           NavigationDestination(
               icon: Icon(Icons.calendar_today), label: 'Calendar'),
-          NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
+          NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
         ],
         onDestinationSelected: (int index) {
           setState(() {
