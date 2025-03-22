@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -91,8 +92,8 @@ class _FriendsPageState extends State<FriendsPage> {
                         onPressed: () => _toggleVisibility(friend),
                         icon: Icon(
                           _visibilityMap[friend]! 
-                              ? Icons.visibility 
-                              : Icons.visibility_off, 
+                              ? MdiIcons.eye 
+                              : MdiIcons.ghost, 
                           color: Colors.blue,
                         ),
                         label: const Text(""),
