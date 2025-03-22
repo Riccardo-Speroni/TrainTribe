@@ -21,10 +21,16 @@ class _FriendsPageState extends State<FriendsPage> {
 
   List<String> _filteredFriends = [];
 
+  final Map<String, bool> _visibilityMap = {};
+
   @override
   void initState() {
     super.initState();
     _filteredFriends = List.from(_allFriends);
+    
+    for (var friend in _allFriends) {
+      _visibilityMap[friend] = false;
+    }
   }
 
   void _filterFriends(String query) {
@@ -37,6 +43,12 @@ class _FriendsPageState extends State<FriendsPage> {
       } else {
         _filteredFriends = List.from(_allFriends);
       }
+    });
+  }
+
+  void _toggleVisibility(String friend) {
+    setState(() {
+      _visibilityMap[friend] = !_visibilityMap[friend]!;
     });
   }
 
@@ -63,6 +75,7 @@ class _FriendsPageState extends State<FriendsPage> {
             ? ListView.builder(
                 itemCount: _filteredFriends.length,
                 itemBuilder: (context, index) {
+                  String friend = _filteredFriends[index];
                   return Card(
                     child: ListTile(
                       leading: Image.asset(
@@ -70,21 +83,32 @@ class _FriendsPageState extends State<FriendsPage> {
                         height: 40,
                         width: 40,
                       ),
-                      title: Text(_filteredFriends[index]),
-                      trailing: const Checkbox(value: true, onChanged: null),
+                      title: Text(friend),
+                      trailing: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        onPressed: () => _toggleVisibility(friend),
+                        icon: Icon(
+                          _visibilityMap[friend]! 
+                              ? Icons.visibility 
+                              : Icons.visibility_off, 
+                          color: Colors.blue,
+                        ),
+                        label: const Text(""),
+                      ),
                       onTap: () {
                         showDialog(
                           context: context,
                           builder: (context) {
                             return AlertDialog(
-                              title: Text(_filteredFriends[index]),
+                              title: Text(friend),
                               insetPadding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 20),
                               content: ConstrainedBox(
                                 constraints: BoxConstraints(
                                   maxWidth: 300,
-                                  maxHeight:
-                                      MediaQuery.of(context).size.height * 0.5,
+                                  maxHeight: MediaQuery.of(context).size.height * 0.5,
                                 ),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -105,17 +129,13 @@ class _FriendsPageState extends State<FriendsPage> {
                                       child: TextButton.icon(
                                         style: TextButton.styleFrom(
                                           backgroundColor: Colors.redAccent,
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 8),
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
                                         ),
                                         onPressed: () {
                                           Navigator.pop(context);
                                         },
-                                        icon: const Icon(Icons.delete,
-                                            color: Colors.white),
-                                        label: const Text('Delete',
-                                            style:
-                                                TextStyle(color: Colors.white)),
+                                        icon: const Icon(Icons.delete, color: Colors.white),
+                                        label: const Text('Delete', style: TextStyle(color: Colors.white)),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -123,17 +143,13 @@ class _FriendsPageState extends State<FriendsPage> {
                                       child: TextButton.icon(
                                         style: TextButton.styleFrom(
                                           backgroundColor: Colors.grey,
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 8),
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
                                         ),
                                         onPressed: () {
                                           Navigator.pop(context);
                                         },
-                                        icon: const Icon(Icons.visibility_off,
-                                            color: Colors.white),
-                                        label: const Text('Ghost',
-                                            style:
-                                                TextStyle(color: Colors.white)),
+                                        icon: const Icon(Icons.visibility_off, color: Colors.white),
+                                        label: const Text('Ghost', style: TextStyle(color: Colors.white)),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -141,17 +157,13 @@ class _FriendsPageState extends State<FriendsPage> {
                                       child: TextButton.icon(
                                         style: TextButton.styleFrom(
                                           backgroundColor: Colors.green,
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 8),
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
                                         ),
                                         onPressed: () {
                                           Navigator.pop(context);
                                         },
-                                        icon: const Icon(Icons.chat,
-                                            color: Colors.white),
-                                        label: const Text('Whatsapp',
-                                            style:
-                                                TextStyle(color: Colors.white)),
+                                        icon: const Icon(Icons.chat, color: Colors.white),
+                                        label: const Text('Whatsapp', style: TextStyle(color: Colors.white)),
                                       ),
                                     ),
                                   ],
