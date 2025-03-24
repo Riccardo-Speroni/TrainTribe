@@ -4,24 +4,52 @@ import 'friends_page.dart';
 import 'trains_page.dart';
 import 'calendar_page.dart';
 import 'profile_page.dart';
+import 'login_page.dart';
+import 'signup_page.dart';
+import 'package:go_router/go_router.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
+ValueNotifier<bool> isLoggedIn = ValueNotifier(false);
+
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  MyApp({super.key});
+
+ final GoRouter _router = GoRouter(
+  refreshListenable: isLoggedIn, // Listen for login state changes
+  redirect: (context, state) {
+
+    if (!isLoggedIn.value && state.fullPath != '/login' && state.fullPath != '/signup') {
+      return '/login'; // Redirect to login if not logged in
+    } else  if (isLoggedIn.value && state.fullPath == '/login'){
+      return '/root'; // Redirect to home if already logged in
+    }
+    else {return null;}
+  },
+  routes: [
+    GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
+    GoRoute(path: '/root', builder: (context, state) => const RootPage()),
+    GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),
+  ],
+);
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
+      routerConfig: _router, // Use GoRouter for navigation
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.green,
       ),
-      home: const RootPage(),
     );
   }
+}
+
+bool checkUserLoginStatus() {
+  // TODO: session authentication logic
+  return false;
 }
 
 class RootPage extends StatefulWidget {
