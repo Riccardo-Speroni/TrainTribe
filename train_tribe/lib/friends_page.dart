@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'l10n/app_localizations.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -48,6 +49,7 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   void _showFriendDialog(BuildContext context, String friend) {
+    final localizations = AppLocalizations.of(context); 
     showDialog(
       context: context,
       builder: (context) {
@@ -66,7 +68,7 @@ class _FriendsPageState extends State<FriendsPage> {
               children: [
                 Expanded(
                   child: CustomTextButton(
-                    text: 'Delete',
+                    text: localizations.translate('delete'), 
                     icon: Icons.delete,
                     color: Colors.redAccent,
                     onPressed: () => Navigator.pop(context),
@@ -75,7 +77,7 @@ class _FriendsPageState extends State<FriendsPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: CustomTextButton(
-                    text: 'Ghost',
+                    text: localizations.translate('ghost'), 
                     icon: Icons.visibility_off,
                     color: Colors.grey,
                     onPressed: () => Navigator.pop(context),
@@ -84,7 +86,7 @@ class _FriendsPageState extends State<FriendsPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: CustomTextButton(
-                    text: 'Whatsapp',
+                    text: localizations.translate('whatsapp'), 
                     icon: Icons.chat,
                     color: Colors.green,
                     onPressed: () => Navigator.pop(context),
@@ -100,16 +102,17 @@ class _FriendsPageState extends State<FriendsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context); 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Friends'),
+        title: Text(localizations.translate('friends')), 
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: SearchBar(
               leading: const Icon(Icons.search),
-              hintText: 'Add or search friends',
+              hintText: localizations.translate('add_or_search_friends'), 
               onChanged: _filterFriends,
             ),
           ),

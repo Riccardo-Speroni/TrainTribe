@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'l10n/app_localizations.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -9,8 +10,11 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   bool isSwitch = false;
+
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return Center(
       child: Column(
         children: [
@@ -21,14 +25,15 @@ class _HomePageState extends State<HomePage> {
             width: 200,
           ),
           const Spacer(flex: 2),
-          const Text("Are you in the mood?", style: TextStyle(fontSize: 24)),
+          Text(localizations.translate('mood_question'), style: const TextStyle(fontSize: 24)), 
           Switch(
-              value: isSwitch,
-              onChanged: (bool newBool) {
-                setState(() {
-                  isSwitch = newBool;
-                });
-              }),
+            value: isSwitch,
+            onChanged: (bool newBool) {
+              setState(() {
+                isSwitch = newBool;
+              });
+            },
+          ),
           const Spacer(flex: 2),
         ],
       ),

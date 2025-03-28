@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'main.dart';
+import 'l10n/app_localizations.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context); 
     return Scaffold(
       body: Center(
         child: Padding(
@@ -23,23 +25,23 @@ class LoginPage extends StatelessWidget {
               const SizedBox(height: 60),
 
               // Username Field
-              const TextField(
+              TextField(
                 decoration: InputDecoration(
-                  labelText: 'Username',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
+                  labelText: localizations.translate('username'),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.person),
                 ),
               ),
               
               const SizedBox(height: 20),
 
               // Password Field
-              const TextField(
+              TextField(
                 obscureText: true,
                 decoration: InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
+                  labelText: localizations.translate('password'),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock),
                 ),
               ),
               const SizedBox(height: 20),
@@ -56,7 +58,7 @@ class LoginPage extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50), // Full width
                 ),
-                child: const Text("Login"),
+                child: Text(localizations.translate('login')),
               ),
               const SizedBox(height: 40),
 
@@ -66,7 +68,7 @@ class LoginPage extends StatelessWidget {
                   // TODO: Handle Google login
                 },
                 icon: const Icon(Icons.login),
-                label: const Text("Login with Google"),
+                label: Text(localizations.translate('login_google')),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
                   backgroundColor: Colors.red,
@@ -81,7 +83,7 @@ class LoginPage extends StatelessWidget {
                   // TODO: Handle Facebook login
                 },
                 icon: const Icon(Icons.facebook),
-                label: const Text("Login with Facebook"),
+                label: Text(localizations.translate('login_facebook')),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
                   backgroundColor: Colors.blue,
@@ -95,9 +97,9 @@ class LoginPage extends StatelessWidget {
                 onTap: () {
                   GoRouter.of(context).go('/signup'); // Navigate to Signup Page
                 },
-                child: const Text(
-                  "Don't have an account? Sign up",
-                  style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold),
+                child: Text(
+                  localizations.translate('dont_have_account'),
+                  style: const TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold),
                 ),
               ),
             ],

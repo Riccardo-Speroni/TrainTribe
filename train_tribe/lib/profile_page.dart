@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'settings_page.dart';
-
+import 'l10n/app_localizations.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return Center(
       child: Column(
         children: [
@@ -36,18 +38,18 @@ class ProfilePage extends StatelessWidget {
               ),
             ),
           ),
-          const Text('UserName'),
+          Text(localizations.translate('username')), 
           const Spacer(flex: 1),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Name Surname'),
+              Text(localizations.translate('name_surname')), 
               const SizedBox(width: 10),
               ElevatedButton(
                 onPressed: () {
                   // Add button functionality here
                 },
-                child: const Text('Edit'),
+                child: Text(localizations.translate('edit')), 
               ),
             ],
           ),
@@ -55,20 +57,20 @@ class ProfilePage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Email'),
+              Text(localizations.translate('email')), 
               const SizedBox(width: 10),
               ElevatedButton(
                 onPressed: () {
                   // Add button functionality here
                 },
-                child: const Text('Edit'),
+                child: Text(localizations.translate('edit')), 
               ),
               const SizedBox(width: 10),
               ElevatedButton(
                 onPressed: () {
                   // Add button functionality here
                 },
-                child: const Text('Verify'),
+                child: Text(localizations.translate('verify')), 
               ),
             ],
           ),
@@ -76,25 +78,24 @@ class ProfilePage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Phone number'),
+              Text(localizations.translate('phone_number')), 
               const SizedBox(width: 10),
               ElevatedButton(
                 onPressed: () {
                   // Add button functionality here
                 },
-                child: const Text('Edit'),
+                child: Text(localizations.translate('edit')), 
               ),
               const SizedBox(width: 10),
               ElevatedButton(
                 onPressed: () {
                   // Add button functionality here
                 },
-                child: const Text('Verify'),
+                child: Text(localizations.translate('verify')), 
               ),
             ],
           ),
           const Spacer(flex: 4),
-
         ],
       ),
     );

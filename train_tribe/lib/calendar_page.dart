@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'l10n/app_localizations.dart';
 
 class CalendarEvent {
   DateTime date;
@@ -63,6 +64,7 @@ class _CalendarPageState extends State<CalendarPage> {
   // Show the dialog to add a new event.
   // If [endIndex] is provided, it is used to calculate the duration.
   void _showAddEventDialog(DateTime day, int startIndex, [int? endIndex]) {
+    final localizations = AppLocalizations.of(context); 
     String eventTitle = '';
     // Start index must be in range [0, hours.length - 1]
     int safeStart = startIndex.clamp(0, hours.length - 1);
@@ -80,13 +82,13 @@ class _CalendarPageState extends State<CalendarPage> {
         return StatefulBuilder(builder: (context, setStateDialog) {
           return AlertDialog(
             title: Text(
-              'New Event: ${DateFormat('EEE, MMM d').format(day)} at $startHour:00',
+              '${localizations.translate('new_event')}: ${DateFormat('EEE, MMM d', localizations.languageCode()).format(day)} ${localizations.translate('at')} $startHour:00',
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  decoration: const InputDecoration(hintText: 'Event Title'),
+                  decoration: InputDecoration(hintText: localizations.translate('event_title')),
                   onChanged: (value) {
                     eventTitle = value;
                   },
@@ -94,13 +96,13 @@ class _CalendarPageState extends State<CalendarPage> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Text('Duration: '),
+                    Text('${localizations.translate('duration')}: '),
                     DropdownButton<int>(
                       value: selectedDuration,
                       items: [1, 2, 3, 4, 5, 6]
                           .map((d) => DropdownMenuItem(
                                 value: d,
-                                child: Text('$d h'),
+                                child: Text('$d ${localizations.translate('hours')}'),
                               ))
                           .toList(),
                       onChanged: (value) {
@@ -130,11 +132,11 @@ class _CalendarPageState extends State<CalendarPage> {
                   }
                   Navigator.pop(context);
                 },
-                child: const Text('Save'),
+                child: Text(localizations.translate('save')),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text(localizations.translate('cancel')),
               ),
             ],
           );
@@ -145,6 +147,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
   // Show the dialog to edit an existing event.
   void _showEditEventDialog(CalendarEvent event) {
+    final localizations = AppLocalizations.of(context); 
     String eventTitle = event.title;
     int duration = event.duration;
     TextEditingController controller = TextEditingController(text: event.title);
@@ -153,14 +156,14 @@ class _CalendarPageState extends State<CalendarPage> {
       builder: (context) {
         return AlertDialog(
           title: Text(
-            'Edit Event: ${DateFormat('EEE, MMM d').format(event.date)} at ${event.hour}:00',
+            '${localizations.translate('edit_event')}: ${DateFormat('EEE, MMM d', localizations.languageCode()).format(event.date)} ${localizations.translate('at')} ${event.hour}:00',
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: controller,
-                decoration: const InputDecoration(hintText: 'Event Title'),
+                decoration: InputDecoration(hintText: localizations.translate('event_title')),
                 onChanged: (value) {
                   eventTitle = value;
                 },
@@ -168,13 +171,13 @@ class _CalendarPageState extends State<CalendarPage> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  const Text('Duration: '),
+                  Text('${localizations.translate('duration')}: '),
                   DropdownButton<int>(
                     value: duration,
                     items: [1, 2, 3, 4, 5, 6]
                         .map((d) => DropdownMenuItem(
                               value: d,
-                              child: Text('$d h'),
+                              child: Text('$d ${localizations.translate('hours')}'),
                             ))
                         .toList(),
                     onChanged: (value) {
@@ -198,11 +201,11 @@ class _CalendarPageState extends State<CalendarPage> {
                 });
                 Navigator.pop(context);
               },
-              child: const Text('Save'),
+              child: Text(localizations.translate('save')),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(localizations.translate('cancel')),
             ),
           ],
         );
@@ -351,8 +354,9 @@ class _CalendarPageState extends State<CalendarPage> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context); 
     return Scaffold(
-      appBar: AppBar(title: const Text('Calendar')),
+      appBar: AppBar(title: Text(localizations.translate('calendar'))),
       body: Column(
         children: [
           // Header: empty time column + day headers
@@ -369,7 +373,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       color: Colors.blue[200],
                     ),
                     child: Text(
-                      DateFormat('EEE\nd MMM').format(day),
+                      DateFormat('EEE\nd MMM', localizations.languageCode()).format(day),
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
