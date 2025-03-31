@@ -12,6 +12,7 @@ class ProfilePage extends StatelessWidget {
     return Center(
       child: Column(
         children: [
+          const Spacer(flex: 1),
           Align(
             alignment: Alignment.topRight,
             child: IconButton(

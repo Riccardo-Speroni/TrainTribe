@@ -1,10 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 import 'package:train_tribe/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'l10n/app_localizations.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
+
+  Future<void> _saveLanguagePreference(Locale locale) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('language_code', locale.languageCode);
+    appLocale.value = locale;
+  }
+
+  Future<void> _saveThemePreference(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('theme_mode', index);
+    appTheme.value = index == 0 ? ThemeMode.light : (index == 1 ? ThemeMode.dark : ThemeMode.system);
+  }
+
+  Future<int?> _getThemePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final int? theme_mode = prefs.getInt('theme_mode');
+    return theme_mode;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,8 +62,8 @@ class SettingsPage extends StatelessWidget {
               value: Locale(localizations.languageCode()), // Get the current locale
               onChanged: (Locale? newLocale) {
                 if (newLocale != null) {
-                  appLocale.value = newLocale; // Update the app's locale
-                }
+                  _saveLanguagePreference(newLocale); // Save the selected language
+                } 
               },
               items: [
                 DropdownMenuItem(
@@ -76,15 +95,24 @@ class SettingsPage extends StatelessWidget {
             ),
             const Spacer(flex: 1),
             Text(localizations.translate('theme')), 
-            ToggleSwitch(
-              totalSwitches: 3,
-              labels: [
-                localizations.translate('light'),
-                localizations.translate('dark'),
-                localizations.translate('system'),
-              ],
-              onToggle: (index) {
-                print('switched to: $index');
+            FutureBuilder<int?>(
+              future: _getThemePreference(),
+              builder: (context, theme) {
+                final initialIndex = theme.data ?? 2; // Default to 'system' theme
+                return ToggleSwitch(
+                  initialLabelIndex: initialIndex,
+                  totalSwitches: 3,
+                  labels: [
+                    localizations.translate('light'),
+                    localizations.translate('dark'),
+                    localizations.translate('system'),
+                  ],
+                  onToggle: (index) {
+                    if (index != null) {
+                      _saveThemePreference(index);
+                    }
+                  },
+                );
               },
             ),
             const Spacer(flex: 3),

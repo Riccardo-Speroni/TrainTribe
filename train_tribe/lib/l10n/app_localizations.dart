@@ -71,6 +71,18 @@ class AppLocalizations {
       'light': 'Light',
       'dark': 'Dark',
       'system': 'System',
+      //
+      'onboarding_title_1': 'Welcome to TrainTribe',
+      'onboarding_desc_1': 'Your ultimate app for managing your training sessions.',
+      'onboarding_title_2': 'Track Your Progress',
+      'onboarding_desc_2': 'Monitor your training and stay motivated.',
+      'onboarding_title_3': 'Connect with Friends',
+      'onboarding_desc_3': 'Share your progress and train together.',
+      'onboarding_title_4': 'Achieve Your Goals',
+      'onboarding_desc_4': 'Stay consistent and reach your fitness milestones.',
+      //TODO: write meaningful onboarding strings 
+      'skip': 'Skip',
+      'finish': 'Finish',
     },
     'it': {
       'settings': 'Impostazioni',
@@ -130,6 +142,18 @@ class AppLocalizations {
       'light': 'Chiaro',
       'dark': 'Scuro',
       'system': 'Sistema',
+      //
+      'onboarding_title_1': 'Benvenuto in TrainTribe',
+      'onboarding_desc_1': 'La tua app definitiva per gestire le tue sessioni di allenamento.',
+      'onboarding_title_2': 'Monitora i tuoi progressi',
+      'onboarding_desc_2': 'Tieni traccia dei tuoi allenamenti e rimani motivato.',
+      'onboarding_title_3': 'Connettiti con gli amici',
+      'onboarding_desc_3': 'Condividi i tuoi progressi e allenati insieme.',
+      'onboarding_title_4': 'Raggiungi i tuoi obiettivi',
+      'onboarding_desc_4': 'Rimani costante e raggiungi i tuoi traguardi di fitness.',
+      // TODO: write meaningful onboarding strings
+      'skip': 'Salta',
+      'finish': 'Fine',
     },
   };
 
