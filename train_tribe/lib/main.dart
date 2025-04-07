@@ -5,7 +5,6 @@ import 'friends_page.dart';
 import 'trains_page.dart';
 import 'calendar_page.dart';
 import 'profile_page.dart';
-import 'settings_page.dart';
 import 'login_page.dart';
 import 'signup_page.dart';
 import 'onboarding_page.dart';
