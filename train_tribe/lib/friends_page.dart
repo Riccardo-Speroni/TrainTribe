@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'l10n/app_localizations.dart';
+import 'widgets/responsive_card_list.dart'; // Importa il widget ResponsiveCardList
+import 'widgets/friend_card.dart'; // Importa il widget FriendCard
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -102,17 +104,28 @@ class _FriendsPageState extends State<FriendsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context); 
+    final localizations = AppLocalizations.of(context);
+
+    // Genera le card degli amici
+    final friendCards = _filteredFriends.map((friend) {
+      return FriendCard(
+        friend: friend,
+        isVisible: _visibilityMap[friend]!,
+        onToggleVisibility: () => _toggleVisibility(friend),
+        onTap: () => _showFriendDialog(context, friend),
+      );
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(localizations.translate('friends')), 
+        title: Text(localizations.translate('friends')),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: SearchBar(
               leading: const Icon(Icons.search),
-              hintText: localizations.translate('add_or_search_friends'), 
+              hintText: localizations.translate('add_or_search_friends'),
               onChanged: _filterFriends,
             ),
           ),
@@ -121,51 +134,10 @@ class _FriendsPageState extends State<FriendsPage> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: _filteredFriends.isNotEmpty
-            ? ListView.builder(
-                itemCount: _filteredFriends.length,
-                itemBuilder: (context, index) {
-                  String friend = _filteredFriends[index];
-                  return FriendCard(
-                    friend: friend,
-                    isVisible: _visibilityMap[friend]!,
-                    onToggleVisibility: () => _toggleVisibility(friend),
-                    onTap: () => _showFriendDialog(context, friend),
-                  );
-                },
+            ? ResponsiveCardList(
+                cards: friendCards,
               )
             : const Center(child: Text('No friends found')),
-      ),
-    );
-  }
-}
-
-class FriendCard extends StatelessWidget {
-  final String friend;
-  final bool isVisible;
-  final VoidCallback onToggleVisibility;
-  final VoidCallback onTap;
-
-  const FriendCard({
-    super.key,
-    required this.friend,
-    required this.isVisible,
-    required this.onToggleVisibility,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: Image.asset('images/djungelskog.jpg', height: 40, width: 40),
-        title: Text(friend),
-        trailing: TextButton.icon(
-          style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 8)),
-          onPressed: onToggleVisibility,
-          icon: Icon(isVisible ? MdiIcons.eye : MdiIcons.ghost, color: Colors.blue),
-          label: const Text(""),
-        ),
-        onTap: onTap,
       ),
     );
   }
