@@ -12,10 +12,17 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_size/window_size.dart'; // Importa il pacchetto
+import 'dart:io';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
+
+  // Imposta la dimensione minima della finestra solo su piattaforme desktop
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    setWindowMinSize(const Size(400, 600)); // Dimensione minima: 400x600
+  }
 
   final String? languageCode = prefs.getString('language_code');
   appLocale.value = languageCode != null
@@ -37,7 +44,6 @@ ValueNotifier<bool> isLoggedIn = ValueNotifier(false);
 ValueNotifier<Locale> appLocale = ValueNotifier(PlatformDispatcher.instance.locale);
 ValueNotifier<ThemeMode> appTheme = ValueNotifier(ThemeMode.system);
 
-
 class MyApp extends StatefulWidget {
   MyApp({super.key});
 
@@ -46,7 +52,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-
   final GoRouter _router = GoRouter(
     refreshListenable: isLoggedIn, // Listen for login state changes
     redirect: (context, state) async {
@@ -74,45 +79,45 @@ class _MyAppState extends State<MyApp> {
     ],
   );
 
-    @override
-    Widget build(BuildContext context) {
-      return ValueListenableBuilder<Locale>(
-        valueListenable: appLocale,
-        builder: (context, locale, child) {
-          return ValueListenableBuilder<ThemeMode>(
-            valueListenable: appTheme,
-            builder: (context, themeMode, child) {
-              return MaterialApp.router(
-                routerConfig: _router, // Use GoRouter for navigation
-                debugShowCheckedModeBanner: false,
-                theme: ThemeData.light().copyWith(
-                  colorScheme: ThemeData.light().colorScheme.copyWith(
-                    primary: Colors.green,
-                  ),
-                ), // Light theme
-                darkTheme: ThemeData.dark().copyWith(
-                  colorScheme: ThemeData.dark().colorScheme.copyWith(
-                    primary: Colors.green,
-                  ),
-                ), // Dark theme
-                themeMode: themeMode, // Use appTheme for theme mode
-                locale: locale, // Set the current locale
-                localizationsDelegates: const [
-                  AppLocalizations.delegate, // Custom localization delegate
-                  GlobalMaterialLocalizations.delegate,
-                  GlobalWidgetsLocalizations.delegate,
-                  GlobalCupertinoLocalizations.delegate,
-                ],
-                supportedLocales: const [
-                  Locale('en'), // English
-                  Locale('it'), // Italian
-                ],
-              );
-            },
-          );
-        },
-      );
-    }
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Locale>(
+      valueListenable: appLocale,
+      builder: (context, locale, child) {
+        return ValueListenableBuilder<ThemeMode>(
+          valueListenable: appTheme,
+          builder: (context, themeMode, child) {
+            return MaterialApp.router(
+              routerConfig: _router, // Use GoRouter for navigation
+              debugShowCheckedModeBanner: false,
+              theme: ThemeData.light().copyWith(
+                colorScheme: ThemeData.light().colorScheme.copyWith(
+                  primary: Colors.green,
+                ),
+              ), // Light theme
+              darkTheme: ThemeData.dark().copyWith(
+                colorScheme: ThemeData.dark().colorScheme.copyWith(
+                  primary: Colors.green,
+                ),
+              ), // Dark theme
+              themeMode: themeMode, // Use appTheme for theme mode
+              locale: locale, // Set the current locale
+              localizationsDelegates: const [
+                AppLocalizations.delegate, // Custom localization delegate
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: const [
+                Locale('en'), // English
+                Locale('it'), // Italian
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
 bool checkUserLoginStatus() {
@@ -152,7 +157,10 @@ class _RootPageState extends State<RootPage> {
   Widget build(BuildContext context) {
     final titles = pageTitles(context);
     return Scaffold(
-      body: pages[currentPage],
+      body: Padding(
+        padding: const EdgeInsets.all(16.0), // Add padding to the page
+        child: pages[currentPage],
+      ),
       bottomNavigationBar: NavigationBar(
         destinations: [
           NavigationDestination(icon: const Icon(Icons.home), label: titles[0]),
