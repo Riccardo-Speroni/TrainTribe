@@ -57,7 +57,7 @@ class SettingsPage extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(localizations.translate('language')), 
               ],
-            ),
+            ),const Spacer(flex: 1),
             DropdownButton<Locale>(
               value: Locale(localizations.languageCode()), // Get the current locale
               onChanged: (Locale? newLocale) {
