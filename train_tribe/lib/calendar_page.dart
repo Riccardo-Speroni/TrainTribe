@@ -279,7 +279,7 @@ class _CalendarPageState extends State<CalendarPage> {
       _dragStartIndex = cellIndex.clamp(0, hours.length - 1); // Assicurarsi che l'indice sia valido
       _dragEndIndex = _dragStartIndex; // Inizialmente uguale all'indice di partenza
       _dragStartDay = day;
-      _draggedEvent = null; // Nessun evento trascinato per la creazione di un nuovo evento
+      _draggedEvent = _getEventForCell(day, hours[cellIndex]); // Imposta l'evento trascinato
     });
   }
 
@@ -289,22 +289,34 @@ class _CalendarPageState extends State<CalendarPage> {
         RenderBox box = context.findRenderObject() as RenderBox;
         Offset localPosition = box.globalToLocal(details.globalPosition);
 
-        // Calcolo del nuovo indice basato sulla posizione del trascinamento
-        double dragOffset = localPosition.dy - (_dragStartIndex! * cellHeight); // Offset relativo al punto di partenza
-        int deltaIndex = (dragOffset / cellHeight).round(); // Calcola lo spostamento in celle
-        int newIndex = (_dragStartIndex! + deltaIndex).clamp(0, hours.length - 1); // Limita l'indice
+        // Calcolo dell'indice relativo al trascinamento
+        double dragOffset = localPosition.dy - (_dragStartIndex! * cellHeight); // Offset relativo alla cella iniziale
+        int deltaIndex = (dragOffset / cellHeight).floor(); // Calcola lo spostamento in celle
+
+        int newIndex;
+        if (deltaIndex > 0) {
+          // Caso di trascinamento verso il basso
+          newIndex = (_dragStartIndex! + deltaIndex).clamp(0, hours.length - 1);
+        } else {
+          // Caso di trascinamento verso l'alto
+          newIndex = (_dragStartIndex! + deltaIndex).clamp(0, hours.length - 1);
+        }
+
+        if (_draggedEvent != null) {
+          // Calcola l'indice massimo consentito per l'evento trascinato
+          int maxIndex = hours.length - _draggedEvent!.duration;
+          newIndex = newIndex.clamp(0, maxIndex); // Limita l'indice finale
+
+          // Aggiorna l'ora dell'evento trascinato in tempo reale
+          int newStartHour = hours[newIndex];
+          if (_getAvailableDurations(_dragStartDay!, newStartHour, _draggedEvent)
+              .contains(_draggedEvent!.duration)) {
+            _draggedEvent!.hour = newStartHour;
+          }
+        }
 
         if (newIndex != _dragEndIndex) { // Aggiorna solo se l'indice è cambiato
           _dragEndIndex = newIndex;
-
-          if (_draggedEvent != null) {
-            // Aggiorna l'ora dell'evento trascinato in tempo reale
-            int newStartHour = hours[_dragEndIndex!];
-            if (_getAvailableDurations(_dragStartDay!, newStartHour, _draggedEvent)
-                .contains(_draggedEvent!.duration)) {
-              _draggedEvent!.hour = newStartHour;
-            }
-          }
         }
       });
     }
