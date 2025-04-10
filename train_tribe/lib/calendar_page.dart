@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
@@ -32,6 +31,7 @@ class _CalendarPageState extends State<CalendarPage> {
   int? _dragStartIndex; // Index of the cell where the drag started
   int? _dragEndIndex; // Index of the cell where the drag ended
   DateTime? _dragStartDay; // Day of the cell where the drag started
+  CalendarEvent? _draggedEvent; // Event being dragged
 
   // Compute the week days starting from a given day
   List<DateTime> _getDays(DateTime startDay, int count) {
@@ -154,7 +154,15 @@ class _CalendarPageState extends State<CalendarPage> {
                 child: Text(localizations.translate('save')),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  // Reset drag state when the user cancels
+                  setState(() {
+                    _dragStartIndex = null;
+                    _dragEndIndex = null;
+                    _dragStartDay = null;
+                  });
+                  Navigator.pop(context);
+                },
                 child: Text(localizations.translate('cancel')),
               ),
             ],
@@ -266,22 +274,178 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
+  void _handleLongPressStart(int cellIndex, DateTime day) {
+    setState(() {
+      _dragStartIndex = cellIndex.clamp(0, hours.length - 1); // Assicurarsi che l'indice sia valido
+      _dragEndIndex = _dragStartIndex; // Inizialmente uguale all'indice di partenza
+      _dragStartDay = day;
+      _draggedEvent = null; // Nessun evento trascinato per la creazione di un nuovo evento
+    });
+  }
+
+  void _handleLongPressMoveUpdate(LongPressMoveUpdateDetails details, BuildContext context) {
+    if (_dragStartIndex != null && _dragStartDay != null) {
+      setState(() {
+        RenderBox box = context.findRenderObject() as RenderBox;
+        Offset localPosition = box.globalToLocal(details.globalPosition);
+
+        // Calcolo del nuovo indice basato sulla posizione del trascinamento
+        double dragOffset = localPosition.dy - (_dragStartIndex! * cellHeight); // Offset relativo al punto di partenza
+        int deltaIndex = (dragOffset / cellHeight).round(); // Calcola lo spostamento in celle
+        int newIndex = (_dragStartIndex! + deltaIndex).clamp(0, hours.length - 1); // Limita l'indice
+
+        if (newIndex != _dragEndIndex) { // Aggiorna solo se l'indice è cambiato
+          _dragEndIndex = newIndex;
+
+          if (_draggedEvent != null) {
+            // Aggiorna l'ora dell'evento trascinato in tempo reale
+            int newStartHour = hours[_dragEndIndex!];
+            if (_getAvailableDurations(_dragStartDay!, newStartHour, _draggedEvent)
+                .contains(_draggedEvent!.duration)) {
+              _draggedEvent!.hour = newStartHour;
+            }
+          }
+        }
+      });
+    }
+  }
+
+  void _handleLongPressEnd(DateTime day) {
+    if (_dragStartIndex != null && _dragEndIndex != null) {
+      if (_draggedEvent != null) {
+        // Gestione del movimento di un evento esistente
+        _handleDragEventMove(day);
+      } else {
+        // Gestione della creazione di un nuovo evento
+        _handleDragEventCreation(day);
+      }
+    }
+    // Resetta lo stato del trascinamento
+    _draggedEvent = null;
+    _dragStartIndex = null;
+    _dragEndIndex = null;
+    _dragStartDay = null;
+  }
+
   // This method handles the creation of an event after a drag gesture
   void _handleDragEventCreation(DateTime day) {
     if (_dragStartIndex != null && _dragEndIndex != null) {
       int startIndex = _dragStartIndex!.clamp(0, hours.length - 1);
       int endIndex = _dragEndIndex!.clamp(0, hours.length - 1);
+
+      // Assicurarsi che l'indice iniziale sia sempre minore o uguale a quello finale
+      if (startIndex > endIndex) {
+        int temp = startIndex;
+        startIndex = endIndex;
+        endIndex = temp;
+      }
+
       int startHour = hours[startIndex];
       int duration = (endIndex - startIndex + 1).abs();
 
-      List<int> availableDurations = _getAvailableDurations(day, startHour);
-      if (availableDurations.contains(duration)) {
-        _showAddEventDialog(day, startIndex, endIndex);
+      // Calcolare la durata massima disponibile considerando gli eventi esistenti
+      for (int i = startIndex; i <= endIndex; i++) {
+        CalendarEvent? overlappingEvent = _getEventForCell(day, hours[i]);
+        if (overlappingEvent != null) {
+          // Ridurre la durata fino alla prima cella occupata
+          duration = i - startIndex;
+          break;
+        }
+      }
+
+      // Se la durata è valida (almeno 1 ora), mostrare il dialogo per creare l'evento
+      if (duration > 0) {
+        _showAddEventDialog(day, startIndex, startIndex + duration - 1);
+      }
+
+      // Resettare gli indici di trascinamento
+      _dragStartIndex = null;
+      _dragEndIndex = null;
+    }
+  }
+
+  // This method handles the movement of an existing event after a drag gesture
+  void _handleDragEventMove(DateTime day) {
+    if (_draggedEvent != null && _dragStartIndex != null && _dragEndIndex != null) {
+      int newStartIndex = _dragEndIndex!.clamp(0, hours.length - 1);
+      int newStartHour = hours[newStartIndex];
+
+      // Check if the new time slot is available
+      bool canMove = _getAvailableDurations(day, newStartHour, _draggedEvent)
+          .contains(_draggedEvent!.duration);
+
+      if (canMove) {
+        setState(() {
+          _draggedEvent!.hour = newStartHour; // Update the event's start hour
+        });
       }
     }
+    _draggedEvent = null;
     _dragStartIndex = null;
     _dragEndIndex = null;
-    _dragStartDay = null; // Reset the drag start day
+  }
+
+  Widget _buildEventCell(CalendarEvent event, int index, DateTime day) {
+    bool isBeingDragged = _draggedEvent == event;
+    return GestureDetector(
+      onTap: () => _showEditEventDialog(event),
+      onLongPressStart: (_) => setState(() {
+        _draggedEvent = event;
+        _dragStartIndex = index;
+        _dragEndIndex = index;
+        _dragStartDay = day;
+      }),
+      onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(details, context),
+      onLongPressEnd: (_) => _handleDragEventMove(day),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 50), // Smooth animation
+        height: cellHeight * event.duration, // Fixed height based on duration
+        margin: const EdgeInsets.only(bottom: 1),
+        decoration: BoxDecoration(
+          color: isBeingDragged ? Colors.blueAccent.withOpacity(0.7) : Colors.lightBlueAccent,
+          borderRadius: BorderRadius.circular(8.0),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.5),
+              spreadRadius: 2,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          event.title,
+          style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyCell(int cellIndex, DateTime day) {
+    bool isHighlighted = _dragStartIndex != null &&
+        _dragEndIndex != null &&
+        _dragStartDay != null &&
+        _isSameDay(_dragStartDay!, day) &&
+        _draggedEvent == null && // Ensure no event is being dragged
+        cellIndex >= _dragStartIndex! &&
+        cellIndex <= _dragEndIndex!;
+
+    return GestureDetector(
+      onTap: () => _showAddEventDialog(day, cellIndex),
+      onLongPressStart: (_) => _handleLongPressStart(cellIndex, day),
+      onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(details, context),
+      onLongPressEnd: (_) => _handleLongPressEnd(day),
+      child: Container(
+        height: cellHeight,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(4.0),
+          color: isHighlighted ? Colors.blue.withOpacity(0.7) : Colors.transparent,
+        ),
+      ),
+    );
   }
 
   // This method builds the time column (on the left)
@@ -334,81 +498,10 @@ class _CalendarPageState extends State<CalendarPage> {
       CalendarEvent? event = _getEventForCell(day, currentHour);
 
       if (event != null) {
-        // Existing event: allow tap to edit
-        cells.add(
-          GestureDetector(
-            onTap: () {
-              _showEditEventDialog(event); // Show popup to edit the event
-            },
-            child: Container(
-              height: cellHeight * event.duration,
-              margin: const EdgeInsets.only(bottom: 1),
-              decoration: BoxDecoration(
-                color: Colors.lightBlueAccent,
-                borderRadius: BorderRadius.circular(8.0),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.5),
-                    spreadRadius: 2,
-                    blurRadius: 5,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                event.title,
-                style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        );
+        cells.add(_buildEventCell(event, index, day));
         index += event.duration;
       } else {
-        // Empty cell: allow tap to add a new event or long press to drag
-        final int cellIndex = index;
-        cells.add(
-          GestureDetector(
-            onTap: () {
-              _showAddEventDialog(day, cellIndex); // Show popup to add an event
-            },
-            onLongPressStart: (_) {
-              setState(() {
-                _dragStartIndex = cellIndex;
-                _dragEndIndex = cellIndex;
-                _dragStartDay = day; // Track the day where the drag started
-              });
-            },
-            onLongPressMoveUpdate: (details) {
-              setState(() {
-                RenderBox box = context.findRenderObject() as RenderBox;
-                Offset localPosition = box.globalToLocal(details.globalPosition);
-                int newIndex = (localPosition.dy / cellHeight).floor();
-                _dragEndIndex = newIndex.clamp(0, hours.length - 1);
-              });
-            },
-            onLongPressEnd: (_) {
-              _handleDragEventCreation(day);
-              _dragStartDay = null; // Reset the drag start day
-            },
-            child: Container(
-              height: cellHeight,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[300]!),
-                borderRadius: BorderRadius.circular(4.0),
-                color: (_dragStartIndex != null &&
-                        _dragEndIndex != null &&
-                        _dragStartDay != null &&
-                        _isSameDay(_dragStartDay!, day) &&
-                        cellIndex >= _dragStartIndex! &&
-                        cellIndex <= _dragEndIndex!)
-                    ? Colors.blue.withOpacity(0.7) // Improved highlight visibility
-                    : Colors.transparent,
-              ),
-            ),
-          ),
-        );
+        cells.add(_buildEmptyCell(index, day));
         index++;
       }
     }
