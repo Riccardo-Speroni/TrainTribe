@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
@@ -25,25 +24,18 @@ class CalendarPage extends StatefulWidget {
 }
 
 class _CalendarPageState extends State<CalendarPage> {
-  final double cellHeight = 60.0; //Slot Height
-  late final List<int> hours =
-      List.generate(19, (index) => index + 6); // Hours from 6.00 to 24.00
-  late final List<DateTime> weekDays =
-      _getCurrentWeekDays(); // Current week days (from Monday to Sunday)
-
+  final double cellHeight = 60.0; // Slot Height
+  late final List<int> hours = List.generate(19, (index) => index + 6); // Hours from 6.00 to 24.00
   final List<CalendarEvent> events = []; // List of created events
 
-  // Variables for selection via long press
-  DateTime? _draggingDay;
-  int? _dragStartIndex;
-  int? _dragCurrentIndex;
+  int? _dragStartIndex; // Index of the cell where the drag started
+  int? _dragEndIndex; // Index of the cell where the drag ended
+  DateTime? _dragStartDay; // Day of the cell where the drag started
+  CalendarEvent? _draggedEvent; // Event being dragged
 
-  // Computation of the current week days based on today.
-  List<DateTime> _getCurrentWeekDays() {
-    DateTime now = DateTime.now();
-    int weekday = now.weekday; // 1 = Monday, 7 = Sunday
-    DateTime monday = now.subtract(Duration(days: weekday - 1));
-    return List.generate(7, (index) => monday.add(Duration(days: index)));
+  // Compute the week days starting from a given day
+  List<DateTime> _getDays(DateTime startDay, int count) {
+    return List.generate(count, (index) => startDay.add(Duration(days: index)));
   }
 
   // Returns the event that starts in the slot for the specified day and time, if it exists.
@@ -61,20 +53,38 @@ class _CalendarPageState extends State<CalendarPage> {
     return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
   }
 
-  // Show the dialog to add a new event.
-  // If [endIndex] is provided, it is used to calculate the duration.
+  // Calculate available durations for a new or modified event
+  List<int> _getAvailableDurations(DateTime day, int startHour, [CalendarEvent? excludeEvent]) {
+    List<int> availableDurations = [];
+    for (int duration = 1; duration <= 6; duration++) {
+      bool overlaps = events.any((event) {
+        if (event == excludeEvent) return false; // Exclude the event being edited
+        if (_isSameDay(event.date, day)) {
+          int eventStart = event.hour;
+          int eventEnd = event.hour + event.duration;
+          int newEventStart = startHour;
+          int newEventEnd = startHour + duration;
+          return (newEventStart < eventEnd && newEventEnd > eventStart);
+        }
+        return false;
+      });
+      if (!overlaps) {
+        availableDurations.add(duration);
+      }
+    }
+    return availableDurations;
+  }
+
+  // Show the dialog to add a new event
   void _showAddEventDialog(DateTime day, int startIndex, [int? endIndex]) {
-    final localizations = AppLocalizations.of(context); 
+    final localizations = AppLocalizations.of(context);
     String eventTitle = '';
-    // Start index must be in range [0, hours.length - 1]
+    bool isSaving = false; // Loading indicator
     int safeStart = startIndex.clamp(0, hours.length - 1);
-    // Compute the duration based on the indices: if endIndex is null, the duration is 1.
-    int duration = (endIndex != null
-        ? (max(startIndex, endIndex) - min(startIndex, endIndex) + 1).toInt()
-        : 1);
-    int selectedDuration = duration;
-    // Get the start hour from the list, using the safe index.
     int startHour = hours[safeStart];
+    int duration = endIndex != null ? (endIndex - startIndex + 1).abs() : 1;
+    List<int> availableDurations = _getAvailableDurations(day, startHour);
+    int selectedDuration = availableDurations.contains(duration) ? duration : (availableDurations.isNotEmpty ? availableDurations.first : 1);
 
     showDialog(
       context: context,
@@ -99,7 +109,7 @@ class _CalendarPageState extends State<CalendarPage> {
                     Text('${localizations.translate('duration')}: '),
                     DropdownButton<int>(
                       value: selectedDuration,
-                      items: [1, 2, 3, 4, 5, 6]
+                      items: availableDurations
                           .map((d) => DropdownMenuItem(
                                 value: d,
                                 child: Text('$d ${localizations.translate('hours')}'),
@@ -115,24 +125,143 @@ class _CalendarPageState extends State<CalendarPage> {
                     ),
                   ],
                 ),
+                if (isSaving) const CircularProgressIndicator(), // Loading indicator
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  if (eventTitle.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(localizations.translate('error_empty_title'))),
+                    );
+                    return;
+                  }
+                  setStateDialog(() {
+                    isSaving = true;
+                  });
+                  await Future.delayed(const Duration(seconds: 1)); // Simulate saving delay
+                  setState(() {
+                    events.add(CalendarEvent(
+                      date: day,
+                      hour: startHour,
+                      duration: selectedDuration,
+                      title: eventTitle,
+                    ));
+                  });
+                  Navigator.pop(context);
+                },
+                child: Text(localizations.translate('save')),
+              ),
+              TextButton(
+                onPressed: () {
+                  // Reset drag state when the user cancels
+                  setState(() {
+                    _dragStartIndex = null;
+                    _dragEndIndex = null;
+                    _dragStartDay = null;
+                  });
+                  Navigator.pop(context);
+                },
+                child: Text(localizations.translate('cancel')),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  // Show the dialog to edit an existing event
+  void _showEditEventDialog(CalendarEvent event) {
+    final localizations = AppLocalizations.of(context);
+    String eventTitle = event.title;
+    int duration = event.duration;
+    TextEditingController controller = TextEditingController(text: event.title);
+    List<int> availableDurations = _getAvailableDurations(event.date, event.hour, event);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: Text(
+              '${localizations.translate('edit_event')}: ${DateFormat('EEE, MMM d', localizations.languageCode()).format(event.date)} ${localizations.translate('at')} ${event.hour}:00',
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: controller,
+                  decoration: InputDecoration(hintText: localizations.translate('event_title')),
+                  onChanged: (value) {
+                    eventTitle = value;
+                  },
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Text('${localizations.translate('duration')}: '),
+                    DropdownButton<int>(
+                      value: duration,
+                      items: availableDurations
+                          .map((d) => DropdownMenuItem(
+                                value: d,
+                                child: Text('$d ${localizations.translate('hours')}'),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setStateDialog(() {
+                            duration = value;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () {
-                  if (eventTitle.isNotEmpty) {
-                    setState(() {
-                      events.add(CalendarEvent(
-                        date: day,
-                        hour: startHour,
-                        duration: selectedDuration,
-                        title: eventTitle,
-                      ));
-                    });
-                  }
+                  setState(() {
+                    event.title = eventTitle;
+                    event.duration = duration;
+                  });
                   Navigator.pop(context);
                 },
                 child: Text(localizations.translate('save')),
+              ),
+              TextButton(
+                onPressed: () async {
+                  bool confirmDelete = await showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: Text(localizations.translate('confirm_delete')),
+                        content: Text(localizations.translate('delete_event_confirmation')),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: Text(localizations.translate('yes')),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: Text(localizations.translate('no')),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                  if (confirmDelete) {
+                    setState(() {
+                      events.remove(event);
+                    });
+                    Navigator.pop(context);
+                  }
+                },
+                child: Text(localizations.translate('delete')),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -145,71 +274,189 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  // Show the dialog to edit an existing event.
-  void _showEditEventDialog(CalendarEvent event) {
-    final localizations = AppLocalizations.of(context); 
-    String eventTitle = event.title;
-    int duration = event.duration;
-    TextEditingController controller = TextEditingController(text: event.title);
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            '${localizations.translate('edit_event')}: ${DateFormat('EEE, MMM d', localizations.languageCode()).format(event.date)} ${localizations.translate('at')} ${event.hour}:00',
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: controller,
-                decoration: InputDecoration(hintText: localizations.translate('event_title')),
-                onChanged: (value) {
-                  eventTitle = value;
-                },
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text('${localizations.translate('duration')}: '),
-                  DropdownButton<int>(
-                    value: duration,
-                    items: [1, 2, 3, 4, 5, 6]
-                        .map((d) => DropdownMenuItem(
-                              value: d,
-                              child: Text('$d ${localizations.translate('hours')}'),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          duration = value;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  event.title = eventTitle;
-                  event.duration = duration;
-                });
-                Navigator.pop(context);
-              },
-              child: Text(localizations.translate('save')),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(localizations.translate('cancel')),
+  void _handleLongPressStart(int cellIndex, DateTime day) {
+    setState(() {
+      _dragStartIndex = cellIndex.clamp(0, hours.length - 1); // Assicurarsi che l'indice sia valido
+      _dragEndIndex = _dragStartIndex; // Inizialmente uguale all'indice di partenza
+      _dragStartDay = day;
+      _draggedEvent = _getEventForCell(day, hours[cellIndex]); // Imposta l'evento trascinato
+    });
+  }
+
+  void _handleLongPressMoveUpdate(LongPressMoveUpdateDetails details, BuildContext context) {
+    if (_dragStartIndex != null && _dragStartDay != null) {
+      setState(() {
+        RenderBox box = context.findRenderObject() as RenderBox;
+        Offset localPosition = box.globalToLocal(details.globalPosition);
+
+        // Calcolo dell'indice relativo al trascinamento
+        double dragOffset = localPosition.dy - (_dragStartIndex! * cellHeight); // Offset relativo alla cella iniziale
+        int deltaIndex = (dragOffset / cellHeight).floor(); // Calcola lo spostamento in celle
+
+        int newIndex;
+        if (deltaIndex > 0) {
+          // Caso di trascinamento verso il basso
+          newIndex = (_dragStartIndex! + deltaIndex).clamp(0, hours.length - 1);
+        } else {
+          // Caso di trascinamento verso l'alto
+          newIndex = (_dragStartIndex! + deltaIndex).clamp(0, hours.length - 1);
+        }
+
+        if (_draggedEvent != null) {
+          // Calcola l'indice massimo consentito per l'evento trascinato
+          int maxIndex = hours.length - _draggedEvent!.duration;
+          newIndex = newIndex.clamp(0, maxIndex); // Limita l'indice finale
+
+          // Aggiorna l'ora dell'evento trascinato in tempo reale
+          int newStartHour = hours[newIndex];
+          if (_getAvailableDurations(_dragStartDay!, newStartHour, _draggedEvent)
+              .contains(_draggedEvent!.duration)) {
+            _draggedEvent!.hour = newStartHour;
+          }
+        }
+
+        if (newIndex != _dragEndIndex) { // Aggiorna solo se l'indice è cambiato
+          _dragEndIndex = newIndex;
+        }
+      });
+    }
+  }
+
+  void _handleLongPressEnd(DateTime day) {
+    if (_dragStartIndex != null && _dragEndIndex != null) {
+      if (_draggedEvent != null) {
+        // Gestione del movimento di un evento esistente
+        _handleDragEventMove(day);
+      } else {
+        // Gestione della creazione di un nuovo evento
+        _handleDragEventCreation(day);
+      }
+    }
+    // Resetta lo stato del trascinamento
+    _draggedEvent = null;
+    _dragStartIndex = null;
+    _dragEndIndex = null;
+    _dragStartDay = null;
+  }
+
+  // This method handles the creation of an event after a drag gesture
+  void _handleDragEventCreation(DateTime day) {
+    if (_dragStartIndex != null && _dragEndIndex != null) {
+      int startIndex = _dragStartIndex!.clamp(0, hours.length - 1);
+      int endIndex = _dragEndIndex!.clamp(0, hours.length - 1);
+
+      // Assicurarsi che l'indice iniziale sia sempre minore o uguale a quello finale
+      if (startIndex > endIndex) {
+        int temp = startIndex;
+        startIndex = endIndex;
+        endIndex = temp;
+      }
+
+      int startHour = hours[startIndex];
+      int duration = (endIndex - startIndex + 1).abs();
+
+      // Calcolare la durata massima disponibile considerando gli eventi esistenti
+      for (int i = startIndex; i <= endIndex; i++) {
+        CalendarEvent? overlappingEvent = _getEventForCell(day, hours[i]);
+        if (overlappingEvent != null) {
+          // Ridurre la durata fino alla prima cella occupata
+          duration = i - startIndex;
+          break;
+        }
+      }
+
+      // Se la durata è valida (almeno 1 ora), mostrare il dialogo per creare l'evento
+      if (duration > 0) {
+        _showAddEventDialog(day, startIndex, startIndex + duration - 1);
+      }
+
+      // Resettare gli indici di trascinamento
+      _dragStartIndex = null;
+      _dragEndIndex = null;
+    }
+  }
+
+  // This method handles the movement of an existing event after a drag gesture
+  void _handleDragEventMove(DateTime day) {
+    if (_draggedEvent != null && _dragStartIndex != null && _dragEndIndex != null) {
+      int newStartIndex = _dragEndIndex!.clamp(0, hours.length - 1);
+      int newStartHour = hours[newStartIndex];
+
+      // Check if the new time slot is available
+      bool canMove = _getAvailableDurations(day, newStartHour, _draggedEvent)
+          .contains(_draggedEvent!.duration);
+
+      if (canMove) {
+        setState(() {
+          _draggedEvent!.hour = newStartHour; // Update the event's start hour
+        });
+      }
+    }
+    _draggedEvent = null;
+    _dragStartIndex = null;
+    _dragEndIndex = null;
+  }
+
+  Widget _buildEventCell(CalendarEvent event, int index, DateTime day) {
+    bool isBeingDragged = _draggedEvent == event;
+    return GestureDetector(
+      onTap: () => _showEditEventDialog(event),
+      onLongPressStart: (_) => setState(() {
+        _draggedEvent = event;
+        _dragStartIndex = index;
+        _dragEndIndex = index;
+        _dragStartDay = day;
+      }),
+      onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(details, context),
+      onLongPressEnd: (_) => _handleDragEventMove(day),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 50), // Smooth animation
+        height: cellHeight * event.duration, // Fixed height based on duration
+        margin: const EdgeInsets.only(bottom: 1),
+        decoration: BoxDecoration(
+          color: isBeingDragged ? Colors.blueAccent.withOpacity(0.7) : Colors.lightBlueAccent,
+          borderRadius: BorderRadius.circular(8.0),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.5),
+              spreadRadius: 2,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
             ),
           ],
-        );
-      },
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          event.title,
+          style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyCell(int cellIndex, DateTime day) {
+    bool isHighlighted = _dragStartIndex != null &&
+        _dragEndIndex != null &&
+        _dragStartDay != null &&
+        _isSameDay(_dragStartDay!, day) &&
+        _draggedEvent == null && // Ensure no event is being dragged
+        cellIndex >= _dragStartIndex! &&
+        cellIndex <= _dragEndIndex!;
+
+    return GestureDetector(
+      onTap: () => _showAddEventDialog(day, cellIndex),
+      onLongPressStart: (_) => _handleLongPressStart(cellIndex, day),
+      onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(details, context),
+      onLongPressEnd: (_) => _handleLongPressEnd(day),
+      child: Container(
+        height: cellHeight,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(4.0),
+          color: isHighlighted ? Colors.blue.withOpacity(0.7) : Colors.transparent,
+        ),
+      ),
     );
   }
 
@@ -217,16 +464,35 @@ class _CalendarPageState extends State<CalendarPage> {
   Widget _buildTimeColumn() {
     return Container(
       width: 60,
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(10.0),
+          bottomLeft: Radius.circular(10.0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.5),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
       child: Column(
         children: hours.map((hour) {
           String label = hour == 24 ? "00:00" : "$hour:00";
           return Container(
             height: cellHeight,
             alignment: Alignment.center,
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Colors.grey[300]!),
+              ),
+            ),
             child: Text(
               label,
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
           );
         }).toList(),
@@ -234,167 +500,102 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  // This method builds the column for a specific day.
+  // This method builds the column for a specific day with drag support
   Widget _buildDayColumn(DateTime day) {
-  List<Widget> cells = [];
-  int index = 0;
-  while (index < hours.length) {
-    int currentHour = hours[index];
-    CalendarEvent? event = _getEventForCell(day, currentHour);
-    if (event != null) {
-      cells.add(
-        GestureDetector(
-          onTap: () {
-            _showEditEventDialog(event);
-          },
-          child: Container(
-            height: cellHeight * event.duration,
-            margin: const EdgeInsets.only(bottom: 1),
-            decoration: BoxDecoration(
-              color: Colors.lightBlueAccent,
-              border: Border.all(color: Colors.grey),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              event.title,
-              style: const TextStyle(fontSize: 12, color: Colors.white),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      );
-      index += event.duration;
-    } else {
-      // Capture the current index in a local variable to avoid closure capture issues.
-      final int cellIndex = index;
-      cells.add(
-        GestureDetector(
-          onTap: () => _showAddEventDialog(day, cellIndex),
-          child: Container(
-            height: cellHeight,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey),
-            ),
-          ),
-        ),
-      );
-      index++;
-    }
-  }
+    List<Widget> cells = [];
+    int index = 0;
 
-  // Overlay to highlight selection in case of long press drag.
-  Widget overlay = Container();
-  if (_draggingDay != null &&
-      _isSameDay(_draggingDay!, day) &&
-      _dragStartIndex != null &&
-      _dragCurrentIndex != null) {
-    int start = min(_dragStartIndex!, _dragCurrentIndex!);
-    int end = max(_dragStartIndex!, _dragCurrentIndex!);
-    overlay = Positioned(
-      top: start * cellHeight,
-      left: 0,
-      right: 0,
-      height: (end - start + 1) * cellHeight,
-      child: Container(
-        color: Colors.blue.withOpacity(0.3),
+    while (index < hours.length) {
+      int currentHour = hours[index];
+      CalendarEvent? event = _getEventForCell(day, currentHour);
+
+      if (event != null) {
+        cells.add(_buildEventCell(event, index, day));
+        index += event.duration;
+      } else {
+        cells.add(_buildEmptyCell(index, day));
+        index++;
+      }
+    }
+
+    return Expanded(
+      child: Stack(
+        children: [
+          Column(children: cells),
+        ],
       ),
     );
   }
 
-  // Wrap the entire column in a GestureDetector to handle long press selection.
-  return Expanded(
-    child: GestureDetector(
-      // Use deferToChild so that child gesture detectors (onTap on cells) have priority.
-      behavior: HitTestBehavior.deferToChild,
-      onLongPressStart: (details) {
-        RenderBox box = context.findRenderObject() as RenderBox;
-        double localY = details.localPosition.dy;
-        int cellIndex = localY ~/ cellHeight;
-        setState(() {
-          _draggingDay = day;
-          _dragStartIndex = cellIndex.clamp(0, hours.length - 1);
-          _dragCurrentIndex = cellIndex.clamp(0, hours.length - 1);
-        });
-      },
-      onLongPressMoveUpdate: (details) {
-        RenderBox box = context.findRenderObject() as RenderBox;
-        double localY = details.localPosition.dy;
-        int cellIndex = localY ~/ cellHeight;
-        setState(() {
-          _dragCurrentIndex = cellIndex.clamp(0, hours.length - 1);
-        });
-      },
-      onLongPressEnd: (details) {
-        if (_draggingDay != null &&
-            _dragStartIndex != null &&
-            _dragCurrentIndex != null) {
-          int start = min(_dragStartIndex!, _dragCurrentIndex!);
-          int end = max(_dragStartIndex!, _dragCurrentIndex!);
-          if (end - start >= 0) {
-            _showAddEventDialog(day, start, end);
-          }
-        }
-        setState(() {
-          _draggingDay = null;
-          _dragStartIndex = null;
-          _dragCurrentIndex = null;
-        });
-      },
-      child: Stack(
-        children: [
-          Column(
-            children: cells,
-          ),
-          overlay,
-        ],
-      ),
-    ),
-  );
-}
-
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context); 
+    final localizations = AppLocalizations.of(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // Determine the number of days to display based on screen width
+    final int daysToShow = screenWidth > 600 ? 7 : 3; // 7 days for desktop, 3 days for mobile
+    final PageController pageController = PageController(initialPage: 0);
+
     return Scaffold(
-      appBar: AppBar(title: Text(localizations.translate('calendar'))),
-      body: Column(
-        children: [
-          // Header: empty time column + day headers
-          Row(
+      appBar: AppBar(
+        title: Text(localizations.translate('calendar')),
+        backgroundColor: Colors.blueAccent,
+      ),
+      body: PageView.builder(
+        controller: pageController,
+        onPageChanged: (pageIndex) {
+          // Optionally handle page index changes if needed
+        },
+        itemBuilder: (context, pageIndex) {
+          // Calculate the start day for the current page
+          final DateTime startDay = DateTime.now().add(Duration(days: pageIndex * daysToShow));
+          final List<DateTime> visibleDays = _getDays(startDay, daysToShow);
+
+          return Column(
             children: [
-              Container(width: 60, height: 40),
-              ...weekDays.map((day) {
-                return Expanded(
-                  child: Container(
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      color: Colors.blue[200],
-                    ),
-                    child: Text(
-                      DateFormat('EEE\nd MMM', localizations.languageCode()).format(day),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ],
-          ),
-          // Body: time column + days grid in vertical scroll
-          Expanded(
-            child: SingleChildScrollView(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // Header: empty time column + day headers
+              Row(
                 children: [
-                  _buildTimeColumn(),
-                  ...weekDays.map((day) => _buildDayColumn(day)).toList(),
+                  Container(width: 60, height: 40),
+                  ...visibleDays.map((day) {
+                    final String dayFormat = screenWidth > 600 ? 'EEEE, d MMM' : 'EEE, d MMM';
+                    final String formattedDay = toBeginningOfSentenceCase(
+                      DateFormat(dayFormat, localizations.languageCode()).format(day),
+                    )!;
+                    return Expanded(
+                      child: Container(
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          color: Colors.blue[100],
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        child: Text(
+                          formattedDay,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ],
               ),
-            ),
-          ),
-        ],
+              // Body: time column + days grid in vertical scroll
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTimeColumn(),
+                      ...visibleDays.map((day) => _buildDayColumn(day)).toList(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
