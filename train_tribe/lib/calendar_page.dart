@@ -28,7 +28,8 @@ class _CalendarPageState extends State<CalendarPage> {
   late final List<int> hours =
       List.generate(19, (index) => index + 6); // Hours from 6.00 to 24.00
   final List<CalendarEvent> events = []; // List of created events
-  final ScrollController _scrollController = ScrollController(); // Add ScrollController
+  final ScrollController _scrollController =
+      ScrollController(); // Add ScrollController
 
   int? _dragStartIndex; // Index of the cell where the drag started
   int? _dragEndIndex; // Index of the cell where the drag ended
@@ -91,15 +92,15 @@ class _CalendarPageState extends State<CalendarPage> {
     int selectedDuration = availableDurations.contains(duration)
         ? duration
         : (availableDurations.isNotEmpty ? availableDurations.first : 1);
+    DateTime selectedDay = day;
+    int selectedStartHour = startHour;
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text(
-              '${localizations.translate('new_event')}: ${DateFormat('EEE, MMM d', localizations.languageCode()).format(day)} ${localizations.translate('at')} $startHour:00',
-            ),
+            title: Text(localizations.translate('new_event')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -109,6 +110,61 @@ class _CalendarPageState extends State<CalendarPage> {
                   onChanged: (value) {
                     eventTitle = value;
                   },
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Text('${localizations.translate('day')}: '),
+                    TextButton(
+                      onPressed: () async {
+                        DateTime? pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDay,
+                          firstDate: DateTime.now(), // Restrict to current day onward
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (pickedDate != null) {
+                          setStateDialog(() {
+                            selectedDay = pickedDate;
+                          });
+                        }
+                      },
+                      child: Text(
+                          DateFormat('EEE, MMM d', localizations.languageCode())
+                              .format(selectedDay)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Text('${localizations.translate('start_hour')}: '),
+                    DropdownButton<int>(
+                      value: selectedStartHour,
+                      items: hours
+                          .map((hour) => DropdownMenuItem(
+                                value: hour,
+                                child: Text('$hour:00'),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setStateDialog(() {
+                            selectedStartHour = value;
+                            availableDurations = _getAvailableDurations(
+                                selectedDay, selectedStartHour);
+                            if (!availableDurations
+                                .contains(selectedDuration)) {
+                              selectedDuration = availableDurations.isNotEmpty
+                                  ? availableDurations.first
+                                  : 1;
+                            }
+                          });
+                        }
+                      },
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 Row(
@@ -155,8 +211,8 @@ class _CalendarPageState extends State<CalendarPage> {
                       const Duration(seconds: 1)); // Simulate saving delay
                   setState(() {
                     events.add(CalendarEvent(
-                      date: day,
-                      hour: startHour,
+                      date: selectedDay,
+                      hour: selectedStartHour,
                       duration: selectedDuration,
                       title: eventTitle,
                     ));
@@ -167,7 +223,6 @@ class _CalendarPageState extends State<CalendarPage> {
               ),
               TextButton(
                 onPressed: () {
-                  // Reset drag state when the user cancels
                   setState(() {
                     _dragStartIndex = null;
                     _dragEndIndex = null;
@@ -189,6 +244,8 @@ class _CalendarPageState extends State<CalendarPage> {
     final localizations = AppLocalizations.of(context);
     String eventTitle = event.title;
     int duration = event.duration;
+    DateTime selectedDay = event.date;
+    int selectedStartHour = event.hour;
     TextEditingController controller = TextEditingController(text: event.title);
     List<int> availableDurations =
         _getAvailableDurations(event.date, event.hour, event);
@@ -198,9 +255,7 @@ class _CalendarPageState extends State<CalendarPage> {
       builder: (context) {
         return StatefulBuilder(builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text(
-              '${localizations.translate('edit_event')}: ${DateFormat('EEE, MMM d', localizations.languageCode()).format(event.date)} ${localizations.translate('at')} ${event.hour}:00',
-            ),
+            title: Text(localizations.translate('edit_event')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -211,6 +266,60 @@ class _CalendarPageState extends State<CalendarPage> {
                   onChanged: (value) {
                     eventTitle = value;
                   },
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Text('${localizations.translate('day')}: '),
+                    TextButton(
+                      onPressed: () async {
+                        DateTime? pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDay,
+                          firstDate: DateTime.now(), // Restrict to current day onward
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (pickedDate != null) {
+                          setStateDialog(() {
+                            selectedDay = pickedDate;
+                          });
+                        }
+                      },
+                      child: Text(
+                          DateFormat('EEE, MMM d', localizations.languageCode())
+                              .format(selectedDay)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Text('${localizations.translate('start_hour')}: '),
+                    DropdownButton<int>(
+                      value: selectedStartHour,
+                      items: hours
+                          .map((hour) => DropdownMenuItem(
+                                value: hour,
+                                child: Text('$hour:00'),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setStateDialog(() {
+                            selectedStartHour = value;
+                            availableDurations = _getAvailableDurations(
+                                selectedDay, selectedStartHour, event);
+                            if (!availableDurations.contains(duration)) {
+                              duration = availableDurations.isNotEmpty
+                                  ? availableDurations.first
+                                  : 1;
+                            }
+                          });
+                        }
+                      },
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 Row(
@@ -243,6 +352,8 @@ class _CalendarPageState extends State<CalendarPage> {
                   setState(() {
                     event.title = eventTitle;
                     event.duration = duration;
+                    event.date = selectedDay;
+                    event.hour = selectedStartHour;
                   });
                   Navigator.pop(context);
                 },
@@ -633,6 +744,15 @@ class _CalendarPageState extends State<CalendarPage> {
             ],
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Show a dialog to add a new event
+          _showAddEventDialog(
+              DateTime.now(), 0); // Default to current day and first hour
+        },
+        child: const Icon(Icons.add),
+        backgroundColor: Colors.blueAccent,
       ),
     );
   }
