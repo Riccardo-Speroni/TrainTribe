@@ -522,7 +522,13 @@ class _CalendarPageState extends State<CalendarPage> {
 
       if (canMove) {
         setState(() {
-          _draggedEvent!.hour = newStartHour; // Update the event's start hour
+          // Update the event's start hour and day
+          _draggedEvent!.hour = newStartHour;
+          _draggedEvent!.date = day;
+
+          // Replace the old event with the updated one in the events list
+          events.removeWhere((event) => event == _draggedEvent);
+          events.add(_draggedEvent!);
         });
       }
     }
