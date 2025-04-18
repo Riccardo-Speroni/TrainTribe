@@ -25,7 +25,8 @@ class CalendarPage extends StatefulWidget {
 
 class _CalendarPageState extends State<CalendarPage> {
   final double cellHeight = 60.0; // Slot Height
-  late final List<int> hours = List.generate(19, (index) => index + 6); // Hours from 6.00 to 24.00
+  late final List<int> hours =
+      List.generate(19, (index) => index + 6); // Hours from 6.00 to 24.00
   final List<CalendarEvent> events = []; // List of created events
 
   int? _dragStartIndex; // Index of the cell where the drag started
@@ -54,11 +55,13 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   // Calculate available durations for a new or modified event
-  List<int> _getAvailableDurations(DateTime day, int startHour, [CalendarEvent? excludeEvent]) {
+  List<int> _getAvailableDurations(DateTime day, int startHour,
+      [CalendarEvent? excludeEvent]) {
     List<int> availableDurations = [];
     for (int duration = 1; duration <= 6; duration++) {
       bool overlaps = events.any((event) {
-        if (event == excludeEvent) return false; // Exclude the event being edited
+        if (event == excludeEvent)
+          return false; // Exclude the event being edited
         if (_isSameDay(event.date, day)) {
           int eventStart = event.hour;
           int eventEnd = event.hour + event.duration;
@@ -84,7 +87,9 @@ class _CalendarPageState extends State<CalendarPage> {
     int startHour = hours[safeStart];
     int duration = endIndex != null ? (endIndex - startIndex + 1).abs() : 1;
     List<int> availableDurations = _getAvailableDurations(day, startHour);
-    int selectedDuration = availableDurations.contains(duration) ? duration : (availableDurations.isNotEmpty ? availableDurations.first : 1);
+    int selectedDuration = availableDurations.contains(duration)
+        ? duration
+        : (availableDurations.isNotEmpty ? availableDurations.first : 1);
 
     showDialog(
       context: context,
@@ -98,7 +103,8 @@ class _CalendarPageState extends State<CalendarPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  decoration: InputDecoration(hintText: localizations.translate('event_title')),
+                  decoration: InputDecoration(
+                      hintText: localizations.translate('event_title')),
                   onChanged: (value) {
                     eventTitle = value;
                   },
@@ -112,7 +118,8 @@ class _CalendarPageState extends State<CalendarPage> {
                       items: availableDurations
                           .map((d) => DropdownMenuItem(
                                 value: d,
-                                child: Text('$d ${localizations.translate('hours')}'),
+                                child: Text(
+                                    '$d ${localizations.translate('hours')}'),
                               ))
                           .toList(),
                       onChanged: (value) {
@@ -125,7 +132,8 @@ class _CalendarPageState extends State<CalendarPage> {
                     ),
                   ],
                 ),
-                if (isSaving) const CircularProgressIndicator(), // Loading indicator
+                if (isSaving)
+                  const CircularProgressIndicator(), // Loading indicator
               ],
             ),
             actions: [
@@ -133,14 +141,17 @@ class _CalendarPageState extends State<CalendarPage> {
                 onPressed: () async {
                   if (eventTitle.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(localizations.translate('error_empty_title'))),
+                      SnackBar(
+                          content: Text(
+                              localizations.translate('error_empty_title'))),
                     );
                     return;
                   }
                   setStateDialog(() {
                     isSaving = true;
                   });
-                  await Future.delayed(const Duration(seconds: 1)); // Simulate saving delay
+                  await Future.delayed(
+                      const Duration(seconds: 1)); // Simulate saving delay
                   setState(() {
                     events.add(CalendarEvent(
                       date: day,
@@ -178,7 +189,8 @@ class _CalendarPageState extends State<CalendarPage> {
     String eventTitle = event.title;
     int duration = event.duration;
     TextEditingController controller = TextEditingController(text: event.title);
-    List<int> availableDurations = _getAvailableDurations(event.date, event.hour, event);
+    List<int> availableDurations =
+        _getAvailableDurations(event.date, event.hour, event);
 
     showDialog(
       context: context,
@@ -193,7 +205,8 @@ class _CalendarPageState extends State<CalendarPage> {
               children: [
                 TextField(
                   controller: controller,
-                  decoration: InputDecoration(hintText: localizations.translate('event_title')),
+                  decoration: InputDecoration(
+                      hintText: localizations.translate('event_title')),
                   onChanged: (value) {
                     eventTitle = value;
                   },
@@ -207,7 +220,8 @@ class _CalendarPageState extends State<CalendarPage> {
                       items: availableDurations
                           .map((d) => DropdownMenuItem(
                                 value: d,
-                                child: Text('$d ${localizations.translate('hours')}'),
+                                child: Text(
+                                    '$d ${localizations.translate('hours')}'),
                               ))
                           .toList(),
                       onChanged: (value) {
@@ -240,7 +254,8 @@ class _CalendarPageState extends State<CalendarPage> {
                     builder: (context) {
                       return AlertDialog(
                         title: Text(localizations.translate('confirm_delete')),
-                        content: Text(localizations.translate('delete_event_confirmation')),
+                        content: Text(localizations
+                            .translate('delete_event_confirmation')),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, true),
@@ -276,46 +291,48 @@ class _CalendarPageState extends State<CalendarPage> {
 
   void _handleLongPressStart(int cellIndex, DateTime day) {
     setState(() {
-      _dragStartIndex = cellIndex.clamp(0, hours.length - 1); // Assicurarsi che l'indice sia valido
-      _dragEndIndex = _dragStartIndex; // Inizialmente uguale all'indice di partenza
+      _dragStartIndex = cellIndex.clamp(
+          0, hours.length - 1); // Assicurarsi che l'indice sia valido
+      _dragEndIndex =
+          _dragStartIndex; // Inizialmente uguale all'indice di partenza
       _dragStartDay = day;
-      _draggedEvent = _getEventForCell(day, hours[cellIndex]); // Imposta l'evento trascinato
+      _draggedEvent = _getEventForCell(
+          day, hours[cellIndex]); // Imposta l'evento trascinato
     });
   }
 
-  void _handleLongPressMoveUpdate(LongPressMoveUpdateDetails details, BuildContext context) {
+  void _handleLongPressMoveUpdate(
+      LongPressMoveUpdateDetails details, BuildContext context) {
     if (_dragStartIndex != null && _dragStartDay != null) {
       setState(() {
         RenderBox box = context.findRenderObject() as RenderBox;
         Offset localPosition = box.globalToLocal(details.globalPosition);
 
-        // Calcolo dell'indice relativo al trascinamento
-        double dragOffset = localPosition.dy - (_dragStartIndex! * cellHeight); // Offset relativo alla cella iniziale
-        int deltaIndex = (dragOffset / cellHeight).floor(); // Calcola lo spostamento in celle
+        // Calculate the drag offset relative to the starting cell
+        double dragOffset = localPosition.dy - (_dragStartIndex! * cellHeight);
+        int deltaIndex =
+            (dragOffset / cellHeight).floor() - 1; // Calculate the cell offset
 
-        int newIndex;
-        if (deltaIndex > 0) {
-          // Caso di trascinamento verso il basso
-          newIndex = (_dragStartIndex! + deltaIndex).clamp(0, hours.length - 1);
-        } else {
-          // Caso di trascinamento verso l'alto
-          newIndex = (_dragStartIndex! + deltaIndex).clamp(0, hours.length - 1);
-        }
+        // Determine the new index based on the drag direction
+        int newIndex =
+            (_dragStartIndex! + deltaIndex).clamp(0, hours.length - 1);
 
         if (_draggedEvent != null) {
-          // Calcola l'indice massimo consentito per l'evento trascinato
+          // Calculate the maximum allowed index for the dragged event
           int maxIndex = hours.length - _draggedEvent!.duration;
-          newIndex = newIndex.clamp(0, maxIndex); // Limita l'indice finale
+          newIndex = newIndex.clamp(0, maxIndex);
 
-          // Aggiorna l'ora dell'evento trascinato in tempo reale
+          // Update the start hour of the dragged event in real-time
           int newStartHour = hours[newIndex];
-          if (_getAvailableDurations(_dragStartDay!, newStartHour, _draggedEvent)
+          if (_getAvailableDurations(
+                  _dragStartDay!, newStartHour, _draggedEvent)
               .contains(_draggedEvent!.duration)) {
             _draggedEvent!.hour = newStartHour;
           }
         }
 
-        if (newIndex != _dragEndIndex) { // Aggiorna solo se l'indice è cambiato
+        // Update the drag end index, ensuring it reflects both upward and downward dragging
+        if (newIndex != _dragEndIndex) {
           _dragEndIndex = newIndex;
         }
       });
@@ -378,7 +395,9 @@ class _CalendarPageState extends State<CalendarPage> {
 
   // This method handles the movement of an existing event after a drag gesture
   void _handleDragEventMove(DateTime day) {
-    if (_draggedEvent != null && _dragStartIndex != null && _dragEndIndex != null) {
+    if (_draggedEvent != null &&
+        _dragStartIndex != null &&
+        _dragEndIndex != null) {
       int newStartIndex = _dragEndIndex!.clamp(0, hours.length - 1);
       int newStartHour = hours[newStartIndex];
 
@@ -407,14 +426,17 @@ class _CalendarPageState extends State<CalendarPage> {
         _dragEndIndex = index;
         _dragStartDay = day;
       }),
-      onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(details, context),
+      onLongPressMoveUpdate: (details) =>
+          _handleLongPressMoveUpdate(details, context),
       onLongPressEnd: (_) => _handleDragEventMove(day),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 50), // Smooth animation
         height: cellHeight * event.duration, // Fixed height based on duration
         margin: const EdgeInsets.only(bottom: 1),
         decoration: BoxDecoration(
-          color: isBeingDragged ? Colors.blueAccent.withOpacity(0.7) : Colors.lightBlueAccent,
+          color: isBeingDragged
+              ? Colors.blueAccent.withOpacity(0.7)
+              : Colors.lightBlueAccent,
           borderRadius: BorderRadius.circular(8.0),
           boxShadow: [
             BoxShadow(
@@ -428,7 +450,8 @@ class _CalendarPageState extends State<CalendarPage> {
         alignment: Alignment.center,
         child: Text(
           event.title,
-          style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+              fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
       ),
@@ -441,20 +464,22 @@ class _CalendarPageState extends State<CalendarPage> {
         _dragStartDay != null &&
         _isSameDay(_dragStartDay!, day) &&
         _draggedEvent == null && // Ensure no event is being dragged
-        cellIndex >= _dragStartIndex! &&
-        cellIndex <= _dragEndIndex!;
+        ((cellIndex >= _dragStartIndex! && cellIndex <= _dragEndIndex!) ||
+            (cellIndex <= _dragStartIndex! && cellIndex >= _dragEndIndex!));
 
     return GestureDetector(
       onTap: () => _showAddEventDialog(day, cellIndex),
       onLongPressStart: (_) => _handleLongPressStart(cellIndex, day),
-      onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(details, context),
+      onLongPressMoveUpdate: (details) =>
+          _handleLongPressMoveUpdate(details, context),
       onLongPressEnd: (_) => _handleLongPressEnd(day),
       child: Container(
         height: cellHeight,
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey[300]!),
           borderRadius: BorderRadius.circular(4.0),
-          color: isHighlighted ? Colors.blue.withOpacity(0.7) : Colors.transparent,
+          color:
+              isHighlighted ? Colors.blue.withOpacity(0.7) : Colors.transparent,
         ),
       ),
     );
@@ -533,7 +558,8 @@ class _CalendarPageState extends State<CalendarPage> {
     final screenWidth = MediaQuery.of(context).size.width;
 
     // Determine the number of days to display based on screen width
-    final int daysToShow = screenWidth > 600 ? 7 : 3; // 7 days for desktop, 3 days for mobile
+    final int daysToShow =
+        screenWidth > 600 ? 7 : 3; // 7 days for desktop, 3 days for mobile
     final PageController pageController = PageController(initialPage: 0);
 
     return Scaffold(
@@ -548,7 +574,8 @@ class _CalendarPageState extends State<CalendarPage> {
         },
         itemBuilder: (context, pageIndex) {
           // Calculate the start day for the current page
-          final DateTime startDay = DateTime.now().add(Duration(days: pageIndex * daysToShow));
+          final DateTime startDay =
+              DateTime.now().add(Duration(days: pageIndex * daysToShow));
           final List<DateTime> visibleDays = _getDays(startDay, daysToShow);
 
           return Column(
@@ -558,9 +585,11 @@ class _CalendarPageState extends State<CalendarPage> {
                 children: [
                   Container(width: 60, height: 40),
                   ...visibleDays.map((day) {
-                    final String dayFormat = screenWidth > 600 ? 'EEEE, d MMM' : 'EEE, d MMM';
+                    final String dayFormat =
+                        screenWidth > 600 ? 'EEEE, d MMM' : 'EEE, d MMM';
                     final String formattedDay = toBeginningOfSentenceCase(
-                      DateFormat(dayFormat, localizations.languageCode()).format(day),
+                      DateFormat(dayFormat, localizations.languageCode())
+                          .format(day),
                     )!;
                     return Expanded(
                       child: Container(
@@ -574,7 +603,8 @@ class _CalendarPageState extends State<CalendarPage> {
                         child: Text(
                           formattedDay,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                       ),
                     );
@@ -588,7 +618,9 @@ class _CalendarPageState extends State<CalendarPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildTimeColumn(),
-                      ...visibleDays.map((day) => _buildDayColumn(day)).toList(),
+                      ...visibleDays
+                          .map((day) => _buildDayColumn(day))
+                          .toList(),
                     ],
                   ),
                 ),
