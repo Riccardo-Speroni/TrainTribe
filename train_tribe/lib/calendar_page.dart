@@ -28,6 +28,7 @@ class _CalendarPageState extends State<CalendarPage> {
   late final List<int> hours =
       List.generate(19, (index) => index + 6); // Hours from 6.00 to 24.00
   final List<CalendarEvent> events = []; // List of created events
+  final ScrollController _scrollController = ScrollController(); // Add ScrollController
 
   int? _dragStartIndex; // Index of the cell where the drag started
   int? _dragEndIndex; // Index of the cell where the drag ended
@@ -308,8 +309,11 @@ class _CalendarPageState extends State<CalendarPage> {
         RenderBox box = context.findRenderObject() as RenderBox;
         Offset localPosition = box.globalToLocal(details.globalPosition);
 
-        // Calculate the drag offset relative to the starting cell
-        double dragOffset = localPosition.dy - (_dragStartIndex! * cellHeight);
+        // Adjust dragOffset by subtracting the scroll offset
+        double dragOffset = localPosition.dy -
+            (_dragStartIndex! * cellHeight) +
+            _scrollController.offset; // Correct for scroll offset
+
         int deltaIndex =
             (dragOffset / cellHeight).floor() - 1; // Calculate the cell offset
 
@@ -614,6 +618,7 @@ class _CalendarPageState extends State<CalendarPage> {
               // Body: time column + days grid in vertical scroll
               Expanded(
                 child: SingleChildScrollView(
+                  controller: _scrollController, // Attach ScrollController
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
