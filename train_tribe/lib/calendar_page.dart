@@ -28,8 +28,6 @@ class _CalendarPageState extends State<CalendarPage> {
   late final List<int> hours =
       List.generate(19, (index) => index + 6); // Hours from 6.00 to 24.00
   final List<CalendarEvent> events = []; // List of created events
-  final ScrollController _scrollController =
-      ScrollController(); // Add ScrollController
 
   int? _dragStartIndex; // Index of the cell where the drag started
   int? _dragEndIndex; // Index of the cell where the drag ended
@@ -409,16 +407,16 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   void _handleLongPressMoveUpdate(
-      LongPressMoveUpdateDetails details, BuildContext context) {
+      LongPressMoveUpdateDetails details, BuildContext context, ScrollController scrollController) {
     if (_dragStartIndex != null && _dragStartDay != null) {
       setState(() {
         RenderBox box = context.findRenderObject() as RenderBox;
         Offset localPosition = box.globalToLocal(details.globalPosition);
 
-        // Adjust dragOffset by subtracting the scroll offset
+        // Adjust dragOffset by including the scroll offset
         double dragOffsetY = localPosition.dy -
             (_dragStartIndex! * cellHeight) +
-            _scrollController.offset; // Correct for scroll offset
+            scrollController.offset; // Include scroll offset
         double dragOffsetX = localPosition.dx;
 
         int deltaIndexY =
@@ -544,7 +542,8 @@ class _CalendarPageState extends State<CalendarPage> {
     _dragStartDay = null; // Reset the drag start day
   }
 
-  Widget _buildEventCell(CalendarEvent event, int index, DateTime day) {
+  Widget _buildEventCell(
+      CalendarEvent event, int index, DateTime day, ScrollController scrollController) {
     bool isBeingDragged = _draggedEvent == event;
     return GestureDetector(
       onTap: () => _showEditEventDialog(event),
@@ -555,7 +554,7 @@ class _CalendarPageState extends State<CalendarPage> {
         _dragStartDay = day;
       }),
       onLongPressMoveUpdate: (details) =>
-          _handleLongPressMoveUpdate(details, context),
+          _handleLongPressMoveUpdate(details, context, scrollController),
       onLongPressEnd: (_) => _handleDragEventMove(day),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 50), // Smooth animation
@@ -586,7 +585,8 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  Widget _buildEmptyCell(int cellIndex, DateTime day) {
+  Widget _buildEmptyCell(
+      int cellIndex, DateTime day, ScrollController scrollController) {
     bool isHighlighted = _dragStartIndex != null &&
         _dragEndIndex != null &&
         _dragStartDay != null &&
@@ -599,7 +599,7 @@ class _CalendarPageState extends State<CalendarPage> {
       onTap: () => _showAddEventDialog(day, cellIndex),
       onLongPressStart: (_) => _handleLongPressStart(cellIndex, day),
       onLongPressMoveUpdate: (details) =>
-          _handleLongPressMoveUpdate(details, context),
+          _handleLongPressMoveUpdate(details, context, scrollController),
       onLongPressEnd: (_) => _handleLongPressEnd(day),
       child: Container(
         height: cellHeight,
@@ -654,7 +654,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   // This method builds the column for a specific day with drag support
-  Widget _buildDayColumn(DateTime day) {
+  Widget _buildDayColumn(DateTime day, ScrollController scrollController) {
     List<Widget> cells = [];
     int index = 0;
 
@@ -663,20 +663,16 @@ class _CalendarPageState extends State<CalendarPage> {
       CalendarEvent? event = _getEventForCell(day, currentHour);
 
       if (event != null) {
-        cells.add(_buildEventCell(event, index, day));
+        cells.add(_buildEventCell(event, index, day, scrollController));
         index += event.duration;
       } else {
-        cells.add(_buildEmptyCell(index, day));
+        cells.add(_buildEmptyCell(index, day, scrollController));
         index++;
       }
     }
 
-    return Expanded(
-      child: Stack(
-        children: [
-          Column(children: cells),
-        ],
-      ),
+    return Column(
+      children: cells,
     );
   }
 
@@ -705,6 +701,9 @@ class _CalendarPageState extends State<CalendarPage> {
           final DateTime startDay =
               DateTime.now().add(Duration(days: pageIndex * daysToShow));
           final List<DateTime> visibleDays = _getDays(startDay, daysToShow);
+
+          // Create a single ScrollController for the page
+          final ScrollController scrollController = ScrollController();
 
           return Column(
             children: [
@@ -742,14 +741,16 @@ class _CalendarPageState extends State<CalendarPage> {
               // Body: time column + days grid in vertical scroll
               Expanded(
                 child: SingleChildScrollView(
-                  controller: _scrollController, // Attach ScrollController
+                  controller: scrollController, // Attach the ScrollController
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildTimeColumn(),
-                      ...visibleDays
-                          .map((day) => _buildDayColumn(day))
-                          .toList(),
+                      ...visibleDays.map((day) {
+                        return Expanded(
+                          child: _buildDayColumn(day, scrollController),
+                        );
+                      }).toList(),
                     ],
                   ),
                 ),
