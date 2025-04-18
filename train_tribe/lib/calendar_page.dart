@@ -197,12 +197,7 @@ class _CalendarPageState extends State<CalendarPage> {
               TextButton(
                 onPressed: () async {
                   if (eventTitle.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(
-                              localizations.translate('error_empty_title'))),
-                    );
-                    return;
+                    eventTitle = 'Nuovo Evento'; // Set default title
                   }
                   setStateDialog(() {
                     isSaving = true;
@@ -421,34 +416,45 @@ class _CalendarPageState extends State<CalendarPage> {
         Offset localPosition = box.globalToLocal(details.globalPosition);
 
         // Adjust dragOffset by subtracting the scroll offset
-        double dragOffset = localPosition.dy -
+        double dragOffsetY = localPosition.dy -
             (_dragStartIndex! * cellHeight) +
             _scrollController.offset; // Correct for scroll offset
+        double dragOffsetX = localPosition.dx;
 
-        int deltaIndex =
-            (dragOffset / cellHeight).floor() - 1; // Calculate the cell offset
+        int deltaIndexY =
+            (dragOffsetY / cellHeight).floor() - 1; // Calculate the cell offset
+        int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
+        double cellWidth = MediaQuery.of(context).size.width / daysToShow;
+
+        // Calculate the column index based on the cursor's position
+        int currentColumnIndex = (dragOffsetX / cellWidth).floor().clamp(0, daysToShow - 1);
+
+        // Determine the new day based on the column index
+        List<DateTime> visibleDays = _getDays(DateTime.now(), daysToShow);
+        DateTime newDay = visibleDays[currentColumnIndex];
 
         // Determine the new index based on the drag direction
-        int newIndex =
-            (_dragStartIndex! + deltaIndex).clamp(0, hours.length - 1);
+        int newIndexY =
+            (_dragStartIndex! + deltaIndexY).clamp(0, hours.length - 1);
 
         if (_draggedEvent != null) {
           // Calculate the maximum allowed index for the dragged event
           int maxIndex = hours.length - _draggedEvent!.duration;
-          newIndex = newIndex.clamp(0, maxIndex);
+          newIndexY = newIndexY.clamp(0, maxIndex);
 
-          // Update the start hour of the dragged event in real-time
-          int newStartHour = hours[newIndex];
+          // Update the start hour and day of the dragged event in real-time
+          int newStartHour = hours[newIndexY];
           if (_getAvailableDurations(
-                  _dragStartDay!, newStartHour, _draggedEvent)
+                  newDay, newStartHour, _draggedEvent)
               .contains(_draggedEvent!.duration)) {
             _draggedEvent!.hour = newStartHour;
+            _draggedEvent!.date = newDay;
           }
         }
 
         // Update the drag end index, ensuring it reflects both upward and downward dragging
-        if (newIndex != _dragEndIndex) {
-          _dragEndIndex = newIndex;
+        if (newIndexY != _dragEndIndex) {
+          _dragEndIndex = newIndexY;
         }
       });
     }
@@ -457,14 +463,14 @@ class _CalendarPageState extends State<CalendarPage> {
   void _handleLongPressEnd(DateTime day) {
     if (_dragStartIndex != null && _dragEndIndex != null) {
       if (_draggedEvent != null) {
-        // Gestione del movimento di un evento esistente
-        _handleDragEventMove(day);
+        // Update the event's day after drag-and-drop
+        _handleDragEventMove(_draggedEvent!.date);
       } else {
-        // Gestione della creazione di un nuovo evento
+        // Handle the creation of a new event
         _handleDragEventCreation(day);
       }
     }
-    // Resetta lo stato del trascinamento
+    // Reset the drag state
     _draggedEvent = null;
     _dragStartIndex = null;
     _dragEndIndex = null;
@@ -535,6 +541,7 @@ class _CalendarPageState extends State<CalendarPage> {
     _draggedEvent = null;
     _dragStartIndex = null;
     _dragEndIndex = null;
+    _dragStartDay = null; // Reset the drag start day
   }
 
   Widget _buildEventCell(CalendarEvent event, int index, DateTime day) {
