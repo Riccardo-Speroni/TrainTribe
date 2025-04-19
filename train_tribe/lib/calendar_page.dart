@@ -58,7 +58,9 @@ class _CalendarPageState extends State<CalendarPage> {
   List<int> _getAvailableDurations(DateTime day, int startHour,
       [CalendarEvent? excludeEvent]) {
     List<int> availableDurations = [];
-    for (int duration = 1; duration <= 6; duration++) {
+    int maxDuration = 24 - startHour + 1; // Limit duration to fit within the table
+
+    for (int duration = 1; duration <= maxDuration; duration++) {
       bool overlaps = events.any((event) {
         if (event == excludeEvent)
           return false; // Exclude the event being edited
