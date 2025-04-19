@@ -88,12 +88,39 @@ class _CalendarPageState extends State<CalendarPage> {
     int safeStart = startIndex.clamp(0, hours.length - 1);
     int startHour = hours[safeStart];
     int duration = endIndex != null ? (endIndex - startIndex + 1).abs() : 1;
-    List<int> availableDurations = _getAvailableDurations(day, startHour);
+
+    // Filter available starting hours for the selected day
+    List<int> availableStartHours = hours.where((hour) {
+      // Check if the hour is not occupied by any event
+      return !events.any((event) {
+        if (_isSameDay(event.date, day)) {
+          int eventStart = event.hour;
+          int eventEnd = event.hour + event.duration;
+          return hour >= eventStart && hour < eventEnd; // Hour is within the event range
+        }
+        return false;
+      });
+    }).toList();
+
+    // If no starting hours are available, return early
+    if (availableStartHours.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(localizations.translate('no_available_hours'))),
+      );
+      return;
+    }
+
+    // Ensure the selected start hour is valid
+    int selectedStartHour = availableStartHours.contains(startHour)
+        ? startHour
+        : availableStartHours.first;
+
+    List<int> availableDurations =
+        _getAvailableDurations(day, selectedStartHour);
     int selectedDuration = availableDurations.contains(duration)
         ? duration
         : (availableDurations.isNotEmpty ? availableDurations.first : 1);
     DateTime selectedDay = day;
-    int selectedStartHour = startHour;
 
     showDialog(
       context: context,
@@ -120,13 +147,36 @@ class _CalendarPageState extends State<CalendarPage> {
                         DateTime? pickedDate = await showDatePicker(
                           context: context,
                           initialDate: selectedDay,
-                          firstDate: DateTime.now(), // Restrict to current day onward
-                          lastDate:
-                              DateTime.now().add(const Duration(days: 365)),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
                         );
                         if (pickedDate != null) {
                           setStateDialog(() {
                             selectedDay = pickedDate;
+                            availableStartHours = hours.where((hour) {
+                              return !events.any((event) {
+                                if (_isSameDay(event.date, selectedDay)) {
+                                  int eventStart = event.hour;
+                                  int eventEnd = event.hour + event.duration;
+                                  return hour >= eventStart && hour < eventEnd;
+                                }
+                                return false;
+                              });
+                            }).toList();
+                            if (!availableStartHours
+                                .contains(selectedStartHour)) {
+                              selectedStartHour = availableStartHours.isNotEmpty
+                                  ? availableStartHours.first
+                                  : hours.first;
+                            }
+                            availableDurations = _getAvailableDurations(
+                                selectedDay, selectedStartHour);
+                            if (!availableDurations
+                                .contains(selectedDuration)) {
+                              selectedDuration = availableDurations.isNotEmpty
+                                  ? availableDurations.first
+                                  : 1;
+                            }
                           });
                         }
                       },
@@ -142,7 +192,7 @@ class _CalendarPageState extends State<CalendarPage> {
                     Text('${localizations.translate('start_hour')}: '),
                     DropdownButton<int>(
                       value: selectedStartHour,
-                      items: hours
+                      items: availableStartHours
                           .map((hour) => DropdownMenuItem(
                                 value: hour,
                                 child: Text('$hour:00'),
