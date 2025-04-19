@@ -459,7 +459,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   void _handleLongPressMoveUpdate(
-      LongPressMoveUpdateDetails details, BuildContext context, ScrollController scrollController) {
+      LongPressMoveUpdateDetails details, BuildContext context, ScrollController scrollController, int pageIndex) {
     if (_dragStartIndex != null && _dragStartDay != null) {
       setState(() {
         RenderBox box = context.findRenderObject() as RenderBox;
@@ -479,8 +479,9 @@ class _CalendarPageState extends State<CalendarPage> {
         // Calculate the column index based on the cursor's position
         int currentColumnIndex = (dragOffsetX / cellWidth).floor().clamp(0, daysToShow - 1);
 
-        // Determine the new day based on the column index
-        List<DateTime> visibleDays = _getDays(DateTime.now(), daysToShow);
+        // Determine the new day based on the column index and current page
+        DateTime startDay = DateTime.now().add(Duration(days: pageIndex * daysToShow));
+        List<DateTime> visibleDays = _getDays(startDay, daysToShow);
         DateTime newDay = visibleDays[currentColumnIndex];
 
         // Determine the new index based on the drag direction
@@ -595,7 +596,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Widget _buildEventCell(
-      CalendarEvent event, int index, DateTime day, ScrollController scrollController) {
+      CalendarEvent event, int index, DateTime day, ScrollController scrollController, int pageIndex) {
     bool isBeingDragged = _draggedEvent == event;
     return GestureDetector(
       onTap: () => _showEditEventDialog(event),
@@ -606,7 +607,7 @@ class _CalendarPageState extends State<CalendarPage> {
         _dragStartDay = day;
       }),
       onLongPressMoveUpdate: (details) =>
-          _handleLongPressMoveUpdate(details, context, scrollController),
+          _handleLongPressMoveUpdate(details, context, scrollController, pageIndex),
       onLongPressEnd: (_) => _handleDragEventMove(day),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 50), // Smooth animation
@@ -638,7 +639,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Widget _buildEmptyCell(
-      int cellIndex, DateTime day, ScrollController scrollController) {
+      int cellIndex, DateTime day, ScrollController scrollController, int pageIndex) {
     bool isHighlighted = _dragStartIndex != null &&
         _dragEndIndex != null &&
         _dragStartDay != null &&
@@ -651,7 +652,7 @@ class _CalendarPageState extends State<CalendarPage> {
       onTap: () => _showAddEventDialog(day, cellIndex),
       onLongPressStart: (_) => _handleLongPressStart(cellIndex, day),
       onLongPressMoveUpdate: (details) =>
-          _handleLongPressMoveUpdate(details, context, scrollController),
+          _handleLongPressMoveUpdate(details, context, scrollController, pageIndex),
       onLongPressEnd: (_) => _handleLongPressEnd(day),
       child: Container(
         height: cellHeight,
@@ -706,7 +707,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   // This method builds the column for a specific day with drag support
-  Widget _buildDayColumn(DateTime day, ScrollController scrollController) {
+  Widget _buildDayColumn(DateTime day, ScrollController scrollController, int pageIndex) {
     List<Widget> cells = [];
     int index = 0;
 
@@ -715,10 +716,10 @@ class _CalendarPageState extends State<CalendarPage> {
       CalendarEvent? event = _getEventForCell(day, currentHour);
 
       if (event != null) {
-        cells.add(_buildEventCell(event, index, day, scrollController));
+        cells.add(_buildEventCell(event, index, day, scrollController, pageIndex));
         index += event.duration;
       } else {
-        cells.add(_buildEmptyCell(index, day, scrollController));
+        cells.add(_buildEmptyCell(index, day, scrollController, pageIndex));
         index++;
       }
     }
@@ -800,7 +801,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       _buildTimeColumn(),
                       ...visibleDays.map((day) {
                         return Expanded(
-                          child: _buildDayColumn(day, scrollController),
+                          child: _buildDayColumn(day, scrollController, pageIndex),
                         );
                       }).toList(),
                     ],
