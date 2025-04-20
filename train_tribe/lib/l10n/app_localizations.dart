@@ -65,6 +65,7 @@ class AppLocalizations {
       'login_google': 'Login with Google',
       'login_facebook': 'Login with Facebook',
       'dont_have_account': "Don't have an account? Sign up",
+      'login_failed' : 'Login failed',
       'contacts_access': 'Contacts Access',
       'location_access': 'Location Access',
       'theme': 'Theme',
@@ -83,6 +84,10 @@ class AppLocalizations {
       //TODO: write meaningful onboarding strings 
       'skip': 'Skip',
       'finish': 'Finish',
+      'login_error_credentials': 'Invalid credentials. Please try again.',
+      'login_error_no_internet': 'No internet connection. Please check your network.',
+      'login_error_generic': 'An unexpected error occurred. Please try again later.',
+      'invalid_email': 'Please enter a valid email address.',
     },
     'it': {
       'settings': 'Impostazioni',
@@ -136,6 +141,7 @@ class AppLocalizations {
       'login_google': 'Accedi con Google',
       'login_facebook': 'Accedi con Facebook',
       'dont_have_account': 'Non hai un account? Registrati',
+      'login_failed' : 'Accesso fallito',
       'contacts_access': 'Accesso ai contatti',
       'location_access': 'Accesso alla posizione',
       'theme': 'Tema',
@@ -154,6 +160,10 @@ class AppLocalizations {
       // TODO: write meaningful onboarding strings
       'skip': 'Salta',
       'finish': 'Fine',
+      'login_error_credentials': 'Credenziali non valide. Riprova.',
+      'login_error_no_internet': 'Nessuna connessione a internet. Controlla la tua rete.',
+      'login_error_generic': 'Si è verificato un errore inaspettato. Per favore riprova più tardi.',
+      'invalid_email': 'Inserisci un indirizzo email valido.',
     },
   };
 

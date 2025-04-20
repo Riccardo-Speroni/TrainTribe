@@ -14,3 +14,6 @@ key.properties
 
 # Custom android build output
 /app/.cxx
+
+# API Keys
+/app/google-services.json

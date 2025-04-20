@@ -12,8 +12,10 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:window_size/window_size.dart'; // Importa il pacchetto
+import 'package:window_size/window_size.dart';
 import 'dart:io';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +38,11 @@ void main() async {
         : (themeModeIndex == 1 ? ThemeMode.dark 
         : ThemeMode.system)
       ) : ThemeMode.system;
+
+  // Initialize Firebase
+await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   runApp(MyApp());
 }
@@ -118,11 +125,6 @@ class _MyAppState extends State<MyApp> {
       },
     );
   }
-}
-
-bool checkUserLoginStatus() {
-  // TODO: session authentication logic
-  return false;
 }
 
 class RootPage extends StatefulWidget {

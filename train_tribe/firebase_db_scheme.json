@@ -1,0 +1,54 @@
+{
+    "users": {
+      "{userId}": {
+        "name": "Mario",
+        "surname": "Rossi",
+        "username": "marior",
+        "email": "mario.rossi@example.com",
+        "phone": "+393471234567",
+        "picture": "https://example.com/profile.jpg"
+      }
+    },
+    "preferences": {
+      "{userId}": {
+        "mood": true,
+        "theme": "dark",
+        "resetMood": 0
+      }
+    },
+    "slots": {
+      "{userId}": {
+        "{eventId}": {
+          "startTime": "2025-04-12T08:30:00Z",
+          "endTime": "2025-04-12T10:00:00Z",
+          "departure": "Milano Centrale",
+          "arrival": "Torino Porta Nuova",
+          "recurrent": true
+        }
+      }
+    },
+    "trains": {
+      "{trainId}": {
+        "trainNumber": "FR9435",
+        "departure": "Milano Centrale",
+        "arrival": "Torino Porta Nuova",
+        "departureTime": "2025-04-12T08:45:00Z",
+        "arrivalTime": "2025-04-12T09:45:00Z",
+        "users": {
+          "{userId}": {
+            "confirmed": true,
+            "boardingAt": "Milano Centrale",
+            "gettingOffAt": "Torino Porta Nuova"
+          }
+        }
+      }
+    },
+    "friends": {
+      "{userId}": {
+        "{friendId}": {
+          "ghost": false
+        }
+      }
+    }
+  }
+  
