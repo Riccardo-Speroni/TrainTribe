@@ -122,11 +122,16 @@ class _TrainsPageState extends State<TrainsPage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0), // Add padding to the page
-        child: SingleChildScrollView(
-          child: ResponsiveCardList(
-            cards: trainCards,
-            expandedCardIndex: expandedCardIndex, // Pass the expanded card index
-          ),
+        child: Column(
+          children: [
+            // Add any other widgets above the list if needed
+            Expanded(
+              child: ResponsiveCardList(
+                cards: trainCards,
+                expandedCardIndex: expandedCardIndex, // Pass the expanded card index
+              ),
+            ),
+          ],
         ),
       ),
     );
