@@ -75,6 +75,7 @@ Elenco di file sensibili da non pushare, già presenti nel gitignore, ma da cont
 - ios/Runner/GoogleService-Info.plist
 - .firebase/
 - .dart_tool/
+- firebase_options.dart
 
 ## Nota per Ricky
 
