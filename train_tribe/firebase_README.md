@@ -19,6 +19,7 @@ Chiedi all’amministratore i seguenti file Firebase:
 |----------------------------|-------------------------------------|
 | `google-services.json`     | `android/app/`                      |
 | `GoogleService-Info.plist` | `ios/Runner/`                       |
+| `firebase_options`         | `lib/`                              |
 
 Questi file **non sono presenti** nel repository perché sono sensibili. Non vanno mai pushati su GitHub.
 Sono già dentro al gitignore.
