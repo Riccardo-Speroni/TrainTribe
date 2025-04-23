@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'settings_page.dart';
 import 'l10n/app_localizations.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -97,6 +99,20 @@ class ProfilePage extends StatelessWidget {
             ],
           ),
           const Spacer(flex: 4),
+
+          // Disconnect Button
+          ElevatedButton(
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut(); // Sign out from Firebase
+              GoRouter.of(context).go('/login'); // Redirect to login page using GoRouter
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red, // Red button for disconnect
+              foregroundColor: Colors.white,
+            ),
+            child: Text(localizations.translate('disconnect')), // Localized text for disconnect
+          ),
+          const Spacer(flex: 1),
         ],
       ),
     );
