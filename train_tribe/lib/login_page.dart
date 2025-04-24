@@ -161,7 +161,7 @@ class _LoginPageState extends State<LoginPage>
                 children: [
                   // App Logo
                   Image.asset(
-                    'images/test.png',
+                    'images/djungelskog.jpg',
                     height: 100,
                   ),
 
