@@ -12,8 +12,11 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:window_size/window_size.dart'; // Importa il pacchetto
+import 'package:window_size/window_size.dart';
 import 'dart:io';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,10 +40,14 @@ void main() async {
         : ThemeMode.system)
       ) : ThemeMode.system;
 
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(MyApp());
 }
 
-ValueNotifier<bool> isLoggedIn = ValueNotifier(false);
 ValueNotifier<Locale> appLocale = ValueNotifier(PlatformDispatcher.instance.locale);
 ValueNotifier<ThemeMode> appTheme = ValueNotifier(ThemeMode.system);
 
@@ -52,30 +59,44 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+  }
+
   final GoRouter _router = GoRouter(
-    refreshListenable: isLoggedIn, // Listen for login state changes
+    initialLocation: '/root',
     redirect: (context, state) async {
       final prefs = await SharedPreferences.getInstance();
       final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+      final user = FirebaseAuth.instance.currentUser; // Check current session
 
+      // Rule 1: Redirect to onboarding if not completed
       if (!onboardingComplete && state.fullPath != '/onboarding') {
         print('Redirecting to onboarding page...');
-        return '/onboarding'; // Redirect to onboarding if not completed
-      } else if (!isLoggedIn.value && state.fullPath != '/login' && state.fullPath != '/signup' && state.fullPath != '/onboarding') {
-        print('Redirecting to login page...');
-        return '/login'; // Redirect to login if not logged in
-      } else if (isLoggedIn.value && state.fullPath == '/login') {
-        print('Already logged in, redirecting to root page...');
-        return '/root'; // Redirect to home if already logged in
-      } else {
-        return null; // No redirection
+        return '/onboarding';
       }
+
+      // Rule 2: Redirect to login if not logged in and restrict access to login/signup pages
+      if (user == null && ((state.fullPath != '/login' && state.fullPath != '/signup') || (state.fullPath == '/'))) {
+        print('Redirecting to login page...');
+        return '/login';
+      }
+
+      // Rule 3: Redirect to root if logged in and visiting login/signup pages
+      if (user != null && (state.fullPath == '/login' || state.fullPath == '/signup')) {
+        print('Already logged in, redirecting to root page...');
+        return '/root';
+      }
+
+      // No redirection needed
+      return null;
     },
     routes: [
       GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingPage()),
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
-      GoRoute(path: '/root', builder: (context, state) => const RootPage()),
       GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),
+      GoRoute(path: '/root', builder: (context, state) => const RootPage()),
     ],
   );
 
@@ -118,11 +139,6 @@ class _MyAppState extends State<MyApp> {
       },
     );
   }
-}
-
-bool checkUserLoginStatus() {
-  // TODO: session authentication logic
-  return false;
 }
 
 class RootPage extends StatefulWidget {

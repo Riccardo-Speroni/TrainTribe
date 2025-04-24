@@ -32,3 +32,8 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+
+./Podfile.lock
+
+# API Keys
+/Runner/GoogleService-Info.plist
