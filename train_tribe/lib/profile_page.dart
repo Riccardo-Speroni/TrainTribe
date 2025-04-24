@@ -110,7 +110,7 @@ class ProfilePage extends StatelessWidget {
               backgroundColor: Colors.red, // Red button for disconnect
               foregroundColor: Colors.white,
             ),
-            child: Text(localizations.translate('disconnect')), // Localized text for disconnect
+            child: Text(localizations.translate('logout')), // Localized text for Logout
           ),
           const Spacer(flex: 1),
         ],

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import 'dart:io';
 
 class FirebaseExceptionHandler {
   static String signInErrorMessage(BuildContext context, String errorCode) {
     final localizations = AppLocalizations.of(context);
+
+    if (Platform.isWindows && errorCode == "unknown-error") {
+      return localizations.translate("firebase_windows_error");
+    }
 
     switch (errorCode) {
       case 'email-already-in-use':
@@ -28,7 +33,11 @@ class FirebaseExceptionHandler {
   static String logInErrorMessage(BuildContext context, String errorCode) {
     final localizations = AppLocalizations.of(context);
 
-        switch (errorCode) {
+    if (Platform.isWindows && errorCode == "unknown-error") {
+      return localizations.translate("firebase_windows_error");
+    }
+
+    switch (errorCode) {
       case "invalid-credential":
         return localizations.translate("login_error_credentials");
       case "invalid-email":
