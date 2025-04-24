@@ -41,6 +41,8 @@ class AppLocalizations {
       'login_error_no_internet': 'No internet connection. Please check your network.',
       'login_error_generic': 'An unexpected error occurred. Please try again later.',
       'login_error_user_disabled': 'User account has been disabled.',
+      'firebase_windows_error': 'Something went wrong. Please check the credentials and your internet connection.',
+      'logout' : 'Logout',
 
       // User Information
       'choose_username': 'Choose a username',
@@ -136,8 +138,8 @@ class AppLocalizations {
       'profile': 'Profilo',
 
       // Authentication
-      'sign_in_google': 'Accedi con Google',
-      'sign_in_facebook': 'Accedi con Facebook',
+      'login_google': 'Accedi con Google',
+      'login_facebook': 'Accedi con Facebook',
       'already_have_account': 'Hai già un account? Accedi',
       'dont_have_account': 'Non hai un account? Registrati',
       'login': 'Accedi',
@@ -147,6 +149,8 @@ class AppLocalizations {
       'login_error_no_internet': 'Nessuna connessione a internet. Controlla la tua rete.',
       'login_error_generic': 'Si è verificato un errore inaspettato. Per favore riprova più tardi.',
       'login_error_user_disabled': 'L\'account è stato disabilitato.',
+      'firebase_windows_error': 'Qualcosa è andato storto. Controlla le credenziali e la tua connessione a internet.',
+      'logout' : 'Disconnetti',
 
       // User Information
       'username': 'Nome utente',
