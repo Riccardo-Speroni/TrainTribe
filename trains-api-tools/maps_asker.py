@@ -7,7 +7,6 @@ import time
 from datetime import datetime
 
 
-# Esempio di endpoint: Geocoding API
 endpoint = 'https://maps.googleapis.com/maps/api/directions/json?'
 
 def get_user_inputs():
@@ -32,7 +31,6 @@ def get_user_inputs():
         exit(1)
     return origin, destination, arrival_time, api_key
 
-# Parametri della richiesta (esempio: indirizzo da geocodificare)
 params = {
     "mode": "transit",
     "transit_mode": "train",
@@ -55,8 +53,18 @@ def main():
         output_path = os.path.join(script_dir, "maps_response.json")
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(response.json(), f, ensure_ascii=False, indent=4)
+        data = response.json()
+        if data.get("status") == "REQUEST_DENIED" and "API key" in data.get("error_message", ""):
+            print("La API key fornita non è valida. Riprova.")
+            apy_key = input("Inserisci nuovamente la tua API key di Google Maps: ").strip()
+            if not apy_key:
+                print("API key non valida.")
+                exit(1)
+            params["key"] = apy_key
+            main()
+            return
     else:
-        print(f"Errore nella richiesta: {response.status_code}")
+        print(f"Error in request!: {response.status_code}")
 
 if __name__ == '__main__':
     main()

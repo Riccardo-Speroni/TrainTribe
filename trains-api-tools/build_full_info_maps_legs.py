@@ -1,9 +1,9 @@
 import json
 import os
 
-trips_path = os.path.join('c:\\Users\\aless\\Polimi Temp\\TrainTribe\\jsons', 'full_info_trips.json')
-maps_path = os.path.join('c:\\Users\\aless\\Polimi Temp\\TrainTribe\\jsons', 'maps_response.json')
-output_path = os.path.join('c:\\Users\\aless\\Polimi Temp\\TrainTribe\\jsons', 'full_info_maps_legs.json')
+trips_path = os.path.join(os.path.dirname(__file__), 'full_info_trips.json')
+maps_path = os.path.join(os.path.dirname(__file__), 'maps_response.json')
+output_path = os.path.join(os.path.dirname(__file__), 'full_info_maps_legs.json')
 
 with open(trips_path, encoding='utf-8') as f:
     trips = json.load(f)
@@ -53,7 +53,6 @@ for route_idx, route in enumerate(maps['routes']):
                 step_num += 1
     if route_result:
         all_routes.append(route_result)
-# Salva tutte le soluzioni in un unico file
 with open(output_path, 'w', encoding='utf-8') as f:
     json.dump(all_routes, f, indent=2, ensure_ascii=False)
-print(f"File unico salvato in: {output_path}")
+print(f"File saved in: {output_path}")

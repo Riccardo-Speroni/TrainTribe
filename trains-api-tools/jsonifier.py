@@ -54,7 +54,6 @@ def main():
             }
             trips.setdefault(trip_id, []).append(stop_info)
 
-        # Costruisco una mappa trip_id -> trip_short_name
         trip_id_to_short_name = {trip['trip_id']: trip.get('trip_short_name', None) for trip in trips_info}
 
         trips_json = [
@@ -66,7 +65,7 @@ def main():
         with open(trips_output_path, 'w', encoding='utf-8') as f:
             json.dump(trips_json, f, ensure_ascii=False, indent=2)
     
-    print(f"File salvato in: {output_path}")
+    print(f"File saved in: {output_path}")
 
 if __name__ == '__main__':
     main()

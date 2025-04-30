@@ -20,30 +20,33 @@ class ResponsiveCardList extends StatelessWidget {
         final isGrid = constraints.maxWidth > gridBreakpoint;
 
         if (isGrid) {
-          final crossAxisCount = (constraints.maxWidth / 200).floor().clamp(2, 5);
+          final minCardWidth = 300.0;
+          final crossAxisCount = (constraints.maxWidth / minCardWidth).floor().clamp(1, 5);
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(10.0),
+            child: StaggeredGrid.count(
+              crossAxisCount: crossAxisCount,
+              mainAxisSpacing: 10.0,
+              crossAxisSpacing: 10.0,
+              children: cards.asMap().entries.map((entry) {
+                final index = entry.key;
+                final card = entry.value;
 
-            return StaggeredGrid.count(
-            crossAxisCount: crossAxisCount,
-            mainAxisSpacing: 10.0,
-            crossAxisSpacing: 10.0,
-            children: cards.asMap().entries.map((entry) {
-              final index = entry.key;
-              final card = entry.value;
+                if (expandedCardIndex != null && index == expandedCardIndex) {
+                  return StaggeredGridTile.fit(
+                    crossAxisCellCount: crossAxisCount,
+                    child: card,
+                  );
+                }
 
-              if (expandedCardIndex != null && index == expandedCardIndex) {
-              return StaggeredGridTile.fit(
-                crossAxisCellCount: crossAxisCount,
-                child: card,
-              );
-              }
-
-              return StaggeredGridTile.fit(
-              crossAxisCellCount: 1,
-              child: card,
-              );
-            }).toList(),
-            );
-          } else {
+                return StaggeredGridTile.fit(
+                  crossAxisCellCount: 1,
+                  child: card,
+                );
+              }).toList(),
+            ),
+          );
+        } else {
           return ListView.builder(
             padding: const EdgeInsets.all(10.0),
             itemCount: cards.length,
