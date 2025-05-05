@@ -46,7 +46,7 @@ params["arrival_time"] = arrival_time
 params["key"] = apy_key
 
 
-def main():
+def ask_maps():
     response = requests.get(endpoint, params=params)
     if response.status_code == 200:
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -65,6 +65,3 @@ def main():
             return
     else:
         print(f"Error in request!: {response.status_code}")
-
-if __name__ == '__main__':
-    main()
