@@ -56,17 +56,17 @@ class _TrainsPageState extends State<TrainsPage> {
     // Dati fittizi per le card (in futuro possono essere caricati da un database)
     final trainData = List.generate(10, (index) {
       return {
-        'title': '${localizations.translate('train')} $index',
+        'title': '${localizations.translate('solution')} $index',
       };
     });
 
     // Genera le card
     final trainCards = trainData.asMap().entries.map((entry) {
       final index = entry.key;
-      final train = entry.value;
+      final solution = entry.value;
 
       return TrainCard(
-        title: train['title']! as String,
+        title: solution['title']!,
         isExpanded: expandedCardIndex == index,
         onTap: () {
           setState(() {
