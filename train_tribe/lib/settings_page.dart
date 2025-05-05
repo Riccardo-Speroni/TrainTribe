@@ -21,8 +21,8 @@ class SettingsPage extends StatelessWidget {
 
   Future<int?> _getThemePreference() async {
     final prefs = await SharedPreferences.getInstance();
-    final int? theme_mode = prefs.getInt('theme_mode');
-    return theme_mode;
+    final int? themeMode = prefs.getInt('theme_mode');
+    return themeMode;
   }
 
   @override

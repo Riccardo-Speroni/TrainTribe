@@ -81,7 +81,7 @@ class TrainCard extends StatelessWidget {
                     ),
                     Spacer(),
                     SizedBox(
-                      width: (userAvatars.length > 0 ? ((userAvatars.length - 1) * 12.0 + 32.0) : 32.0).clamp(32.0, 80.0),
+                      width: (userAvatars.isNotEmpty ? ((userAvatars.length - 1) * 12.0 + 32.0) : 32.0).clamp(32.0, 80.0),
                       height: 32.0,
                       child: Stack(
                         clipBehavior: Clip.none,
@@ -132,7 +132,7 @@ class TrainCard extends StatelessWidget {
                     bool anyVertical = false;
                     for (final leg in legs) {
                       final stopsRaw = leg['stops'] as List?;
-                      final stops = stopsRaw?.map((s) => (s as Map<String, dynamic>).map((k, v) => MapEntry(k as String, v?.toString() ?? ''))).toList() ?? [];
+                      final stops = stopsRaw?.map((s) => (s as Map<String, dynamic>).map((k, v) => MapEntry(k, v?.toString() ?? ''))).toList() ?? [];
                       final totalWidth = stops.length * stopWidth + (stops.length - 1) * 16.0 + 50.0;
                       if (isMobile || totalWidth > constraints.maxWidth) {
                         anyVertical = true;
@@ -145,7 +145,7 @@ class TrainCard extends StatelessWidget {
                         children: [
                           ...legs.map((leg) {
                             final stopsRaw = leg['stops'] as List?;
-                            final stops = stopsRaw?.map((s) => (s as Map<String, dynamic>).map((k, v) => MapEntry(k as String, v?.toString() ?? ''))).toList() ?? [];
+                            final stops = stopsRaw?.map((s) => (s as Map<String, dynamic>).map((k, v) => MapEntry(k, v?.toString() ?? ''))).toList() ?? [];
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 10.0),
                               child: _LegTimeline(
@@ -154,7 +154,7 @@ class TrainCard extends StatelessWidget {
                                 isVertical: anyVertical,
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                     );
@@ -179,7 +179,7 @@ class _LegTimeline extends StatelessWidget {
     return userAvatars.where((user) {
       final from = user['from'];
       final to = user['to'];
-      if (from == null || to == null || stopId == null) return false;
+      if (from == null || to == null) return false;
       return int.tryParse(from) != null && int.tryParse(to) != null &&
         int.parse(from) <= int.parse(stopId) && int.parse(stopId) <= int.parse(to);
     }).toList();
@@ -245,48 +245,53 @@ class _LegTimeline extends StatelessWidget {
             ),
           );
         } else {
-          return Container(
+          return SizedBox(
             height: 180,
-            child: FixedTimeline.tileBuilder(
-              direction: Axis.horizontal,
-              builder: TimelineTileBuilder.connected(
-                connectionDirection: ConnectionDirection.before,
-                itemCount: stops.length,
-                indicatorBuilder: (context, index) => const DotIndicator(color: Colors.blue),
-                connectorBuilder: (context, index, type) => SolidLineConnector(color: Colors.blue),
-                contentsBuilder: (context, index) {
-                  final stop = stops[index];
-                  final users = usersAtStop(stop['id'] ?? '');
-                  return Container(
-                    width: stopWidth,
-                    margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(stop['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                        if (stop['arrivalTime'] != null)
-                          Text('Arrivo: ${stop['arrivalTime']!}', style: const TextStyle(color: Colors.grey, fontSize: 12), textAlign: TextAlign.center),
-                        if (users.isNotEmpty)
-                          Wrap(
-                            alignment: WrapAlignment.center,
-                            spacing: 8,
-                            children: users.map((user) => Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                CircleAvatar(
-                                  radius: 10,
-                                  backgroundImage: AssetImage(user['image'] ?? ''),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(user['name'] ?? '', style: const TextStyle(fontSize: 12)),
-                              ],
-                            )).toList(),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FixedTimeline.tileBuilder(
+                  direction: Axis.horizontal,
+                  builder: TimelineTileBuilder.connected(
+                    connectionDirection: ConnectionDirection.before,
+                    itemCount: stops.length,
+                    indicatorBuilder: (context, index) => const DotIndicator(color: Colors.blue),
+                    connectorBuilder: (context, index, type) => SolidLineConnector(color: Colors.blue),
+                    contentsBuilder: (context, index) {
+                      final stop = stops[index];
+                      final users = usersAtStop(stop['id'] ?? '');
+                      return Container(
+                        width: stopWidth,
+                        margin: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(stop['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                            if (stop['arrivalTime'] != null)
+                              Text('Arrivo: ${stop['arrivalTime']!}', style: const TextStyle(color: Colors.grey, fontSize: 12), textAlign: TextAlign.center),
+                            if (users.isNotEmpty)
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                spacing: 8,
+                                children: users.map((user) => Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 10,
+                                      backgroundImage: AssetImage(user['image'] ?? ''),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(user['name'] ?? '', style: const TextStyle(fontSize: 12)),
+                                  ],
+                                )).toList(),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           );
         }
