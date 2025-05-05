@@ -57,10 +57,6 @@ class _TrainsPageState extends State<TrainsPage> {
     final trainData = List.generate(10, (index) {
       return {
         'title': '${localizations.translate('train')} $index',
-        'details': '${localizations.translate('details_about')} ${localizations.translate('train')} $index',
-        'additionalDetails': '${localizations.translate('additional_details')} for ${localizations.translate('train')} $index',
-        'image': 'images/djungelskog.jpg', // Percorso immagine fittizio
-        'list': ['Stop 1', 'Stop 2', 'Stop 3'], // Lista fittizia
       };
     });
 
@@ -71,16 +67,102 @@ class _TrainsPageState extends State<TrainsPage> {
 
       return TrainCard(
         title: train['title']! as String,
-        details: train['details']! as String,
-        additionalDetails: train['additionalDetails']! as String,
-        image: train['image']! as String,
-        list: train['list']! as List<String>,
         isExpanded: expandedCardIndex == index,
         onTap: () {
           setState(() {
             expandedCardIndex = expandedCardIndex == index ? null : index;
           });
         },
+        departureTime: DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index))), // Example departure time as String
+        arrivalTime: DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 2))), // Example arrival time as String
+        isDirect: index % 2 == 0, // Example: even index trains are direct
+        userAvatars: [
+          {'image': 'images/avatar1.png', 'name': 'Alice', 'from': '1', 'to': '2'},
+          {'image': 'images/avatar2.png', 'name': 'Bob', 'from': '2', 'to': '7'},
+          {'image': 'images/avatar3.png', 'name': 'Carla', 'from': '3', 'to': '9'},
+          {'image': 'images/avatar4.png', 'name': 'David', 'from': '2', 'to': '3'},
+          {'image': 'images/avatar5.png', 'name': 'Elena', 'from': '1', 'to': '9'},
+        ], // Example list of user avatar objects
+        legs: [
+          {
+            'stops': [
+              {
+                'name': 'Station A',
+                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index))),
+                'departureTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index, minutes: 10))),
+                'platform': '1',
+                'track': 'A',
+                'id': '1',
+              },
+              {
+                'name': 'Station B',
+                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 1))),
+                'departureTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 1, minutes: 5))),
+                'platform': '2',
+                'track': 'B',
+                'id': '2',
+              },
+              {
+                'name': 'Station C',
+                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 2))),
+                'departureTime': null,
+                'platform': '3',
+                'track': 'C',
+                'id': '3',
+              },
+              {
+                'name': 'Station D',
+                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 2))),
+                'departureTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 2, minutes: 8))),
+                'platform': '3',
+                'track': 'C',
+                'id': '4',
+              },
+              {
+                'name': 'Station E',
+                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 2))),
+                'departureTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 2, minutes: 8))),
+                'platform': '3',
+                'track': 'C',
+                'id': '5',
+              }
+            ],
+            'trainNumber': 'T${index + 100}',
+            'operator': 'TrainCo',
+            'isDirect': index % 2 == 0,
+          },
+          {
+            'stops': [
+              {
+                'name': 'Station X',
+                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 3))),
+                'departureTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 3, minutes: 8))),
+                'platform': '4',
+                'track': 'D',
+                'id': '7',
+              },
+              {
+                'name': 'Station Y',
+                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 4))),
+                'departureTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 4, minutes: 6))),
+                'platform': '5',
+                'track': 'E',
+                'id': '8',
+              },
+              {
+                'name': 'Station Z',
+                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 5))),
+                'departureTime': null,
+                'platform': '6',
+                'track': 'F',
+                'id': '9',
+              },
+            ],
+            'trainNumber': 'T${index + 200}',
+            'operator': 'Railways',
+            'isDirect': index % 2 != 0,
+          }
+        ],
       );
     }).toList();
 

@@ -260,6 +260,11 @@ class _LoginPageState extends State<LoginPage>
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.lock),
                     ),
+                    onSubmitted: (_) {
+                      if (isButtonEnabled) {
+                        _loginWithEmailAndPassword();
+                      }
+                    },
                   ),
                   const SizedBox(height: 20),
 
