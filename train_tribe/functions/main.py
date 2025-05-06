@@ -14,7 +14,7 @@ def on_request_example(req: https_fn.Request) -> https_fn.Response:
     return https_fn.Response("Hello world!")
 
 @https_fn.on_request()
-def jsonify(req: https_fn.Request) -> https_fn.Response:
+def call_jsonify(req: https_fn.Request) -> https_fn.Response:
     jsonify()
     return https_fn.Response("Hello world!")
 

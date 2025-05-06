@@ -5,6 +5,7 @@ import zipfile
 import io
 import os
 from google.cloud import storage  # Assicurati che la libreria sia installata
+import tempfile
 
 def upload_to_bucket(source_file, destination_blob, bucket_name):
     client = storage.Client()
@@ -15,7 +16,7 @@ def upload_to_bucket(source_file, destination_blob, bucket_name):
 
 def jsonify():
     # Usa la directory temporanea per Cloud Functions
-    tmp_dir = '/tmp'
+    tmp_dir = tempfile.gettempdir()
     stop_times_csv = os.path.join(tmp_dir, 'stop_times.txt')
     stops_csv = os.path.join(tmp_dir, 'stops.txt')
     trips_csv = os.path.join(tmp_dir, 'trips.txt')
@@ -86,7 +87,7 @@ def jsonify():
     print(f"File salvati in: {tmp_dir}")
 
     # Carica i file json nel bucket persistente
-    bucket_name = "gs://traintribe-f2c7b.firebasestorage.app"  # Sostituisci con il nome reale del bucket
+    bucket_name = "traintribe-f2c7b.firebasestorage.app"  # Sostituisci con il nome reale del bucket
     upload_to_bucket(stop_times_json, 'maps/stop-times.json', bucket_name)
     upload_to_bucket(stops_json, 'maps/stops.json', bucket_name)
     upload_to_bucket(trips_json_path, 'maps/trips.json', bucket_name)
@@ -94,4 +95,4 @@ def jsonify():
     upload_to_bucket(trips_output_path, 'maps/full_info_trips.json', bucket_name)
 
 # Se vuoi testare in locale:
-# jsonify()
+#jsonify()
