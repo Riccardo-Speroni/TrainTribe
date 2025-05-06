@@ -62,8 +62,9 @@ class _CalendarPageState extends State<CalendarPage> {
 
     for (int duration = 1; duration <= maxDuration; duration++) {
       bool overlaps = events.any((event) {
-        if (event == excludeEvent)
+        if (event == excludeEvent) {
           return false; // Exclude the event being edited
+        }
         if (_isSameDay(event.date, day)) {
           int eventStart = event.hour;
           int eventEnd = event.hour + event.duration;
@@ -763,7 +764,7 @@ class _CalendarPageState extends State<CalendarPage> {
               // Header: empty time column + day headers
               Row(
                 children: [
-                  Container(width: 60, height: 40),
+                  SizedBox(width: 60, height: 40),
                   ...visibleDays.map((day) {
                     final String dayFormat =
                         screenWidth > 600 ? 'EEEE, d MMM' : 'EEE, d MMM';
@@ -788,7 +789,7 @@ class _CalendarPageState extends State<CalendarPage> {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
               // Body: time column + days grid in vertical scroll
@@ -803,7 +804,7 @@ class _CalendarPageState extends State<CalendarPage> {
                         return Expanded(
                           child: _buildDayColumn(day, scrollController, pageIndex),
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ),
@@ -818,8 +819,8 @@ class _CalendarPageState extends State<CalendarPage> {
           _showAddEventDialog(
               DateTime.now(), 0); // Default to current day and first hour
         },
-        child: const Icon(Icons.add),
         backgroundColor: Colors.blueAccent,
+        child: const Icon(Icons.add),
       ),
     );
   }

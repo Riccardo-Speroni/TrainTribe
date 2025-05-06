@@ -42,9 +42,29 @@ void main() async {
       : ThemeMode.system;
 
   // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    print('Initializing Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('Firebase initialized successfully');
+  } catch (e) {
+    print('Failed to initialize Firebase: $e');
+  }
+
+  // Debug login
+  try {
+    print('Attempting to sign in...');
+    final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: 'test@example.com', // Sostituisci con un'email valida
+      password: 'password123',   // Sostituisci con una password valida
+    );
+    print('Login successful: ${userCredential.user?.email}');
+  } on FirebaseAuthException catch (e) {
+    print('FirebaseAuthException: ${e.code} - ${e.message}');
+  } catch (e) {
+    print('Unexpected error during login: $e');
+  }
 
   runApp(MyApp());
 }
@@ -54,7 +74,7 @@ ValueNotifier<Locale> appLocale =
 ValueNotifier<ThemeMode> appTheme = ValueNotifier(ThemeMode.system);
 
 class MyApp extends StatefulWidget {
-  MyApp({super.key});
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
