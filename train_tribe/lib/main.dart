@@ -72,7 +72,7 @@ ValueNotifier<Locale> appLocale = ValueNotifier(PlatformDispatcher.instance.loca
 ValueNotifier<ThemeMode> appTheme = ValueNotifier(ThemeMode.system);
 
 class MyApp extends StatefulWidget {
-  MyApp({super.key});
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();

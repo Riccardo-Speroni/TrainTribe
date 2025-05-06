@@ -5,7 +5,7 @@ class ProfilePicture extends StatelessWidget {
   final String? picture; // URL or initials
   final double size;
 
-  const ProfilePicture({Key? key, required this.picture, this.size = 75.0}) : super(key: key);
+  const ProfilePicture({super.key, required this.picture, this.size = 75.0});
 
   @override
   Widget build(BuildContext context) {

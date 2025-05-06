@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'l10n/app_localizations.dart';
 import 'widgets/responsive_card_list.dart'; // Importa il widget ResponsiveCardList
 import 'widgets/friend_card.dart'; // Importa il widget FriendCard

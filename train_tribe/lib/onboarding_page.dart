@@ -18,7 +18,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
 
-    final List<Map<String, String>> _onboardingData = [
+    final List<Map<String, String>> onboardingData = [
       {
         'title': localizations.translate('onboarding_title_1'),
         'description': localizations.translate('onboarding_desc_1'),
@@ -37,25 +37,25 @@ class _OnboardingPageState extends State<OnboardingPage> {
       },
     ];
 
-    Future<void> _completeOnboarding() async {
+    Future<void> completeOnboarding() async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_complete', true);
       GoRouter.of(context).go('/root');
     }
 
-    void _goToNextPage() {
-      if (_currentPage < _onboardingData.length - 1) {
+    void goToNextPage() {
+      if (_currentPage < onboardingData.length - 1) {
         _pageController.nextPage(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
       } else {
-        _completeOnboarding();
+        completeOnboarding();
       }
     }
 
-    void _skipOnboarding() {
-      _completeOnboarding();
+    void skipOnboarding() {
+      completeOnboarding();
     }
 
     return Scaffold(
@@ -69,9 +69,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   _currentPage = index;
                 });
               },
-              itemCount: _onboardingData.length,
+              itemCount: onboardingData.length,
               itemBuilder: (context, index) {
-                final data = _onboardingData[index];
+                final data = onboardingData[index];
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -95,13 +95,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               TextButton(
-                onPressed: _skipOnboarding,
+                onPressed: skipOnboarding,
                 child: Text(localizations.translate('skip')),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
-                  _onboardingData.length,
+                  onboardingData.length,
                   (index) => Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     width: _currentPage == index ? 12 : 8,
@@ -114,9 +114,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 ),
               ),
               TextButton(
-                onPressed: _goToNextPage,
+                onPressed: goToNextPage,
                 child: Text(
-                  _currentPage == _onboardingData.length - 1
+                  _currentPage == onboardingData.length - 1
                       ? localizations.translate('finish')
                       : localizations.translate('next'),
                 ),
