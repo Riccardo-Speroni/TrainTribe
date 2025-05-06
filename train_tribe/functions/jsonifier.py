@@ -5,7 +5,7 @@ import requests
 import zipfile
 import io
 
-def main():
+def jsonify():
     zip_url = "https://www.dati.lombardia.it/download/3z4k-mxz9/application%2Fzip"
     response = requests.get(zip_url)
     response.raise_for_status()
@@ -66,6 +66,3 @@ def main():
             json.dump(trips_json, f, ensure_ascii=False, indent=2)
     
     print(f"File saved in: {output_path}")
-
-if __name__ == '__main__':
-    main()

@@ -1,8 +1,11 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/firebase_exception_handler.dart';
 import 'utils/loading_indicator.dart';
@@ -62,9 +65,13 @@ class _LoginPageState extends State<LoginPage>
   }
 
   Future<void> _loginWithGoogle() async {
+    setState(() => _isLoading = true); // Show loading indicator
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return; // User canceled the login
+      if (googleUser == null) {
+        setState(() => _isLoading = false); // Hide loading indicator
+        return; // User canceled the login
+      }
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
@@ -74,29 +81,81 @@ class _LoginPageState extends State<LoginPage>
         idToken: googleAuth.idToken,
       );
 
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      GoRouter.of(context).go('/root');
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+      final user = userCredential.user;
+
+      if (user != null) {
+        // Check if user exists in Firestore
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists) {
+          // User exists, proceed to the main app
+          if (mounted) GoRouter.of(context).go('/root');
+        } else {
+          // User does not exist, redirect to onboarding
+          if (mounted) {
+            GoRouter.of(context).go('/complete_signup', extra: {
+              'email': user.email,
+              'name': user.displayName,
+              'profilePicture': user.photoURL,
+            });
+          }
+        }
+      }
     } catch (e) {
-      _showErrorDialog(AppLocalizations.of(context)
-          .translate('login_error_generic'));
+      _showErrorDialog(
+          AppLocalizations.of(context).translate('login_error_generic'));
+    } finally {
+      setState(() => _isLoading = false); // Hide loading indicator
     }
   }
 
   Future<void> _loginWithFacebook() async {
+    setState(() => _isLoading = true); // Show loading indicator
     try {
       final LoginResult result = await FacebookAuth.instance.login();
       if (result.status != LoginStatus.success || result.accessToken == null) {
+        setState(() => _isLoading = false); // Hide loading indicator
         return; // Login failed or accessToken is null
       }
 
       final OAuthCredential credential =
           FacebookAuthProvider.credential(result.accessToken!.tokenString);
 
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      GoRouter.of(context).go('/root');
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+      final user = userCredential.user;
+
+      if (user != null) {
+        // Check if user exists in Firestore
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists) {
+          // User exists, proceed to the main app
+          if (mounted) GoRouter.of(context).go('/root');
+        } else {
+          // User does not exist, redirect to onboarding
+          if (mounted) {
+            GoRouter.of(context).go('/complete_signup', extra: {
+              'email': user.email,
+              'name': user.displayName,
+              'profilePicture': user.photoURL,
+            });
+          }
+        }
+      }
     } catch (e) {
-      _showErrorDialog(AppLocalizations.of(context)
-          .translate('login_error_generic'));
+      _showErrorDialog(
+          AppLocalizations.of(context).translate('login_error_generic'));
+    } finally {
+      setState(() => _isLoading = false); // Hide loading indicator
     }
   }
 
@@ -216,8 +275,9 @@ class _LoginPageState extends State<LoginPage>
                       return Opacity(
                         opacity: _opacityAnimation.value,
                         child: ElevatedButton(
-                          onPressed:
-                              isButtonEnabled ? _loginWithEmailAndPassword : null,
+                          onPressed: isButtonEnabled
+                              ? _loginWithEmailAndPassword
+                              : null,
                           style: ElevatedButton.styleFrom(
                             minimumSize:
                                 const Size(double.infinity, 50), // Full width
@@ -235,7 +295,9 @@ class _LoginPageState extends State<LoginPage>
 
                   // Login with Google
                   ElevatedButton.icon(
-                    onPressed: _loginWithGoogle,
+                    onPressed: (kIsWeb || Platform.isAndroid || Platform.isIOS)
+                        ? _loginWithGoogle
+                        : null, // Disable button on unsupported platforms
                     icon: const Icon(Icons.login),
                     label: Text(localizations.translate('login_google')),
                     style: ElevatedButton.styleFrom(
@@ -248,7 +310,9 @@ class _LoginPageState extends State<LoginPage>
 
                   // Login with Facebook
                   ElevatedButton.icon(
-                    onPressed: _loginWithFacebook,
+                    onPressed: (kIsWeb || Platform.isAndroid || Platform.isIOS)
+                        ? _loginWithFacebook
+                        : null, // Disable button on unsupported platforms
                     icon: const Icon(Icons.facebook),
                     label: Text(localizations.translate('login_facebook')),
                     style: ElevatedButton.styleFrom(
@@ -262,7 +326,8 @@ class _LoginPageState extends State<LoginPage>
                   // Signup Redirection
                   GestureDetector(
                     onTap: () {
-                      GoRouter.of(context).go('/signup'); // Navigate to Signup Page
+                      GoRouter.of(context)
+                          .go('/signup'); // Navigate to Signup Page
                     },
                     child: Text(
                       localizations.translate('dont_have_account'),

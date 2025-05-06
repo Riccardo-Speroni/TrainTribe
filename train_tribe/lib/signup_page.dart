@@ -10,6 +10,7 @@ import 'package:image/image.dart' as img;
 import 'l10n/app_localizations.dart';
 import 'utils/firebase_exception_handler.dart';
 import 'utils/loading_indicator.dart';
+import 'widgets/user_details_page.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -36,6 +37,11 @@ class _SignUpPageState extends State<SignUpPage> {
   bool arePasswordsValid = false;
   bool areMandatoryFieldsFilled = false;
   bool _isLoading = false; // State to control loading indicator
+  bool isUsernameUnique = true; // State to track username uniqueness
+
+  int _avatarPage = 1; // Tracks the current page of avatars
+  List<String> _avatarUrls = []; // Stores the generated avatar URLs
+  String? _selectedAvatarUrl; // Memorizza l'URL dell'avatar selezionato
 
   void _nextPage() {
     if (_currentPage < 3) {
@@ -137,6 +143,9 @@ class _SignUpPageState extends State<SignUpPage> {
       if (_profileImage != null) {
         // Upload selected image
         profilePictureUrl = await _uploadImageToFirebase(_profileImage!);
+      } else if (_selectedAvatarUrl != null) {
+        // Use selected avatar URL
+        profilePictureUrl = _selectedAvatarUrl;
       } else {
         // Generate initials-based avatar
         final initials = "${firstName[0]}${lastName[0]}".toUpperCase();
@@ -178,6 +187,28 @@ class _SignUpPageState extends State<SignUpPage> {
         ],
       ),
     );
+  }
+
+  void _generateAvatars() async {
+    final username = usernameController.text.trim();
+    if (username.isEmpty) return;
+
+    final List<String> newAvatarUrls = List.generate(10, (index) {
+      final seed = '$username${(_avatarPage - 1) * 10 + index + 1}';
+      return 'https://api.dicebear.com/9.x/adventurer-neutral/png?seed=$seed&backgroundType=gradientLinear,solid';
+    });
+
+    setState(() {
+      _avatarUrls = newAvatarUrls;
+      _avatarPage++;
+    });
+  }
+
+  void _selectAvatar(String avatarUrl) {
+    setState(() {
+      _selectedAvatarUrl = avatarUrl; // Save the selected avatar URL
+      _profileImage = null; // Remove any previously selected image
+    });
   }
 
   @override
@@ -368,128 +399,125 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildUserDetailsPage(AppLocalizations localizations) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Align(
-            alignment: Alignment.topLeft,
-            child: IconButton(
-                icon: const Icon(Icons.arrow_back), onPressed: _prevPage),
-          ),
-          Image.asset('images/djungelskog.jpg', height: 100),
-          const SizedBox(height: 20),
-          Text(localizations.translate('choose_username'),
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          TextField(
-            controller: usernameController,
-            onChanged: (_) => _validateMandatoryFields(),
-            decoration: InputDecoration(
-              labelText: localizations.translate('username'),
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(localizations.translate('name_surname'),
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: firstNameController,
-                  onChanged: (_) => _validateMandatoryFields(),
-                  decoration: InputDecoration(
-                    labelText: localizations.translate('first_name'),
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: lastNameController,
-                  onChanged: (_) => _validateMandatoryFields(),
-                  decoration: InputDecoration(
-                    labelText: localizations.translate('last_name'),
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(localizations.translate('add_phone_number'),
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          TextField(
-            controller: phoneController,
-            decoration: InputDecoration(
-              labelText: localizations.translate('phone_number'),
-              border: const OutlineInputBorder(),
-              helperText: localizations.translate('phone_number_note'),
-            ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: areMandatoryFieldsFilled ? _nextPage : null,
-            child: Text(localizations.translate('next')),
-          ),
-        ],
-      ),
+    return UserDetailsPage(
+      prefilledName: firstNameController.text,
+      prefilledSurname: lastNameController.text,
+      prefilledUsername: usernameController.text,
+      prefilledPhone: phoneController.text,
+      onBack: _prevPage,
+      onAction: () {
+        // Save the current values to the controllers
+        setState(() {
+          firstNameController.text = firstNameController.text.trim();
+          lastNameController.text = lastNameController.text.trim();
+          usernameController.text = usernameController.text.trim();
+          phoneController.text = phoneController.text.trim();
+        });
+        _nextPage();
+      },
+      actionButtonText: localizations.translate('next'),
+      nameController: firstNameController,
+      surnameController: lastNameController,
+      usernameController: usernameController,
+      phoneController: phoneController,
     );
   }
 
   Widget _buildProfilePicturePage(AppLocalizations localizations) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Align(
-            alignment: Alignment.topLeft,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: _prevPage,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            localizations.translate('choose_profile_picture'),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-            CircleAvatar(
-            radius: 75,
-            backgroundColor: Colors.teal,
-            foregroundImage: _profileImage != null ? FileImage(_profileImage!) : null,
-            child: _profileImage == null
-              ? Initicon(
-                text: "${firstNameController.text} ${lastNameController.text}",
-                backgroundColor: Colors.transparent,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 60,
-                  fontWeight: FontWeight.bold,
+    final horizontalPadding = MediaQuery.of(context).size.width > 600 ? 40.0 : 20.0; // Add more padding for larger screens
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableHeight = constraints.maxHeight;
+
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.topLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: _prevPage,
                 ),
-                size: 150, // Match the size to the CircleAvatar's diameter
-                )
-              : null,
-            ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _pickImage,
-            child: Text(localizations.translate('pick_image')),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                localizations.translate('choose_profile_picture'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              CircleAvatar(
+                radius: 60, // Reduced size of the profile picture
+                backgroundColor: Colors.teal,
+                foregroundImage: _profileImage != null
+                    ? FileImage(_profileImage!)
+                    : (_selectedAvatarUrl != null ? NetworkImage(_selectedAvatarUrl!) : null),
+                child: _profileImage == null && _selectedAvatarUrl == null
+                    ? Initicon(
+                        text: "${firstNameController.text} ${lastNameController.text}",
+                        backgroundColor: Colors.transparent,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 50,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        size: 120, // Match the size to the CircleAvatar's diameter
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _pickImage,
+                child: Text(localizations.translate('pick_image')),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _generateAvatars,
+                child: Text(localizations.translate('generate_avatars')),
+              ),
+              const SizedBox(height: 20),
+              if (_avatarUrls.isNotEmpty)
+                Flexible(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 600), // Limit the grid width
+                      child: GridView.builder(
+                        shrinkWrap: true, // Prevent the grid from expanding unnecessarily
+                        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 80, // Reduced size of each avatar image
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          childAspectRatio: 1, // Ensure images are square
+                        ),
+                        itemCount: _avatarUrls.length,
+                        itemBuilder: (context, index) {
+                          final avatarUrl = _avatarUrls[index];
+                          return GestureDetector(
+                            onTap: () => _selectAvatar(avatarUrl),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(100), // Add rounded corners
+                              child: Image.network(
+                                avatarUrl,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _createUserInFirebase,
+                child: Text(localizations.translate('create_account')),
+              ),
+              const SizedBox(height: 20), // Add padding below the button
+            ],
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _createUserInFirebase,
-            child: Text(localizations.translate('create_account')),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

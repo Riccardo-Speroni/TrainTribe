@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'home_page.dart';
@@ -7,6 +8,7 @@ import 'calendar_page.dart';
 import 'profile_page.dart';
 import 'login_page.dart';
 import 'signup_page.dart';
+import 'complete_signup.dart';
 import 'onboarding_page.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -33,12 +35,11 @@ void main() async {
       : PlatformDispatcher.instance.locale;
 
   final int? themeModeIndex = prefs.getInt('theme_mode');
-  appTheme.value = themeModeIndex != null 
-      ? (
-        themeModeIndex == 0 ? ThemeMode.light 
-        : (themeModeIndex == 1 ? ThemeMode.dark 
-        : ThemeMode.system)
-      ) : ThemeMode.system;
+  appTheme.value = themeModeIndex != null
+      ? (themeModeIndex == 0
+          ? ThemeMode.light
+          : (themeModeIndex == 1 ? ThemeMode.dark : ThemeMode.system))
+      : ThemeMode.system;
 
   // Initialize Firebase
   try {
@@ -68,7 +69,8 @@ void main() async {
   runApp(MyApp());
 }
 
-ValueNotifier<Locale> appLocale = ValueNotifier(PlatformDispatcher.instance.locale);
+ValueNotifier<Locale> appLocale =
+    ValueNotifier(PlatformDispatcher.instance.locale);
 ValueNotifier<ThemeMode> appTheme = ValueNotifier(ThemeMode.system);
 
 class MyApp extends StatefulWidget {
@@ -98,25 +100,53 @@ class _MyAppState extends State<MyApp> {
       }
 
       // Rule 2: Redirect to login if not logged in and restrict access to login/signup pages
-      if (user == null && ((state.fullPath != '/login' && state.fullPath != '/signup') || (state.fullPath == '/'))) {
+      if (user == null &&
+          ((state.fullPath != '/login' && state.fullPath != '/signup') ||
+              (state.fullPath == '/'))) {
         print('Redirecting to login page...');
         return '/login';
       }
 
-      // Rule 3: Redirect to root if logged in and visiting login/signup pages
-      if (user != null && (state.fullPath == '/login' || state.fullPath == '/signup')) {
-        print('Already logged in, redirecting to root page...');
-        return '/root';
+      // Rule 3: Check if the user's profile is complete
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (!userDoc.exists || userDoc.data()?['username'] == null) {
+          // Redirect to complete_signup if profile is incomplete
+          print('Redirecting to complete_signup page...');
+          //FirebaseAuth.instance.signOut();  DEBUG PURPOSES
+          return '/complete_signup';
+          // Rule 4: Redirect to root if already logged in and on login/signup page
+        } else if (state.fullPath == '/login' || state.fullPath == '/signup') {
+          print('Already logged in, redirecting to root page...');
+          return '/root';
+        }
       }
 
       // No redirection needed
       return null;
     },
     routes: [
-      GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingPage()),
+      GoRoute(
+          path: '/onboarding',
+          builder: (context, state) => const OnboardingPage()),
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
       GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),
       GoRoute(path: '/root', builder: (context, state) => const RootPage()),
+      GoRoute(
+        path: '/complete_signup',
+        builder: (context, state) {
+          final extra =
+              state.extra as Map<String, dynamic>?; // Retrieve extra data
+          return CompleteSignUpPage(
+            email: extra?['email'],
+            name: extra?['name'],
+            profilePicture: extra?['profilePicture'],
+          );
+        },
+      ),
     ],
   );
 
@@ -133,13 +163,13 @@ class _MyAppState extends State<MyApp> {
               debugShowCheckedModeBanner: false,
               theme: ThemeData.light().copyWith(
                 colorScheme: ThemeData.light().colorScheme.copyWith(
-                  primary: Colors.green,
-                ),
+                      primary: Colors.green,
+                    ),
               ), // Light theme
               darkTheme: ThemeData.dark().copyWith(
                 colorScheme: ThemeData.dark().colorScheme.copyWith(
-                  primary: Colors.green,
-                ),
+                      primary: Colors.green,
+                    ),
               ), // Dark theme
               themeMode: themeMode, // Use appTheme for theme mode
               locale: locale, // Set the current locale
@@ -200,10 +230,14 @@ class _RootPageState extends State<RootPage> {
       bottomNavigationBar: NavigationBar(
         destinations: [
           NavigationDestination(icon: const Icon(Icons.home), label: titles[0]),
-          NavigationDestination(icon: const Icon(Icons.people), label: titles[1]),
-          NavigationDestination(icon: const Icon(Icons.train), label: titles[2]),
-          NavigationDestination(icon: const Icon(Icons.calendar_today), label: titles[3]),
-          NavigationDestination(icon: const Icon(Icons.person), label: titles[4]),
+          NavigationDestination(
+              icon: const Icon(Icons.people), label: titles[1]),
+          NavigationDestination(
+              icon: const Icon(Icons.train), label: titles[2]),
+          NavigationDestination(
+              icon: const Icon(Icons.calendar_today), label: titles[3]),
+          NavigationDestination(
+              icon: const Icon(Icons.person), label: titles[4]),
         ],
         onDestinationSelected: (int index) {
           setState(() {

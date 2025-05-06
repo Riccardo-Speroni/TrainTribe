@@ -43,6 +43,7 @@ class AppLocalizations {
       'login_error_user_disabled': 'User account has been disabled.',
       'firebase_windows_error': 'Something went wrong. Please check the credentials and your internet connection.',
       'logout' : 'Logout',
+      'complete_profile': 'Complete your profile',
 
       // User Information
       'choose_username': 'Choose a username',
@@ -107,6 +108,7 @@ class AppLocalizations {
       'ghost': 'Ghost',
       'whatsapp': 'Whatsapp',
       'phone_number_note': 'Optional. Used only for retrieving contacts as friends.',
+      'generate_avatars': 'Generate Avatars',
 
       // Error Messages
       'error': 'Error',
@@ -116,6 +118,7 @@ class AppLocalizations {
       'error_invalid_email': 'The email address is not valid.',
       'error_operation_not_allowed': 'Email/password accounts are not enabled. Please contact support.',
       'error_weak_password': 'The password is too weak. Please use a stronger password.',
+      'error_username_taken': 'This username is already taken. Please choose another one.',
       'error_too_many_requests': 'Too many requests. Please try again later.',
       'error_user_token_expired': 'Your session has expired. Please log in again.',
       'error_network_request_failed': 'Network error. Please check your internet connection.',
@@ -151,6 +154,7 @@ class AppLocalizations {
       'login_error_user_disabled': 'L\'account è stato disabilitato.',
       'firebase_windows_error': 'Qualcosa è andato storto. Controlla le credenziali e la tua connessione a internet.',
       'logout' : 'Disconnetti',
+      'complete_profile': 'Completa il tuo profilo',
 
       // User Information
       'username': 'Nome utente',
@@ -215,6 +219,7 @@ class AppLocalizations {
       'ghost': 'Nascondi',
       'whatsapp': 'Whatsapp',
       'phone_number_note': 'Opzionale. Usato solo per recuperare i contatti come amici.',
+      'generate_avatars': 'Genera Avatar',
 
       // Error Messages
       'error': 'Errore',
@@ -224,6 +229,7 @@ class AppLocalizations {
       'error_invalid_email': 'L\'indirizzo email non è valido.',
       'error_operation_not_allowed': 'Gli account email/password non sono abilitati. Contatta il supporto.',
       'error_weak_password': 'La password è troppo debole. Usa una password più forte.',
+      'error_username_taken': 'Questo nome utente è già in uso. Scegline un altro.',
       'error_too_many_requests': 'Troppe richieste. Riprova più tardi.',
       'error_user_token_expired': 'La tua sessione è scaduta. Accedi di nuovo.',
       'error_network_request_failed': 'Errore di rete. Controlla la tua connessione a internet.',
