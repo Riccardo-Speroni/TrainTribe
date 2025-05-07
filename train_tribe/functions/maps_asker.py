@@ -40,7 +40,7 @@ def ask_maps(params):
         bucket_name = params["bucket_name"]
         blob_name = params["maps_path"]
         upload_to_bucket(tmp_output_path, blob_name, bucket_name)
-        return {"success": True, "message": "Files saved successfully"}
+        return {"success": True, "message": "Files saved successfully", "mops_response": response.json()}
     else:
         print(f"Error in request!: {response.status_code}")
         return {"success": False, "message": f"Error in request!: {response.status_code}"}

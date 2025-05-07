@@ -10,6 +10,6 @@ params = {
 response = requests.get(url, params=params)
 
 if response.status_code == 200:
-    print("Success:", response.json())
+    print("Success:", response)
 else:
     print("Error:", response.status_code, response.text)

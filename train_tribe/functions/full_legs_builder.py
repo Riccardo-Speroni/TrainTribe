@@ -77,11 +77,10 @@ def build_full_info_maps_legs(params):
         tmp_output_path = os.path.join(tempfile.gettempdir(), "full_info_maps_legs.json")
         with open(tmp_output_path, 'w', encoding='utf-8') as f:
             json.dump(all_routes, f, indent=2, ensure_ascii=False)
-        
 
         upload_to_bucket(tmp_output_path, output_path, bucket_name)
 
     except IOError as e:
-        return {"success": False, "message": f"Error saving file: {str(e)}"}
+        return {"success": False, "message": f"Error saving file: {str(e)}", "full_legs": all_routes}
 
     return {"success": True, "message": "File saved successfully", "path": output_path}

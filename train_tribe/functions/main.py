@@ -13,7 +13,7 @@ import random
 GOOGLE_MAPS_API_KEY = SecretParam('GOOGLE_MAPS_API_KEY')
 
 bucket_name = "traintribe-f2c7b.firebasestorage.app"
-jsonified_trenord_data_path = "maps/full_info_trips.json"
+jsonified_trenord_data_path = "maps/responses/full_info_trips.json"
 full_legs_partial_path = "maps/results/full_info_legs"
 maps_response_partial_path = "maps/maps_response"
 
@@ -75,10 +75,12 @@ def get_trip_options(req: https_fn.Request) -> https_fn.Response:
             "result_output_path": full_legs_partial_path + str(randomvalue) + ".json",
         }
 
+        maps_response = result["mops_response"]
+
         result = build_full_info_maps_legs(params)
         if result["success"]:
 
-            return https_fn.Response(f"Full legs data has been saved successfully")
+            return https_fn.Response(f"Full legs data has been saved successfully. \n \n Maps response: \n \n {maps_response} \n \n Full legs: \n \n {result['full_legs']}", status=200)
         else:
             return https_fn.Response(f"Error: {result['message']}", status=500)
     else:
