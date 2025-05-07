@@ -34,7 +34,7 @@ def call_jsonify(req: https_fn.Request) -> https_fn.Response:
     else:
         return https_fn.Response(f"Error: {result['message']}", status=500)
 
-@https_fn.on_request()
+@https_fn.on_request(secrets=[GOOGLE_MAPS_API_KEY])
 def get_trip_options(req: https_fn.Request) -> https_fn.Response:
     # Get parameters from the request
     origin = req.args.get("origin")
@@ -49,7 +49,7 @@ def get_trip_options(req: https_fn.Request) -> https_fn.Response:
         return https_fn.Response("Arrival time is required", status=400)
 
     randomvalue = random.randint(1000000, 9999999)
-    maps_response_full_path = maps_response_partial_path + randomvalue + ".json"
+    maps_response_full_path = maps_response_partial_path + str(randomvalue) + ".json"
 
     params = {
         "mode": "transit",
@@ -72,7 +72,7 @@ def get_trip_options(req: https_fn.Request) -> https_fn.Response:
             "trips_path": jsonified_trenord_data_path,
             "maps_path": maps_response_full_path,
             "bucket_name": bucket_name,
-            "result_output_path": full_legs_partial_path + randomvalue + ".json",
+            "result_output_path": full_legs_partial_path + str(randomvalue) + ".json",
         }
 
         result = build_full_info_maps_legs(params)
