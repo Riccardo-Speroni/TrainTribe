@@ -4,33 +4,83 @@
 
 from firebase_functions import https_fn
 from firebase_admin import initialize_app
+from firebase_functions.params import SecretParam
 from jsonifier import jsonify
+from maps_asker import ask_maps
+from full_legs_builder import build_full_info_maps_legs
+import random
+
+bucket_name = "traintribe-f2c7b.firebasestorage.app"
+jsonified_trenord_data_path = "maps/full_info_trips.json"
+full_legs_partial_path = "maps/results/full_info_legs"
+maps_response_partial_path = "maps/maps_response"
 
 initialize_app()
 
-
-@https_fn.on_request()
-def on_request_example(req: https_fn.Request) -> https_fn.Response:
-    return https_fn.Response("Hello world!")
-
 @https_fn.on_request()
 def call_jsonify(req: https_fn.Request) -> https_fn.Response:
-    jsonify()
-    return https_fn.Response("Hello world!")
+    
+    params = {
+        "result_output_path": jsonified_trenord_data_path,
+        "bucket_name": bucket_name,
+    }
+
+    result = jsonify(params)
+
+    if result["success"]:
+        return https_fn.Response(result["message"])
+    else:
+        return https_fn.Response(f"Error: {result['message']}", status=500)
 
 @https_fn.on_request()
-def addmessage(req: https_fn.Request) -> https_fn.Response:
-    """Take the text parameter passed to this HTTP endpoint and insert it into
-    a new document in the messages collection."""
-    # Grab the text parameter.
-    original = req.args.get("text")
-    if original is None:
-        return https_fn.Response("No text parameter provided", status=400)
+def get_trip_options(req: https_fn.Request) -> https_fn.Response:
+    # Get parameters from the request
+    origin = req.args.get("origin")
+    destination = req.args.get("destination")
+    arrival_time_str = req.args.get("arrival_time")
 
-    firestore_client: google.cloud.firestore.Client = firestore.client()
+    api_key = SecretParam("GOOGLE_MAPS_API_KEY").value
 
-    # Push the new message into Cloud Firestore using the Firebase Admin SDK.
-    _, doc_ref = firestore_client.collection("messages").add({"original": original})
+    if not api_key:
+        return https_fn.Response("API key is required", status=400)
+    if not origin or not destination:
+        return https_fn.Response("Origin or destination is required", status=400)
+    if not arrival_time_str:
+        return https_fn.Response("Arrival time is required", status=400)
+    
+    randomvalue = random.randint(1000000, 9999999)
+    maps_response_full_path = maps_response_partial_path + randomvalue + ".json"
 
-    # Send back a message that we've successfully written the message
-    return https_fn.Response(f"Message with ID {doc_ref.id} added.")
+    params = {
+        "mode": "transit",
+        "transit_mode": "train",
+        "alternatives": "true",
+        "region": "it",
+        "origin": origin,
+        "destination": destination,
+        "arrival_time": arrival_time_str,
+        "key": api_key,
+        "maps_path": maps_response_full_path,
+        "bucket_name": bucket_name,
+    }
+
+    result = ask_maps(params)
+
+    if result["success"]:
+
+        params = {
+            "trips_path": jsonified_trenord_data_path,
+            "maps_path": maps_response_full_path,
+            "bucket_name": bucket_name,
+            "result_output_path": full_legs_partial_path + randomvalue + ".json",
+        }
+
+        result = build_full_info_maps_legs(params)
+        if result["success"]:
+
+            return https_fn.Response(f"Full legs data has been saved successfully")
+        else:
+            return https_fn.Response(f"Error: {result['message']}", status=500)
+    else:
+        return https_fn.Response(f"Error: {result['message']}", status=500)
+    
