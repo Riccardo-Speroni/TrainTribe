@@ -39,6 +39,12 @@ class _CalendarPageState extends State<CalendarPage> {
     return List.generate(count, (index) => startDay.add(Duration(days: index)));
   }
 
+  // Compute the week days starting from the nearest Monday
+  List<DateTime> _getWeekDays(DateTime startDay, int count) {
+    DateTime monday = startDay.subtract(Duration(days: startDay.weekday - 1));
+    return List.generate(count, (index) => monday.add(Duration(days: index)));
+  }
+
   // Returns the event that starts in the slot for the specified day and time, if it exists.
   CalendarEvent? _getEventForCell(DateTime day, int hour) {
     for (var event in events) {
@@ -496,8 +502,13 @@ class _CalendarPageState extends State<CalendarPage> {
         int currentColumnIndex = (dragOffsetX / cellWidth).floor().clamp(0, daysToShow - 1);
 
         // Determine the new day based on the column index and current page
-        DateTime startDay = DateTime.now().add(Duration(days: pageIndex * daysToShow));
-        List<DateTime> visibleDays = _getDays(startDay, daysToShow);
+        DateTime startDay = MediaQuery.of(context).size.width > 600
+            ? DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1)) // Start from Monday for desktop
+            : DateTime.now(); // Start from today for mobile
+        startDay = startDay.add(Duration(days: pageIndex * daysToShow));
+        List<DateTime> visibleDays = MediaQuery.of(context).size.width > 600
+            ? _getWeekDays(startDay, daysToShow)
+            : _getDays(startDay, daysToShow); // Use _getDays for mobile
         DateTime newDay = visibleDays[currentColumnIndex];
 
         // Determine the new index based on the drag direction
@@ -614,6 +625,8 @@ class _CalendarPageState extends State<CalendarPage> {
   Widget _buildEventCell(
       CalendarEvent event, int index, DateTime day, ScrollController scrollController, int pageIndex) {
     bool isBeingDragged = _draggedEvent == event;
+    bool isPastEvent = event.date.isBefore(DateTime.now()) &&
+                        !_isSameDay(day, DateTime.now()); // Only events before today
     return GestureDetector(
       onTap: () => _showEditEventDialog(event),
       onLongPressStart: (_) => setState(() {
@@ -632,7 +645,9 @@ class _CalendarPageState extends State<CalendarPage> {
         decoration: BoxDecoration(
           color: isBeingDragged
               ? Colors.blueAccent.withOpacity(0.7)
-              : Colors.lightBlueAccent,
+              : isPastEvent
+                  ? Colors.grey[600] // Dark gray for past events
+                  : Colors.lightBlueAccent,
           borderRadius: BorderRadius.circular(8.0),
           boxShadow: [
             BoxShadow(
@@ -771,7 +786,9 @@ class _CalendarPageState extends State<CalendarPage> {
           // Calculate the start day for the current page
           final DateTime startDay =
               DateTime.now().add(Duration(days: pageIndex * daysToShow));
-          final List<DateTime> visibleDays = _getDays(startDay, daysToShow);
+          final List<DateTime> visibleDays = screenWidth > 600
+              ? _getWeekDays(startDay, daysToShow) // Start from Monday for desktop
+              : _getDays(startDay, daysToShow);
 
           // Create a single ScrollController for the page
           final ScrollController scrollController = ScrollController();
@@ -789,20 +806,27 @@ class _CalendarPageState extends State<CalendarPage> {
                       DateFormat(dayFormat, localizations.languageCode())
                           .format(day),
                     )!;
+                    bool isPastDay = day.isBefore(DateTime.now()) &&
+                        !_isSameDay(day, DateTime.now()); // Exclude today
                     return Expanded(
                       child: Container(
                         height: 40,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey[300]!),
-                          color: Colors.blue[100],
+                          color: isPastDay
+                              ? Colors.grey[300]
+                              : Colors.blue[100], // Gray for past days
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Text(
                           formattedDay,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 14),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: isPastDay ? Colors.grey[600] : Colors.black,
+                          ),
                         ),
                       ),
                     );
