@@ -24,9 +24,9 @@ class CalendarPage extends StatefulWidget {
 }
 
 class _CalendarPageState extends State<CalendarPage> {
-  final double cellHeight = 60.0; // Slot Height
-  late final List<int> hours =
-      List.generate(19, (index) => index + 6); // Hours from 6.00 to 24.00
+  final double cellHeight = 20.0; // Slot Height
+  // Adjust hours to represent 15-minute intervals starting from 6:00 to 00:00
+  late final List<int> hours = List.generate(19 * 4, (index) => index); // 76 slots (19 hours * 4)
   final List<CalendarEvent> events = []; // List of created events
 
   int? _dragStartIndex; // Index of the cell where the drag started
@@ -54,11 +54,19 @@ class _CalendarPageState extends State<CalendarPage> {
     return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
   }
 
-  // Calculate available durations for a new or modified event
-  List<int> _getAvailableDurations(DateTime day, int startHour,
+  // Helper to convert slot index to time string, starting from 6:00
+  String _formatTime(int slot) {
+    int hour = 6 + (slot ~/ 4); // Start from 6:00
+    if (hour == 24) hour = 0; // Handle 00:00
+    int minute = (slot % 4) * 15;
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
+
+  // Update available durations to support 15-minute intervals
+  List<int> _getAvailableDurations(DateTime day, int startSlot,
       [CalendarEvent? excludeEvent]) {
     List<int> availableDurations = [];
-    int maxDuration = 24 - startHour + 1; // Limit duration to fit within the table
+    int maxDuration = hours.length - startSlot; // Limit duration to fit within the table
 
     for (int duration = 1; duration <= maxDuration; duration++) {
       bool overlaps = events.any((event) {
@@ -66,10 +74,10 @@ class _CalendarPageState extends State<CalendarPage> {
           return false; // Exclude the event being edited
         }
         if (_isSameDay(event.date, day)) {
-          int eventStart = event.hour;
-          int eventEnd = event.hour + event.duration;
-          int newEventStart = startHour;
-          int newEventEnd = startHour + duration;
+          int eventStart = event.hour * 4 + (event.duration % 4);
+          int eventEnd = eventStart + event.duration;
+          int newEventStart = startSlot;
+          int newEventEnd = startSlot + duration;
           return (newEventStart < eventEnd && newEventEnd > eventStart);
         }
         return false;
@@ -87,37 +95,39 @@ class _CalendarPageState extends State<CalendarPage> {
     String eventTitle = '';
     bool isSaving = false; // Loading indicator
     int safeStart = startIndex.clamp(0, hours.length - 1);
-    int startHour = hours[safeStart];
+    int startSlot = safeStart;
     int duration = endIndex != null ? (endIndex - startIndex + 1).abs() : 1;
 
-    // Filter available starting hours for the selected day
-    List<int> availableStartHours = hours.where((hour) {
-      // Check if the hour is not occupied by any event
+    // Ensure the selected start slot is valid
+    int selectedStartSlot = startSlot;
+
+    // Filter available starting slots for the selected day
+    List<int> availableStartSlots = hours.where((slot) {
       return !events.any((event) {
         if (_isSameDay(event.date, day)) {
-          int eventStart = event.hour;
-          int eventEnd = event.hour + event.duration;
-          return hour >= eventStart && hour < eventEnd; // Hour is within the event range
+          int eventStart = event.hour * 4;
+          int eventEnd = eventStart + event.duration;
+          return slot >= eventStart && slot < eventEnd; // Slot is within the event range
         }
         return false;
       });
     }).toList();
 
-    // If no starting hours are available, return early
-    if (availableStartHours.isEmpty) {
+    // If no starting slots are available, return early
+    if (availableStartSlots.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(localizations.translate('no_available_hours'))),
       );
       return;
     }
 
-    // Ensure the selected start hour is valid
-    int selectedStartHour = availableStartHours.contains(startHour)
-        ? startHour
-        : availableStartHours.first;
+    // Ensure the selected start slot is valid
+    selectedStartSlot = availableStartSlots.contains(startSlot)
+        ? startSlot
+        : availableStartSlots.first;
 
     List<int> availableDurations =
-        _getAvailableDurations(day, selectedStartHour);
+        _getAvailableDurations(day, selectedStartSlot);
     int selectedDuration = availableDurations.contains(duration)
         ? duration
         : (availableDurations.isNotEmpty ? availableDurations.first : 1);
@@ -154,24 +164,25 @@ class _CalendarPageState extends State<CalendarPage> {
                         if (pickedDate != null) {
                           setStateDialog(() {
                             selectedDay = pickedDate;
-                            availableStartHours = hours.where((hour) {
+                            availableStartSlots = hours.where((slot) {
                               return !events.any((event) {
                                 if (_isSameDay(event.date, selectedDay)) {
-                                  int eventStart = event.hour;
-                                  int eventEnd = event.hour + event.duration;
-                                  return hour >= eventStart && hour < eventEnd;
+                                  int eventStart =
+                                      event.hour * 4;
+                                  int eventEnd = eventStart + event.duration;
+                                  return slot >= eventStart && slot < eventEnd;
                                 }
                                 return false;
                               });
                             }).toList();
-                            if (!availableStartHours
-                                .contains(selectedStartHour)) {
-                              selectedStartHour = availableStartHours.isNotEmpty
-                                  ? availableStartHours.first
+                            if (!availableStartSlots
+                                .contains(selectedStartSlot)) {
+                              selectedStartSlot = availableStartSlots.isNotEmpty
+                                  ? availableStartSlots.first
                                   : hours.first;
                             }
                             availableDurations = _getAvailableDurations(
-                                selectedDay, selectedStartHour);
+                                selectedDay, selectedStartSlot);
                             if (!availableDurations
                                 .contains(selectedDuration)) {
                               selectedDuration = availableDurations.isNotEmpty
@@ -192,19 +203,19 @@ class _CalendarPageState extends State<CalendarPage> {
                   children: [
                     Text('${localizations.translate('start_hour')}: '),
                     DropdownButton<int>(
-                      value: selectedStartHour,
-                      items: availableStartHours
-                          .map((hour) => DropdownMenuItem(
-                                value: hour,
-                                child: Text('$hour:00'),
+                      value: selectedStartSlot,
+                      items: availableStartSlots
+                          .map((slot) => DropdownMenuItem(
+                                value: slot,
+                                child: Text(_formatTime(slot)),
                               ))
                           .toList(),
                       onChanged: (value) {
                         if (value != null) {
                           setStateDialog(() {
-                            selectedStartHour = value;
+                            selectedStartSlot = value;
                             availableDurations = _getAvailableDurations(
-                                selectedDay, selectedStartHour);
+                                selectedDay, selectedStartSlot);
                             if (!availableDurations
                                 .contains(selectedDuration)) {
                               selectedDuration = availableDurations.isNotEmpty
@@ -227,7 +238,7 @@ class _CalendarPageState extends State<CalendarPage> {
                           .map((d) => DropdownMenuItem(
                                 value: d,
                                 child: Text(
-                                    '$d ${localizations.translate('hours')}'),
+                                    '${(d ~/ 4)}h ${(d % 4) * 15}m'),
                               ))
                           .toList(),
                       onChanged: (value) {
@@ -258,7 +269,7 @@ class _CalendarPageState extends State<CalendarPage> {
                   setState(() {
                     events.add(CalendarEvent(
                       date: selectedDay,
-                      hour: selectedStartHour,
+                      hour: selectedStartSlot, 
                       duration: selectedDuration,
                       title: eventTitle,
                     ));
@@ -285,16 +296,21 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  // Show the dialog to edit an existing event
+  // Adjust the logic to calculate the correct start hour for events
   void _showEditEventDialog(CalendarEvent event) {
     final localizations = AppLocalizations.of(context);
     String eventTitle = event.title;
     int duration = event.duration;
     DateTime selectedDay = event.date;
-    int selectedStartHour = event.hour;
+    int selectedStartSlot = ((event.hour - 6) * 4).clamp(0, hours.length - 1); // Adjust for 6:00 start
     TextEditingController controller = TextEditingController(text: event.title);
     List<int> availableDurations =
-        _getAvailableDurations(event.date, event.hour, event);
+        _getAvailableDurations(event.date, selectedStartSlot, event);
+
+    // Ensure the selectedStartSlot is valid
+    if (!hours.contains(selectedStartSlot)) {
+      selectedStartSlot = hours.first;
+    }
 
     showDialog(
       context: context,
@@ -322,9 +338,8 @@ class _CalendarPageState extends State<CalendarPage> {
                         DateTime? pickedDate = await showDatePicker(
                           context: context,
                           initialDate: selectedDay,
-                          firstDate: DateTime.now(), // Restrict to current day onward
-                          lastDate:
-                              DateTime.now().add(const Duration(days: 365)),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
                         );
                         if (pickedDate != null) {
                           setStateDialog(() {
@@ -343,19 +358,19 @@ class _CalendarPageState extends State<CalendarPage> {
                   children: [
                     Text('${localizations.translate('start_hour')}: '),
                     DropdownButton<int>(
-                      value: selectedStartHour,
+                      value: selectedStartSlot,
                       items: hours
-                          .map((hour) => DropdownMenuItem(
-                                value: hour,
-                                child: Text('$hour:00'),
+                          .map((slot) => DropdownMenuItem(
+                                value: slot,
+                                child: Text(_formatTime(slot)),
                               ))
                           .toList(),
                       onChanged: (value) {
                         if (value != null) {
                           setStateDialog(() {
-                            selectedStartHour = value;
+                            selectedStartSlot = value;
                             availableDurations = _getAvailableDurations(
-                                selectedDay, selectedStartHour, event);
+                                selectedDay, selectedStartSlot, event);
                             if (!availableDurations.contains(duration)) {
                               duration = availableDurations.isNotEmpty
                                   ? availableDurations.first
@@ -377,7 +392,7 @@ class _CalendarPageState extends State<CalendarPage> {
                           .map((d) => DropdownMenuItem(
                                 value: d,
                                 child: Text(
-                                    '$d ${localizations.translate('hours')}'),
+                                    '${(d ~/ 4)}h ${(d % 4) * 15}m'),
                               ))
                           .toList(),
                       onChanged: (value) {
@@ -399,7 +414,7 @@ class _CalendarPageState extends State<CalendarPage> {
                     event.title = eventTitle;
                     event.duration = duration;
                     event.date = selectedDay;
-                    event.hour = selectedStartHour;
+                    event.hour = 6 + (selectedStartSlot ~/ 4); // Adjust for 6:00 start
                   });
                   Navigator.pop(context);
                 },
@@ -473,7 +488,7 @@ class _CalendarPageState extends State<CalendarPage> {
         double dragOffsetX = localPosition.dx;
 
         int deltaIndexY =
-            (dragOffsetY / cellHeight).floor() - 1; // Calculate the cell offset
+            (dragOffsetY / cellHeight).floor() - 4; // Calculate the cell offset
         int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
         double cellWidth = MediaQuery.of(context).size.width / daysToShow;
 
@@ -535,32 +550,32 @@ class _CalendarPageState extends State<CalendarPage> {
       int startIndex = _dragStartIndex!.clamp(0, hours.length - 1);
       int endIndex = _dragEndIndex!.clamp(0, hours.length - 1);
 
-      // Assicurarsi che l'indice iniziale sia sempre minore o uguale a quello finale
+      // Ensure the start index is always less than or equal to the end index
       if (startIndex > endIndex) {
         int temp = startIndex;
         startIndex = endIndex;
         endIndex = temp;
       }
 
-      int startHour = hours[startIndex];
+      int startSlot = startIndex;
       int duration = (endIndex - startIndex + 1).abs();
 
-      // Calcolare la durata massima disponibile considerando gli eventi esistenti
+      // Calculate the maximum available duration considering existing events
       for (int i = startIndex; i <= endIndex; i++) {
         CalendarEvent? overlappingEvent = _getEventForCell(day, hours[i]);
         if (overlappingEvent != null) {
-          // Ridurre la durata fino alla prima cella occupata
+          // Reduce the duration up to the first occupied cell
           duration = i - startIndex;
           break;
         }
       }
 
-      // Se la durata è valida (almeno 1 ora), mostrare il dialogo per creare l'evento
+      // If the duration is valid (at least 1 slot), show the dialog to create the event
       if (duration > 0) {
-        _showAddEventDialog(day, startIndex, startIndex + duration - 1);
+        _showAddEventDialog(day, startSlot, startSlot + duration - 1);
       }
 
-      // Resettare gli indici di trascinamento
+      // Reset drag indices
       _dragStartIndex = null;
       _dragEndIndex = null;
     }
@@ -687,10 +702,12 @@ class _CalendarPageState extends State<CalendarPage> {
         ],
       ),
       child: Column(
-        children: hours.map((hour) {
-          String label = hour == 24 ? "00:00" : "$hour:00";
+        children: List.generate(19, (index) {
+          int hour = 6 + index; // Start from 6:00
+          if (hour == 24) hour = 0; // Handle 00:00
+          String label = hour == 0 ? "00:00" : "$hour:00";
           return Container(
-            height: cellHeight,
+            height: cellHeight * 4, // Adjust height to match 15-minute slots
             alignment: Alignment.center,
             decoration: BoxDecoration(
               border: Border(
@@ -702,7 +719,7 @@ class _CalendarPageState extends State<CalendarPage> {
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
           );
-        }).toList(),
+        }),
       ),
     );
   }
