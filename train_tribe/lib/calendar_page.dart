@@ -7,12 +7,16 @@ class CalendarEvent {
   int hour; // Start hour
   int duration;
   String title;
+  double? widthFactor; // Factor to adjust width for overlapping events
+  Alignment? alignment; // Alignment for the event cell
 
   CalendarEvent({
     required this.date,
     required this.hour,
     required this.duration,
     required this.title,
+    this.widthFactor,
+    this.alignment,
   });
 }
 
@@ -26,7 +30,8 @@ class CalendarPage extends StatefulWidget {
 class _CalendarPageState extends State<CalendarPage> {
   final double cellHeight = 20.0; // Slot Height
   // Adjust hours to represent 15-minute intervals starting from 6:00 to 00:00
-  late final List<int> hours = List.generate(19 * 4, (index) => index); // 76 slots (19 hours * 4)
+  late final List<int> hours =
+      List.generate(19 * 4, (index) => index); // 76 slots (19 hours * 4)
   final List<CalendarEvent> events = []; // List of created events
 
   int? _dragStartIndex; // Index of the cell where the drag started
@@ -72,25 +77,12 @@ class _CalendarPageState extends State<CalendarPage> {
   List<int> _getAvailableDurations(DateTime day, int startSlot,
       [CalendarEvent? excludeEvent]) {
     List<int> availableDurations = [];
-    int maxDuration = hours.length - startSlot; // Limit duration to fit within the table
+    int maxDuration =
+        hours.length - startSlot; // Limit duration to fit within the table
 
     for (int duration = 1; duration <= maxDuration; duration++) {
-      bool overlaps = events.any((event) {
-        if (event == excludeEvent) {
-          return false; // Exclude the event being edited
-        }
-        if (_isSameDay(event.date, day)) {
-          int eventStart = event.hour * 4 + (event.duration % 4);
-          int eventEnd = eventStart + event.duration;
-          int newEventStart = startSlot;
-          int newEventEnd = startSlot + duration;
-          return (newEventStart < eventEnd && newEventEnd > eventStart);
-        }
-        return false;
-      });
-      if (!overlaps) {
-        availableDurations.add(duration);
-      }
+      // Rimuovi il controllo di sovrapposizione
+      availableDurations.add(duration);
     }
     return availableDurations;
   }
@@ -99,38 +91,13 @@ class _CalendarPageState extends State<CalendarPage> {
   void _showAddEventDialog(DateTime day, int startIndex, [int? endIndex]) {
     final localizations = AppLocalizations.of(context);
     String eventTitle = '';
-    bool isSaving = false; // Loading indicator
+    bool isSaving = false; // Indicatore di caricamento
     int safeStart = startIndex.clamp(0, hours.length - 1);
     int startSlot = safeStart;
     int duration = endIndex != null ? (endIndex - startIndex + 1).abs() : 1;
 
-    // Ensure the selected start slot is valid
+    // Rimuovi il controllo di celle occupate
     int selectedStartSlot = startSlot;
-
-    // Filter available starting slots for the selected day
-    List<int> availableStartSlots = hours.where((slot) {
-      return !events.any((event) {
-        if (_isSameDay(event.date, day)) {
-          int eventStart = event.hour * 4;
-          int eventEnd = eventStart + event.duration;
-          return slot >= eventStart && slot < eventEnd; // Slot is within the event range
-        }
-        return false;
-      });
-    }).toList();
-
-    // If no starting slots are available, return early
-    if (availableStartSlots.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(localizations.translate('no_available_hours'))),
-      );
-      return;
-    }
-
-    // Ensure the selected start slot is valid
-    selectedStartSlot = availableStartSlots.contains(startSlot)
-        ? startSlot
-        : availableStartSlots.first;
 
     List<int> availableDurations =
         _getAvailableDurations(day, selectedStartSlot);
@@ -165,36 +132,12 @@ class _CalendarPageState extends State<CalendarPage> {
                           context: context,
                           initialDate: selectedDay,
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 365)),
                         );
                         if (pickedDate != null) {
                           setStateDialog(() {
                             selectedDay = pickedDate;
-                            availableStartSlots = hours.where((slot) {
-                              return !events.any((event) {
-                                if (_isSameDay(event.date, selectedDay)) {
-                                  int eventStart =
-                                      event.hour * 4;
-                                  int eventEnd = eventStart + event.duration;
-                                  return slot >= eventStart && slot < eventEnd;
-                                }
-                                return false;
-                              });
-                            }).toList();
-                            if (!availableStartSlots
-                                .contains(selectedStartSlot)) {
-                              selectedStartSlot = availableStartSlots.isNotEmpty
-                                  ? availableStartSlots.first
-                                  : hours.first;
-                            }
-                            availableDurations = _getAvailableDurations(
-                                selectedDay, selectedStartSlot);
-                            if (!availableDurations
-                                .contains(selectedDuration)) {
-                              selectedDuration = availableDurations.isNotEmpty
-                                  ? availableDurations.first
-                                  : 1;
-                            }
                           });
                         }
                       },
@@ -210,7 +153,7 @@ class _CalendarPageState extends State<CalendarPage> {
                     Text('${localizations.translate('start_hour')}: '),
                     DropdownButton<int>(
                       value: selectedStartSlot,
-                      items: availableStartSlots
+                      items: hours
                           .map((slot) => DropdownMenuItem(
                                 value: slot,
                                 child: Text(_formatTime(slot)),
@@ -243,8 +186,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       items: availableDurations
                           .map((d) => DropdownMenuItem(
                                 value: d,
-                                child: Text(
-                                    '${(d ~/ 4)}h ${(d % 4) * 15}m'),
+                                child: Text('${(d ~/ 4)}h ${(d % 4) * 15}m'),
                               ))
                           .toList(),
                       onChanged: (value) {
@@ -258,24 +200,25 @@ class _CalendarPageState extends State<CalendarPage> {
                   ],
                 ),
                 if (isSaving)
-                  const CircularProgressIndicator(), // Loading indicator
+                  const CircularProgressIndicator(), // Indicatore di caricamento
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () async {
                   if (eventTitle.isEmpty) {
-                    eventTitle = 'Nuovo Evento'; // Set default title
+                    eventTitle =
+                        'Nuovo Evento'; // Imposta il titolo predefinito
                   }
                   setStateDialog(() {
                     isSaving = true;
                   });
-                  await Future.delayed(
-                      const Duration(seconds: 1)); // Simulate saving delay
+                  await Future.delayed(const Duration(
+                      seconds: 1)); // Simula il ritardo di salvataggio
                   setState(() {
                     events.add(CalendarEvent(
                       date: selectedDay,
-                      hour: selectedStartSlot, 
+                      hour: selectedStartSlot,
                       duration: selectedDuration,
                       title: eventTitle,
                     ));
@@ -286,11 +229,6 @@ class _CalendarPageState extends State<CalendarPage> {
               ),
               TextButton(
                 onPressed: () {
-                  setState(() {
-                    _dragStartIndex = null;
-                    _dragEndIndex = null;
-                    _dragStartDay = null;
-                  });
                   Navigator.pop(context);
                 },
                 child: Text(localizations.translate('cancel')),
@@ -308,7 +246,8 @@ class _CalendarPageState extends State<CalendarPage> {
     String eventTitle = event.title;
     int duration = event.duration;
     DateTime selectedDay = event.date;
-    int selectedStartSlot = ((event.hour - 6) * 4).clamp(0, hours.length - 1); // Adjust for 6:00 start
+    int selectedStartSlot = ((event.hour - 6) * 4)
+        .clamp(0, hours.length - 1); // Adjust for 6:00 start
     TextEditingController controller = TextEditingController(text: event.title);
     List<int> availableDurations =
         _getAvailableDurations(event.date, selectedStartSlot, event);
@@ -345,7 +284,8 @@ class _CalendarPageState extends State<CalendarPage> {
                           context: context,
                           initialDate: selectedDay,
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 365)),
                         );
                         if (pickedDate != null) {
                           setStateDialog(() {
@@ -397,8 +337,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       items: availableDurations
                           .map((d) => DropdownMenuItem(
                                 value: d,
-                                child: Text(
-                                    '${(d ~/ 4)}h ${(d % 4) * 15}m'),
+                                child: Text('${(d ~/ 4)}h ${(d % 4) * 15}m'),
                               ))
                           .toList(),
                       onChanged: (value) {
@@ -420,7 +359,8 @@ class _CalendarPageState extends State<CalendarPage> {
                     event.title = eventTitle;
                     event.duration = duration;
                     event.date = selectedDay;
-                    event.hour = 6 + (selectedStartSlot ~/ 4); // Adjust for 6:00 start
+                    event.hour =
+                        6 + (selectedStartSlot ~/ 4); // Adjust for 6:00 start
                   });
                   Navigator.pop(context);
                 },
@@ -470,67 +410,57 @@ class _CalendarPageState extends State<CalendarPage> {
 
   void _handleLongPressStart(int cellIndex, DateTime day) {
     setState(() {
-      _dragStartIndex = cellIndex.clamp(
-          0, hours.length - 1); // Assicurarsi che l'indice sia valido
-      _dragEndIndex =
-          _dragStartIndex; // Inizialmente uguale all'indice di partenza
+      _dragStartIndex = cellIndex.clamp(0, hours.length - 1); // Assicurarsi che l'indice sia valido
+      _dragEndIndex = _dragStartIndex; // Inizialmente uguale all'indice di partenza
       _dragStartDay = day;
-      _draggedEvent = _getEventForCell(
-          day, hours[cellIndex]); // Imposta l'evento trascinato
+      _draggedEvent = _getEventForCell(day, hours[cellIndex]); // Imposta l'evento trascinato
     });
   }
 
-  void _handleLongPressMoveUpdate(
-      LongPressMoveUpdateDetails details, BuildContext context, ScrollController scrollController, int pageIndex) {
+  void _handleLongPressMoveUpdate(LongPressMoveUpdateDetails details,
+      BuildContext context, ScrollController scrollController, int pageIndex) {
     if (_dragStartIndex != null && _dragStartDay != null) {
       setState(() {
         RenderBox box = context.findRenderObject() as RenderBox;
         Offset localPosition = box.globalToLocal(details.globalPosition);
 
         // Adjust dragOffset by including the scroll offset
-        double dragOffsetY = localPosition.dy -
-            (_dragStartIndex! * cellHeight) +
-            scrollController.offset; // Include scroll offset
-        double dragOffsetX = localPosition.dx;
+        double dragOffsetY = localPosition.dy +
+            scrollController.offset -
+            (_dragStartIndex! * cellHeight); // Include scroll offset
 
-        int deltaIndexY =
-            (dragOffsetY / cellHeight).floor() - 4; // Calculate the cell offset
-        int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
-        double cellWidth = MediaQuery.of(context).size.width / daysToShow;
+        int deltaIndexY = (dragOffsetY / cellHeight).floor() - 4; // Smooth vertical movement
 
-        // Calculate the column index based on the cursor's position
-        int currentColumnIndex = (dragOffsetX / cellWidth).floor().clamp(0, daysToShow - 1);
-
-        // Determine the new day based on the column index and current page
-        DateTime startDay = MediaQuery.of(context).size.width > 600
-            ? DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1)) // Start from Monday for desktop
-            : DateTime.now(); // Start from today for mobile
-        startDay = startDay.add(Duration(days: pageIndex * daysToShow));
-        List<DateTime> visibleDays = MediaQuery.of(context).size.width > 600
-            ? _getWeekDays(startDay, daysToShow)
-            : _getDays(startDay, daysToShow); // Use _getDays for mobile
-        DateTime newDay = visibleDays[currentColumnIndex];
-
-        // Determine the new index based on the drag direction
-        int newIndexY =
-            (_dragStartIndex! + deltaIndexY).clamp(0, hours.length - 1);
+        // Calculate the new vertical index
+        int newIndexY = (_dragStartIndex! + deltaIndexY).clamp(0, hours.length - 1);
 
         if (_draggedEvent != null) {
           // Calculate the maximum allowed index for the dragged event
           int maxIndex = hours.length - _draggedEvent!.duration;
           newIndexY = newIndexY.clamp(0, maxIndex);
 
-          // Update the start hour and day of the dragged event in real-time
+          // Update the dragged event's start hour
           int newStartHour = hours[newIndexY];
-          if (_getAvailableDurations(
-                  newDay, newStartHour, _draggedEvent)
+          if (_getAvailableDurations(_dragStartDay!, newStartHour, _draggedEvent)
               .contains(_draggedEvent!.duration)) {
             _draggedEvent!.hour = newStartHour;
-            _draggedEvent!.date = newDay;
+
+            // Ensure the relative position of overlapping events remains consistent
+            List<CalendarEvent> overlappingEvents = events.where((e) {
+              return _isSameDay(e.date, _dragStartDay!) &&
+                  ((e.hour < _draggedEvent!.hour + _draggedEvent!.duration &&
+                      e.hour + e.duration > _draggedEvent!.hour));
+            }).toList();
+
+            overlappingEvents.sort((a, b) => a.hour.compareTo(b.hour));
+            for (int i = 0; i < overlappingEvents.length; i++) {
+              overlappingEvents[i].alignment = Alignment(-1.0 + (2.0 / overlappingEvents.length) * i, 0.0);
+              overlappingEvents[i].widthFactor = 1.0 / overlappingEvents.length;
+            }
           }
         }
 
-        // Update the drag end index, ensuring it reflects both upward and downward dragging
+        // Update the drag end index
         if (newIndexY != _dragEndIndex) {
           _dragEndIndex = newIndexY;
         }
@@ -540,19 +470,35 @@ class _CalendarPageState extends State<CalendarPage> {
 
   void _handleLongPressEnd(DateTime day) {
     if (_dragStartIndex != null && _dragEndIndex != null) {
+      // Check if the event was not moved
+      if (_dragStartIndex == _dragEndIndex && _isSameDay(_dragStartDay!, day)) {
+        // Reset the state without modifying the event
+        setState(() {
+          _draggedEvent = null;
+          _dragStartIndex = null;
+          _dragEndIndex = null;
+          _dragStartDay = null;
+        });
+        return;
+      }
+
       if (_draggedEvent != null) {
-        // Update the event's day after drag-and-drop
-        _handleDragEventMove(_draggedEvent!.date);
+        // Only update the event if it was actually moved
+        if (_dragStartIndex != _dragEndIndex || !_isSameDay(_dragStartDay!, day)) {
+          _handleDragEventMove(_draggedEvent!.date);
+        }
       } else {
         // Handle the creation of a new event
         _handleDragEventCreation(day);
       }
     }
     // Reset the drag state
-    _draggedEvent = null;
-    _dragStartIndex = null;
-    _dragEndIndex = null;
-    _dragStartDay = null;
+    setState(() {
+      _draggedEvent = null;
+      _dragStartIndex = null;
+      _dragEndIndex = null;
+      _dragStartDay = null;
+    });
   }
 
   // This method handles the creation of an event after a drag gesture
@@ -571,24 +517,37 @@ class _CalendarPageState extends State<CalendarPage> {
       int startSlot = startIndex;
       int duration = (endIndex - startIndex + 1).abs();
 
-      // Calculate the maximum available duration considering existing events
-      for (int i = startIndex; i <= endIndex; i++) {
-        CalendarEvent? overlappingEvent = _getEventForCell(day, hours[i]);
-        if (overlappingEvent != null) {
-          // Reduce the duration up to the first occupied cell
-          duration = i - startIndex;
-          break;
-        }
-      }
-
       // If the duration is valid (at least 1 slot), show the dialog to create the event
       if (duration > 0) {
         _showAddEventDialog(day, startSlot, startSlot + duration - 1);
       }
 
+      // Adjust overlapping events after creation
+      _adjustOverlappingEvents(day);
+
       // Reset drag indices
       _dragStartIndex = null;
       _dragEndIndex = null;
+    }
+  }
+
+  // Ensure proper alignment and width factor for overlapping events
+  void _adjustOverlappingEvents(DateTime day) {
+    List<CalendarEvent> dayEvents = events.where((e) => _isSameDay(e.date, day)).toList();
+
+    for (var event in dayEvents) {
+      List<CalendarEvent> overlappingEvents = dayEvents.where((e) {
+        return e != event &&
+            ((e.hour < event.hour + event.duration && e.hour + e.duration > event.hour));
+      }).toList();
+
+      overlappingEvents.add(event); // Include the current event
+      overlappingEvents.sort((a, b) => a.hour.compareTo(b.hour));
+
+      for (int i = 0; i < overlappingEvents.length; i++) {
+        overlappingEvents[i].alignment = Alignment(-1.0 + (2.0 / overlappingEvents.length) * i, 0.0);
+        overlappingEvents[i].widthFactor = 1.0 / overlappingEvents.length;
+      }
     }
   }
 
@@ -600,77 +559,88 @@ class _CalendarPageState extends State<CalendarPage> {
       int newStartIndex = _dragEndIndex!.clamp(0, hours.length - 1);
       int newStartHour = hours[newStartIndex];
 
-      // Check if the new time slot is available
-      bool canMove = _getAvailableDurations(day, newStartHour, _draggedEvent)
-          .contains(_draggedEvent!.duration);
+      setState(() {
+        // Update the dragged event's start hour and day
+        _draggedEvent!.hour = newStartHour;
+        _draggedEvent!.date = day;
 
-      if (canMove) {
-        setState(() {
-          // Update the event's start hour and day
-          _draggedEvent!.hour = newStartHour;
-          _draggedEvent!.date = day;
-
-          // Replace the old event with the updated one in the events list
-          events.removeWhere((event) => event == _draggedEvent);
-          events.add(_draggedEvent!);
-        });
-      }
+        // Adjust overlapping events
+        _adjustOverlappingEvents(day);
+      });
     }
     _draggedEvent = null;
     _dragStartIndex = null;
     _dragEndIndex = null;
-    _dragStartDay = null; // Reset the drag start day
+    _dragStartDay = null; // Reset drag state
   }
 
-  Widget _buildEventCell(
-      CalendarEvent event, int index, DateTime day, ScrollController scrollController, int pageIndex) {
+  Widget _buildEventCell(CalendarEvent event, int index, DateTime day,
+      ScrollController scrollController, int pageIndex) {
     bool isBeingDragged = _draggedEvent == event;
     bool isPastEvent = event.date.isBefore(DateTime.now()) &&
-                        !_isSameDay(day, DateTime.now()); // Only events before today
-    return GestureDetector(
-      onTap: () => _showEditEventDialog(event),
-      onLongPressStart: (_) => setState(() {
-        _draggedEvent = event;
-        _dragStartIndex = index;
-        _dragEndIndex = index;
-        _dragStartDay = day;
-      }),
-      onLongPressMoveUpdate: (details) =>
-          _handleLongPressMoveUpdate(details, context, scrollController, pageIndex),
-      onLongPressEnd: (_) => _handleDragEventMove(day),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 50), // Smooth animation
-        height: cellHeight * event.duration, // Fixed height based on duration
-        margin: const EdgeInsets.only(bottom: 1),
-        decoration: BoxDecoration(
-          color: isBeingDragged
-              ? Colors.blueAccent.withOpacity(0.7)
-              : isPastEvent
-                  ? Colors.grey[600] // Dark gray for past events
-                  : Colors.lightBlueAccent,
-          borderRadius: BorderRadius.circular(8.0),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.5),
-              spreadRadius: 2,
-              blurRadius: 5,
-              offset: const Offset(0, 3),
+        !_isSameDay(day, DateTime.now()); // Only events before today
+    int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
+
+    double columnWidth = MediaQuery.of(context).size.width / daysToShow;
+
+    // Calculate the horizontal position (left) based on the event's day
+    DateTime startDay = DateTime.now().subtract(Duration(
+        days: DateTime.now().weekday - 1)); // Start from Monday
+    startDay = startDay.add(Duration(days: pageIndex * daysToShow));
+    List<DateTime> visibleDays = _getWeekDays(startDay, daysToShow);
+    int dayIndex = visibleDays.indexWhere((d) => _isSameDay(d, event.date));
+    double left = dayIndex >= 0 ? dayIndex * columnWidth : 0.0;
+
+    return Positioned(
+      left: left, // Use calculated horizontal position
+      top: cellHeight * (event.hour - hours.first),
+      width: columnWidth - 2,
+      height: cellHeight * event.duration,
+      child: GestureDetector(
+        onTap: () => _showEditEventDialog(event),
+        onLongPressStart: (_) => setState(() {
+          _draggedEvent = event;
+          _dragStartIndex = index;
+          _dragEndIndex = index;
+          _dragStartDay = day;
+        }),
+        onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(
+            details, context, scrollController, pageIndex),
+        onLongPressEnd: (_) => _handleDragEventMove(day),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 50), // Smooth animation
+          margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+          decoration: BoxDecoration(
+            color: isBeingDragged
+                ? Colors.blueAccent.withOpacity(0.7)
+                : isPastEvent
+                    ? Colors.grey[600]
+                    : Colors.lightBlueAccent,
+            borderRadius: BorderRadius.circular(8.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.5),
+                spreadRadius: 2,
+                blurRadius: 5,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              event.title,
+              style: const TextStyle(
+                  fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-          ],
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          event.title,
-          style: const TextStyle(
-              fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildEmptyCell(
-      int cellIndex, DateTime day, ScrollController scrollController, int pageIndex) {
+  Widget _buildEmptyCell(int cellIndex, DateTime day,
+      ScrollController scrollController, int pageIndex) {
     bool isHighlighted = _dragStartIndex != null &&
         _dragEndIndex != null &&
         _dragStartDay != null &&
@@ -682,8 +652,8 @@ class _CalendarPageState extends State<CalendarPage> {
     return GestureDetector(
       onTap: () => _showAddEventDialog(day, cellIndex),
       onLongPressStart: (_) => _handleLongPressStart(cellIndex, day),
-      onLongPressMoveUpdate: (details) =>
-          _handleLongPressMoveUpdate(details, context, scrollController, pageIndex),
+      onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(
+          details, context, scrollController, pageIndex),
       onLongPressEnd: (_) => _handleLongPressEnd(day),
       child: Container(
         height: cellHeight,
@@ -740,25 +710,117 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   // This method builds the column for a specific day with drag support
-  Widget _buildDayColumn(DateTime day, ScrollController scrollController, int pageIndex) {
+  Widget _buildDayColumn(
+      DateTime day, ScrollController scrollController, int pageIndex) {
     List<Widget> cells = [];
+    List<Widget> eventWidgets = [];
     int index = 0;
+
+    // Calculate the width of the cells based on screen width and number of visible days
+    int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
+    double cellWidth = MediaQuery.of(context).size.width / daysToShow;
+    int correctionFactor = MediaQuery.of(context).size.width > 600 ? 12 : 30;
 
     while (index < hours.length) {
       int currentHour = hours[index];
       CalendarEvent? event = _getEventForCell(day, currentHour);
 
+      // Always add an empty cell
+      cells.add(_buildEmptyCell(index, day, scrollController, pageIndex));
+
       if (event != null) {
-        cells.add(_buildEventCell(event, index, day, scrollController, pageIndex));
+        // Find all events that overlap partially or completely
+        List<CalendarEvent> overlappingEvents = events.where((e) {
+          return _isSameDay(e.date, day) &&
+              ((e.hour < event.hour + event.duration &&
+                  e.hour + e.duration > event.hour));
+        }).toList();
+
+        // Calculate the width for each event based on the number of overlapping events
+        int totalOverlapping =
+            overlappingEvents.isNotEmpty ? overlappingEvents.length : 1;
+        double widthFactor = (cellWidth - correctionFactor) / totalOverlapping;
+
+        // Position each overlapping event with the calculated width
+        for (int i = 0; i < overlappingEvents.length; i++) {
+          CalendarEvent overlappingEvent = overlappingEvents[i];
+          bool isBeingDragged = _draggedEvent == overlappingEvent;
+          bool isPastEvent = overlappingEvent.date.isBefore(DateTime.now()) &&
+              !_isSameDay(overlappingEvent.date, DateTime.now());
+
+          eventWidgets.add(
+            Positioned(
+              left: widthFactor * i,
+              top: cellHeight * (overlappingEvent.hour - hours.first),
+              width: widthFactor,
+              height: cellHeight * overlappingEvent.duration,
+              child: GestureDetector(
+                onTap: () => _showEditEventDialog(overlappingEvent),
+                onLongPressStart: (_) => setState(() {
+                  _draggedEvent = overlappingEvent;
+                  _dragStartIndex = index;
+                  _dragEndIndex = index;
+                  _dragStartDay = day;
+                }),
+                onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(
+                    details, context, scrollController, pageIndex),
+                onLongPressEnd: (_) => _handleDragEventMove(day),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 50),
+                  margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: isBeingDragged
+                        ? Colors.blueAccent.withOpacity(0.7)
+                        : isPastEvent
+                            ? Colors.grey[600]
+                            : Colors.lightBlueAccent,
+                    borderRadius: BorderRadius.circular(8.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.5),
+                        spreadRadius: 2,
+                        blurRadius: 5,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      overlappingEvent.title,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Increment index by event duration but still add empty cells for skipped slots
+        for (int i = 1; i < event.duration; i++) {
+          cells.add(_buildEmptyCell(index + i, day, scrollController, pageIndex));
+        }
         index += event.duration;
       } else {
-        cells.add(_buildEmptyCell(index, day, scrollController, pageIndex));
         index++;
       }
     }
 
-    return Column(
-      children: cells,
+    return SizedBox(
+      width: cellWidth,
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          Column(
+            children: cells, // Always include the cells
+          ),
+          ...eventWidgets, // Position events on top of the cells
+        ],
+      ),
     );
   }
 
@@ -787,7 +849,8 @@ class _CalendarPageState extends State<CalendarPage> {
           final DateTime startDay =
               DateTime.now().add(Duration(days: pageIndex * daysToShow));
           final List<DateTime> visibleDays = screenWidth > 600
-              ? _getWeekDays(startDay, daysToShow) // Start from Monday for desktop
+              ? _getWeekDays(
+                  startDay, daysToShow) // Start from Monday for desktop
               : _getDays(startDay, daysToShow);
 
           // Create a single ScrollController for the page
@@ -843,7 +906,8 @@ class _CalendarPageState extends State<CalendarPage> {
                       _buildTimeColumn(),
                       ...visibleDays.map((day) {
                         return Expanded(
-                          child: _buildDayColumn(day, scrollController, pageIndex),
+                          child:
+                              _buildDayColumn(day, scrollController, pageIndex),
                         );
                       }),
                     ],
