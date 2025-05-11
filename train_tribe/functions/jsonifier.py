@@ -94,6 +94,6 @@ def jsonify(params):
     try:
         upload_to_bucket(trips_output_path, result_output_path, bucket_name)
     except Exception as e:
-        return {"success": False, "message": f"Errore durante il caricamento su bucket: {str(e)}"}
+        return {"success": False, "message": f"Errore durante il caricamento su bucket: {str(e)}, temp_path: {trips_output_path}"}
 
     return {"success": True, "message": "Files saved successfully"}
