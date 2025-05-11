@@ -644,6 +644,18 @@ class _CalendarPageState extends State<CalendarPage> {
 
   Widget _buildEmptyCell(int cellIndex, DateTime day,
       ScrollController scrollController, int pageIndex) {
+    if (day.isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
+      // Prevent highlighting for past days
+      return Container(
+        height: cellHeight,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(4.0),
+          color: Colors.transparent,
+        ),
+      );
+    }
+
     bool isHighlighted = _dragStartIndex != null &&
         _dragEndIndex != null &&
         _dragStartDay != null &&
