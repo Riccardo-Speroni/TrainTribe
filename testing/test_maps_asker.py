@@ -11,8 +11,8 @@ url = "http://127.0.0.1:5001/traintribe-f2c7b/us-central1/get_trip_options"
 params = {
     "origin": "Brescia",
     "destination": "Gallarate",
-    "event_start_time": "2025-05-09 10:00",
-    "event_end_time": "2025-05-10 12:00",
+    "event_start_time": "2025-05-12 06:00",
+    "event_end_time": "2025-05-12 09:00",
 }
 
 response = requests.get(url, params=params)

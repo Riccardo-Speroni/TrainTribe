@@ -61,29 +61,63 @@ def build_event_options(params):
                 errors.append({"interval": i, "error": str(e)})
         current_time += interval
         i += 1
-    # Remove duplicate routes (all trip_id for all legs are the same)
-    unique_routes = []
+    
+    # Remove duplicate routes
+    unique_legs = []
     seen = set()
-    for route in all_legs:
-        trip_ids = tuple(leg.get("trip_id") for leg in route.get("legs", []))
-        if trip_ids not in seen:
-            seen.add(trip_ids)
-            unique_routes.append(route)
-    # Remove trips where 'from' is a station transited before event_start_time
-    filtered_routes = []
-    for route in unique_routes:
-        keep = True
-        for leg in route.get("legs", []):
-            if "from_time" in leg and leg["from_time"] < params["event_start_time"]:
-                keep = False
-                break
-        if keep:
-            filtered_routes.append(route)
+    import json as _json
+    for leg in all_legs:
+        leg_str = _json.dumps(leg, sort_keys=True)
+        if leg_str not in seen:
+            seen.add(leg_str)
+            unique_legs.append(leg)
+
+    # Remove routes with legs whose 'from' or 'to' stop arrival_time is outside event timeframe
+    event_start_time = params["event_start_time"][-5:] if len(params["event_start_time"]) > 5 else params["event_start_time"]
+    event_end_time = params["event_end_time"][-5:] if len(params["event_end_time"]) > 5 else params["event_end_time"]
+    event_start = datetime.strptime(event_start_time, "%H:%M")
+    event_end = datetime.strptime(event_end_time, "%H:%M")
+    filtered_legs = []
+    for route in unique_legs:
+        valid = True
+        for leg_key in [k for k in route.keys() if k.startswith('leg')]:
+            leg = route[leg_key]
+            stops = leg["stops"]
+            from_id = leg["from"]
+            to_id = leg["to"]
+            from_stop = next((s for s in stops if s["stop_id"] == from_id), None)
+            to_stop = next((s for s in stops if s["stop_id"] == to_id), None)
+            if from_stop:
+                arr = datetime.strptime(from_stop["arrival_time"][:5], "%H:%M")
+                if arr < event_start or arr > event_end:
+                    valid = False
+                    break
+            if to_stop:
+                arr = datetime.strptime(to_stop["arrival_time"][:5], "%H:%M")
+                if arr < event_start or arr > event_end:
+                    valid = False
+                    break
+        if valid:
+            filtered_legs.append(route)
+
+    # Sort routes by departure_time of "from" station of leg0
+    def get_leg0_departure(route):
+        leg0 = route.get("leg0")
+        if not leg0:
+            return "99:99"  # Put routes without leg0 at the end
+        stops = leg0.get("stops", [])
+        from_id = leg0.get("from")
+        from_stop = next((s for s in stops if s["stop_id"] == from_id), None)
+        if from_stop:
+            return from_stop.get("departure_time", "99:99")
+        return "99:99"
+    filtered_legs.sort(key=lambda route: get_leg0_departure(route))
+
     # Save merged file to a temp file and upload to bucket
     import tempfile
     tmp_event_options_path = os.path.join(tempfile.gettempdir(), os.path.basename(params["event_options_path"]))
     with open(tmp_event_options_path, "w", encoding="utf-8") as f:
-        json.dump(filtered_routes, f, ensure_ascii=False, indent=2)
+        json.dump(filtered_legs, f, ensure_ascii=False, indent=4)
     upload_to_bucket(tmp_event_options_path, params["event_options_path"], params["bucket_name"])
     success = len(errors) == 0
     return {"success": success, "message": "Event options built successfully", "errors": errors}
