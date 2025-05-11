@@ -249,8 +249,7 @@ class _CalendarPageState extends State<CalendarPage> {
     String eventTitle = event.title;
     int duration = event.duration;
     DateTime selectedDay = event.date;
-    int selectedStartSlot = ((event.hour - 6) * 4)
-        .clamp(0, hours.length - 1); // Adjust for 6:00 start
+    int selectedStartSlot = event.hour; // Correctly calculate the start slot
     TextEditingController controller = TextEditingController(text: event.title);
     List<int> availableDurations =
         _getAvailableDurations(event.date, selectedStartSlot, event);
