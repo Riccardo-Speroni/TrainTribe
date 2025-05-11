@@ -89,6 +89,9 @@ class _CalendarPageState extends State<CalendarPage> {
 
   // Show the dialog to add a new event
   void _showAddEventDialog(DateTime day, int startIndex, [int? endIndex]) {
+    if (day.isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
+      return;
+    }
     final localizations = AppLocalizations.of(context);
     String eventTitle = '';
     bool isSaving = false; // Indicatore di caricamento
