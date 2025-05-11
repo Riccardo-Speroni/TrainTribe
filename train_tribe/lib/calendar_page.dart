@@ -9,6 +9,7 @@ class CalendarEvent {
   String title;
   double? widthFactor; // Factor to adjust width for overlapping events
   Alignment? alignment; // Alignment for the event cell
+  bool isBeingDragged = false; // Indicates if the event is being dragged
 
   CalendarEvent({
     required this.date,
@@ -89,6 +90,9 @@ class _CalendarPageState extends State<CalendarPage> {
 
   // Show the dialog to add a new event
   void _showAddEventDialog(DateTime day, int startIndex, [int? endIndex]) {
+    if (day.isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
+      return;
+    }
     final localizations = AppLocalizations.of(context);
     String eventTitle = '';
     bool isSaving = false; // Indicatore di caricamento
@@ -246,8 +250,7 @@ class _CalendarPageState extends State<CalendarPage> {
     String eventTitle = event.title;
     int duration = event.duration;
     DateTime selectedDay = event.date;
-    int selectedStartSlot = ((event.hour - 6) * 4)
-        .clamp(0, hours.length - 1); // Adjust for 6:00 start
+    int selectedStartSlot = event.hour; // Correctly calculate the start slot
     TextEditingController controller = TextEditingController(text: event.title);
     List<int> availableDurations =
         _getAvailableDurations(event.date, selectedStartSlot, event);
@@ -556,22 +559,36 @@ class _CalendarPageState extends State<CalendarPage> {
     if (_draggedEvent != null &&
         _dragStartIndex != null &&
         _dragEndIndex != null) {
+      // Verifica se l'evento non è stato effettivamente spostato
+      if (_dragStartIndex == _dragEndIndex && _isSameDay(_dragStartDay!, day)) {
+        // Non aggiornare l'evento se non è stato spostato
+        _resetDragState();
+        return;
+      }
+
       int newStartIndex = _dragEndIndex!.clamp(0, hours.length - 1);
       int newStartHour = hours[newStartIndex];
 
       setState(() {
-        // Update the dragged event's start hour and day
+        // Aggiorna l'ora di inizio e il giorno dell'evento trascinato
         _draggedEvent!.hour = newStartHour;
         _draggedEvent!.date = day;
 
-        // Adjust overlapping events
+        // Regola gli eventi sovrapposti
         _adjustOverlappingEvents(day);
       });
     }
+    _resetDragState(); // Resetta lo stato del trascinamento
+  }
+
+  void _resetDragState() {
+    setState(() {
+      _draggedEvent!.isBeingDragged = false;
+    });
     _draggedEvent = null;
     _dragStartIndex = null;
     _dragEndIndex = null;
-    _dragStartDay = null; // Reset drag state
+    _dragStartDay = null;
   }
 
   Widget _buildEventCell(CalendarEvent event, int index, DateTime day,
@@ -641,6 +658,18 @@ class _CalendarPageState extends State<CalendarPage> {
 
   Widget _buildEmptyCell(int cellIndex, DateTime day,
       ScrollController scrollController, int pageIndex) {
+    if (day.isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
+      // Prevent highlighting for past days
+      return Container(
+        height: cellHeight,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(4.0),
+          color: Colors.transparent,
+        ),
+      );
+    }
+
     bool isHighlighted = _dragStartIndex != null &&
         _dragEndIndex != null &&
         _dragStartDay != null &&
