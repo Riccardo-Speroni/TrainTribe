@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+// Import for LinkedScrollControllerGroup
 import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
+import 'package:linked_scroll_controller/linked_scroll_controller.dart'; // Import the package
 
 class CalendarEvent {
   DateTime date;
@@ -34,6 +36,13 @@ class _CalendarPageState extends State<CalendarPage> {
   late final List<int> hours =
       List.generate(19 * 4, (index) => index); // 76 slots (19 hours * 4)
   final List<CalendarEvent> events = []; // List of created events
+
+  final LinkedScrollControllerGroup _scrollControllerGroup =
+      LinkedScrollControllerGroup(); // Group for synchronized scrolling
+  late final ScrollController _timeColumnController =
+      _scrollControllerGroup.addAndGet(); // Controller for the time column
+  late final ScrollController _dayColumnsController =
+      _scrollControllerGroup.addAndGet(); // Controller for the day columns
 
   int? _dragStartIndex; // Index of the cell where the drag started
   int? _dragEndIndex; // Index of the cell where the drag ended
@@ -95,7 +104,7 @@ class _CalendarPageState extends State<CalendarPage> {
     bool isSaving = false; // Indicatore di caricamento
     int safeStart = startIndex.clamp(0, hours.length - 1);
     int startSlot = safeStart;
-    int selectedEndSlot = endIndex != null ? endIndex : startSlot + 1;
+    int selectedEndSlot = endIndex ?? startSlot + 1;
 
     List<int> availableEndHours =
         _getAvailableEndHours(day, startSlot);
@@ -503,7 +512,7 @@ class _CalendarPageState extends State<CalendarPage> {
       int startIndex = _dragStartIndex!.clamp(0, hours.length - 1);
       int endIndex = _dragEndIndex!.clamp(0, hours.length - 1);
 
-      // Ensure the start index is always less than or equal to the end index
+      // Assicuriamoci che startIndex sia sempre minore o uguale a endIndex
       if (startIndex > endIndex) {
         int temp = startIndex;
         startIndex = endIndex;
@@ -511,69 +520,43 @@ class _CalendarPageState extends State<CalendarPage> {
       }
 
       int startSlot = startIndex;
-      int duration = (endIndex - startIndex + 1).abs();
+      int endSlot = endIndex + 1; // Include l'ultimo slot nella selezione
 
-      // If the duration is valid (at least 1 slot), show the dialog to create the event
-      if (duration > 0) {
-        _showAddEventDialog(day, startSlot, startSlot + duration - 1);
+      // Modifica: Permettiamo la creazione di eventi di un singolo slot
+      if (endSlot >= startSlot) {
+        _showAddEventDialog(day, startSlot, endSlot);
       }
 
-      // Adjust overlapping events after creation
+      // Regoliamo gli eventi sovrapposti dopo la creazione
       _adjustOverlappingEvents(day);
 
-      // Reset drag indices
+      // Reset degli indici di drag
       _dragStartIndex = null;
       _dragEndIndex = null;
     }
   }
 
-  // Ensure proper alignment and width factor for overlapping events
-  void _adjustOverlappingEvents(DateTime day) {
-    List<CalendarEvent> dayEvents = events.where((e) => _isSameDay(e.date, day)).toList();
-
-    for (var event in dayEvents) {
-      List<CalendarEvent> overlappingEvents = dayEvents.where((e) {
-        return e != event &&
-            ((e.hour < event.endHour && e.endHour > event.hour));
-      }).toList();
-
-      overlappingEvents.add(event); // Include the current event
-      overlappingEvents.sort((a, b) => a.hour.compareTo(b.hour));
-
-      for (int i = 0; i < overlappingEvents.length; i++) {
-        overlappingEvents[i].alignment = Alignment(-1.0 + (2.0 / overlappingEvents.length) * i, 0.0);
-        overlappingEvents[i].widthFactor = 1.0 / overlappingEvents.length;
-      }
-    }
-  }
-
-  // This method handles the movement of an existing event after a drag gesture
+  // Define the missing method to handle drag event movement
   void _handleDragEventMove(DateTime day) {
     if (_draggedEvent != null &&
         _dragStartIndex != null &&
         _dragEndIndex != null) {
-      // Verifica se l'evento non è stato effettivamente spostato
-      if (_dragStartIndex == _dragEndIndex && _isSameDay(_dragStartDay!, day)) {
-        // Non aggiornare l'evento se non è stato spostato
-        _resetDragState();
-        return;
-      }
-
       int newStartIndex = _dragEndIndex!.clamp(0, hours.length - 1);
       int newStartHour = hours[newStartIndex];
 
       setState(() {
-        // Aggiorna l'ora di inizio e il giorno dell'evento trascinato
+        // Update the dragged event's start hour and day
         _draggedEvent!.hour = newStartHour;
         _draggedEvent!.date = day;
 
-        // Regola gli eventi sovrapposti
+        // Adjust overlapping events dynamically
         _adjustOverlappingEvents(day);
       });
     }
-    _resetDragState(); // Resetta lo stato del trascinamento
+    _resetDragState(); // Reset the drag state
   }
 
+  // Reset the drag state after handling the drag event
   void _resetDragState() {
     setState(() {
       _draggedEvent!.isBeingDragged = false;
@@ -582,6 +565,151 @@ class _CalendarPageState extends State<CalendarPage> {
     _dragStartIndex = null;
     _dragEndIndex = null;
     _dragStartDay = null;
+  }
+
+  // Adjust overlapping events after creation or movement
+  void _adjustOverlappingEvents(DateTime day) {
+    List<CalendarEvent> dayEvents = events.where((e) => _isSameDay(e.date, day)).toList();
+
+    // Reset alignment and width factor for all events
+    for (var event in dayEvents) {
+      event.alignment = Alignment.center;
+      event.widthFactor = 1.0;
+    }
+
+    // Group and adjust overlapping events
+    for (var event in dayEvents) {
+      // Find all events that overlap with the current event
+      List<CalendarEvent> overlappingEvents = dayEvents.where((e) {
+        return e != event &&
+            e.hour < event.endHour &&
+            e.endHour > event.hour; // Correct overlap logic
+      }).toList();
+
+      // Include the current event in the overlapping group
+      overlappingEvents.add(event);
+
+      // Sort the overlapping events by start hour
+      overlappingEvents.sort((a, b) => a.hour.compareTo(b.hour));
+
+      // Recalculate alignment and width factor for all overlapping events
+      for (int i = 0; i < overlappingEvents.length; i++) {
+        overlappingEvents[i].alignment = Alignment(
+          -1.0 + (2.0 / overlappingEvents.length) * i,
+          0.0,
+        );
+        overlappingEvents[i].widthFactor = (1.0 / overlappingEvents.length);
+      }
+    }
+  }
+
+  // Update the day column builder to fix event width and alignment
+  Widget _buildDayColumn(
+      DateTime day, ScrollController scrollController, int pageIndex) {
+    List<Widget> cells = [];
+    List<Widget> eventWidgets = [];
+    int index = 0;
+
+    // Calculate the width of the cells based on screen width and number of visible days
+    int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
+    double cellWidth = MediaQuery.of(context).size.width / daysToShow;
+
+    while (index < hours.length) {
+      int currentHour = hours[index];
+      CalendarEvent? event = _getEventForCell(day, currentHour);
+
+      // Always add an empty cell
+      cells.add(_buildEmptyCell(index, day, scrollController, pageIndex));
+
+      if (event != null) {
+        // Find all events that overlap partially or completely
+        List<CalendarEvent> overlappingEvents = events.where((e) {
+          return _isSameDay(e.date, day) &&
+              ((e.hour < event.endHour && e.endHour > event.hour));
+        }).toList();
+
+        // Calculate the width for each event based on the number of overlapping events
+        int totalOverlapping = overlappingEvents.isNotEmpty ? overlappingEvents.length : 1;
+        int correctionFactor = MediaQuery.of(context).size.width > 600 ? 12 : 30;
+        double widthFactor = (cellWidth - correctionFactor) / totalOverlapping; // Subtract 4 for padding/margin
+
+        // Position each overlapping event with the calculated width
+        for (int i = 0; i < overlappingEvents.length; i++) {
+          CalendarEvent overlappingEvent = overlappingEvents[i];
+          bool isBeingDragged = _draggedEvent == overlappingEvent;
+
+          eventWidgets.add(
+            Positioned(
+              left: widthFactor * i,
+              top: cellHeight * (overlappingEvent.hour - hours.first),
+              width: widthFactor, // Use the adjusted width
+              height: cellHeight * (overlappingEvent.endHour - overlappingEvent.hour),
+              child: GestureDetector(
+                onTap: () => _showEditEventDialog(overlappingEvent),
+                onLongPressStart: (_) => setState(() {
+                  _draggedEvent = overlappingEvent;
+                  _dragStartIndex = index;
+                  _dragEndIndex = index;
+                  _dragStartDay = day;
+                }),
+                onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(
+                    details, context, scrollController, pageIndex),
+                onLongPressEnd: (_) => _handleDragEventMove(day),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 50),
+                  margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: isBeingDragged
+                        ? Colors.blueAccent.withOpacity(0.7)
+                        : Colors.lightBlueAccent,
+                    borderRadius: BorderRadius.circular(8.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.5),
+                        spreadRadius: 2,
+                        blurRadius: 5,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      overlappingEvent.title,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Increment index by event duration but still add empty cells for skipped slots
+        for (int i = 1; i < event.endHour - event.hour; i++) {
+          cells.add(_buildEmptyCell(index + i, day, scrollController, pageIndex));
+        }
+        index += event.endHour - event.hour;
+      } else {
+        index++;
+      }
+    }
+
+    return SizedBox(
+      width: cellWidth,
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          Column(
+            children: cells, // Always include the cells
+          ),
+          ...eventWidgets, // Position events on top of the cells
+        ],
+      ),
+    );
   }
 
   Widget _buildEventCell(CalendarEvent event, int index, DateTime day,
@@ -731,121 +859,6 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  // This method builds the column for a specific day with drag support
-  Widget _buildDayColumn(
-      DateTime day, ScrollController scrollController, int pageIndex) {
-    List<Widget> cells = [];
-    List<Widget> eventWidgets = [];
-    int index = 0;
-
-    // Calculate the width of the cells based on screen width and number of visible days
-    int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
-    double cellWidth = MediaQuery.of(context).size.width / daysToShow;
-    int correctionFactor = MediaQuery.of(context).size.width > 600 ? 12 : 30;
-
-    while (index < hours.length) {
-      int currentHour = hours[index];
-      CalendarEvent? event = _getEventForCell(day, currentHour);
-
-      // Always add an empty cell
-      cells.add(_buildEmptyCell(index, day, scrollController, pageIndex));
-
-      if (event != null) {
-        // Find all events that overlap partially or completely
-        List<CalendarEvent> overlappingEvents = events.where((e) {
-          return _isSameDay(e.date, day) &&
-              ((e.hour < event.hour + event.endHour &&
-                  e.hour + e.endHour > event.hour));
-        }).toList();
-
-        // Calculate the width for each event based on the number of overlapping events
-        int totalOverlapping =
-            overlappingEvents.isNotEmpty ? overlappingEvents.length : 1;
-        double widthFactor = (cellWidth - correctionFactor) / totalOverlapping;
-
-        // Position each overlapping event with the calculated width
-        for (int i = 0; i < overlappingEvents.length; i++) {
-          CalendarEvent overlappingEvent = overlappingEvents[i];
-          bool isBeingDragged = _draggedEvent == overlappingEvent;
-          bool isPastEvent = overlappingEvent.date.isBefore(DateTime.now()) &&
-              !_isSameDay(overlappingEvent.date, DateTime.now());
-
-          eventWidgets.add(
-            Positioned(
-              left: widthFactor * i,
-              top: cellHeight * (overlappingEvent.hour - hours.first),
-              width: widthFactor,
-              height: cellHeight * (overlappingEvent.endHour - overlappingEvent.hour),
-              child: GestureDetector(
-                onTap: () => _showEditEventDialog(overlappingEvent),
-                onLongPressStart: (_) => setState(() {
-                  _draggedEvent = overlappingEvent;
-                  _dragStartIndex = index;
-                  _dragEndIndex = index;
-                  _dragStartDay = day;
-                }),
-                onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(
-                    details, context, scrollController, pageIndex),
-                onLongPressEnd: (_) => _handleDragEventMove(day),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 50),
-                  margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: isBeingDragged
-                        ? Colors.blueAccent.withOpacity(0.7)
-                        : isPastEvent
-                            ? Colors.grey[600]
-                            : Colors.lightBlueAccent,
-                    borderRadius: BorderRadius.circular(8.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.5),
-                        spreadRadius: 2,
-                        blurRadius: 5,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      overlappingEvent.title,
-                      style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }
-
-        // Increment index by event duration but still add empty cells for skipped slots
-        for (int i = 1; i < event.endHour - event.hour; i++) {
-          cells.add(_buildEmptyCell(index + i, day, scrollController, pageIndex));
-        }
-        index += event.endHour - event.hour;
-      } else {
-        index++;
-      }
-    }
-
-    return SizedBox(
-      width: cellWidth,
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        children: [
-          Column(
-            children: cells, // Always include the cells
-          ),
-          ...eventWidgets, // Position events on top of the cells
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
@@ -861,84 +874,94 @@ class _CalendarPageState extends State<CalendarPage> {
         title: Text(localizations.translate('calendar')),
         backgroundColor: Colors.blueAccent,
       ),
-      body: PageView.builder(
-        controller: pageController,
-        onPageChanged: (pageIndex) {
-          // Optionally handle page index changes if needed
-        },
-        itemBuilder: (context, pageIndex) {
-          // Calculate the start day for the current page
-          final DateTime startDay =
-              DateTime.now().add(Duration(days: pageIndex * daysToShow));
-          final List<DateTime> visibleDays = screenWidth > 600
-              ? _getWeekDays(
-                  startDay, daysToShow) // Start from Monday for desktop
-              : _getDays(startDay, daysToShow);
-
-          // Create a single ScrollController for the page
-          final ScrollController scrollController = ScrollController();
-
-          return Column(
-            children: [
-              // Header: empty time column + day headers
-              Row(
+      body: Row(
+        children: [
+          // Fixed time column with synchronized vertical scrolling
+          ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false), // Disable scrollbar
+            child: SingleChildScrollView(
+              controller: _timeColumnController, // Use the linked controller
+              child: Column(
                 children: [
-                  SizedBox(width: 60, height: 40),
-                  ...visibleDays.map((day) {
-                    final String dayFormat =
-                        screenWidth > 600 ? 'EEEE, d MMM' : 'EEE, d MMM';
-                    final String formattedDay = toBeginningOfSentenceCase(
-                      DateFormat(dayFormat, localizations.languageCode())
-                          .format(day),
-                    )!;
-                    bool isPastDay = day.isBefore(DateTime.now()) &&
-                        !_isSameDay(day, DateTime.now()); // Exclude today
-                    return Expanded(
-                      child: Container(
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          color: isPastDay
-                              ? Colors.grey[300]
-                              : Colors.blue[100], // Gray for past days
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        child: Text(
-                          formattedDay,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: isPastDay ? Colors.grey[600] : Colors.black,
+                  SizedBox(height: 40), // Align with the day headers
+                  _buildTimeColumn(),
+                ],
+              ),
+            ),
+          ),
+          // Scrollable day columns
+          Expanded(
+            child: PageView.builder(
+              controller: pageController,
+              itemBuilder: (context, pageIndex) {
+                final DateTime startDay =
+                    DateTime.now().add(Duration(days: pageIndex * daysToShow));
+                final List<DateTime> visibleDays = screenWidth > 600
+                    ? _getWeekDays(startDay, daysToShow)
+                    : _getDays(startDay, daysToShow);
+
+                return Column(
+                  children: [
+                    // Header: day headers
+                    Row(
+                      children: visibleDays.map((day) {
+                        final String dayFormat =
+                            screenWidth > 600 ? 'EEEE, d MMM' : 'EEE, d MMM';
+                        final String formattedDay = toBeginningOfSentenceCase(
+                          DateFormat(dayFormat, localizations.languageCode())
+                              .format(day),
+                        )!;
+                        bool isPastDay = day.isBefore(DateTime.now()) &&
+                            !_isSameDay(day, DateTime.now());
+                        return Expanded(
+                          child: Container(
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              color: isPastDay
+                                  ? Colors.grey[300]
+                                  : Colors.blue[100],
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            child: Text(
+                              formattedDay,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color:
+                                    isPastDay ? Colors.grey[600] : Colors.black,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    // Body: days grid in vertical scroll
+                    Expanded(
+                      child: ScrollConfiguration(
+                        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false), // Disable scrollbar
+                        child: SingleChildScrollView(
+                          controller: _dayColumnsController, // Use the linked controller
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: visibleDays.map((day) {
+                              return Expanded(
+                                child: _buildDayColumn(
+                                    day, _dayColumnsController, pageIndex), // Use the linked controller
+                              );
+                            }).toList(),
                           ),
                         ),
                       ),
-                    );
-                  }),
-                ],
-              ),
-              // Body: time column + days grid in vertical scroll
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController, // Attach the ScrollController
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildTimeColumn(),
-                      ...visibleDays.map((day) {
-                        return Expanded(
-                          child:
-                              _buildDayColumn(day, scrollController, pageIndex),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
