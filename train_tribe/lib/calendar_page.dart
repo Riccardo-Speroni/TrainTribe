@@ -5,7 +5,7 @@ import 'l10n/app_localizations.dart';
 class CalendarEvent {
   DateTime date;
   int hour; // Start hour
-  int duration;
+  int endHour; // End hour
   String title;
   double? widthFactor; // Factor to adjust width for overlapping events
   Alignment? alignment; // Alignment for the event cell
@@ -14,7 +14,7 @@ class CalendarEvent {
   CalendarEvent({
     required this.date,
     required this.hour,
-    required this.duration,
+    required this.endHour,
     required this.title,
     this.widthFactor,
     this.alignment,
@@ -70,22 +70,19 @@ class _CalendarPageState extends State<CalendarPage> {
   String _formatTime(int slot) {
     int hour = 6 + (slot ~/ 4); // Start from 6:00
     if (hour == 24) hour = 0; // Handle 00:00
+    if (hour == 25) hour = 1; // Display 1:00 instead of 25:00
     int minute = (slot % 4) * 15;
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
   }
 
-  // Update available durations to support 15-minute intervals
-  List<int> _getAvailableDurations(DateTime day, int startSlot,
+  // Update the logic for available end hours
+  List<int> _getAvailableEndHours(DateTime day, int startSlot,
       [CalendarEvent? excludeEvent]) {
-    List<int> availableDurations = [];
-    int maxDuration =
-        hours.length - startSlot; // Limit duration to fit within the table
-
-    for (int duration = 1; duration <= maxDuration; duration++) {
-      // Rimuovi il controllo di sovrapposizione
-      availableDurations.add(duration);
+    List<int> availableEndHours = [];
+    for (int endSlot = startSlot + 1; endSlot <= hours.length; endSlot++) {
+      availableEndHours.add(endSlot);
     }
-    return availableDurations;
+    return availableEndHours;
   }
 
   // Show the dialog to add a new event
@@ -98,17 +95,10 @@ class _CalendarPageState extends State<CalendarPage> {
     bool isSaving = false; // Indicatore di caricamento
     int safeStart = startIndex.clamp(0, hours.length - 1);
     int startSlot = safeStart;
-    int duration = endIndex != null ? (endIndex - startIndex + 1).abs() : 1;
+    int selectedEndSlot = endIndex != null ? endIndex : startSlot + 1;
 
-    // Rimuovi il controllo di celle occupate
-    int selectedStartSlot = startSlot;
-
-    List<int> availableDurations =
-        _getAvailableDurations(day, selectedStartSlot);
-    int selectedDuration = availableDurations.contains(duration)
-        ? duration
-        : (availableDurations.isNotEmpty ? availableDurations.first : 1);
-    DateTime selectedDay = day;
+    List<int> availableEndHours =
+        _getAvailableEndHours(day, startSlot);
 
     showDialog(
       context: context,
@@ -134,20 +124,20 @@ class _CalendarPageState extends State<CalendarPage> {
                       onPressed: () async {
                         DateTime? pickedDate = await showDatePicker(
                           context: context,
-                          initialDate: selectedDay,
+                          initialDate: day,
                           firstDate: DateTime.now(),
                           lastDate:
                               DateTime.now().add(const Duration(days: 365)),
                         );
                         if (pickedDate != null) {
                           setStateDialog(() {
-                            selectedDay = pickedDate;
+                            day = pickedDate;
                           });
                         }
                       },
                       child: Text(
                           DateFormat('EEE, MMM d', localizations.languageCode())
-                              .format(selectedDay)),
+                              .format(day)),
                     ),
                   ],
                 ),
@@ -156,7 +146,7 @@ class _CalendarPageState extends State<CalendarPage> {
                   children: [
                     Text('${localizations.translate('start_hour')}: '),
                     DropdownButton<int>(
-                      value: selectedStartSlot,
+                      value: startSlot,
                       items: hours
                           .map((slot) => DropdownMenuItem(
                                 value: slot,
@@ -166,13 +156,13 @@ class _CalendarPageState extends State<CalendarPage> {
                       onChanged: (value) {
                         if (value != null) {
                           setStateDialog(() {
-                            selectedStartSlot = value;
-                            availableDurations = _getAvailableDurations(
-                                selectedDay, selectedStartSlot);
-                            if (!availableDurations
-                                .contains(selectedDuration)) {
-                              selectedDuration = availableDurations.isNotEmpty
-                                  ? availableDurations.first
+                            startSlot = value;
+                            availableEndHours = _getAvailableEndHours(
+                                day, startSlot);
+                            if (!availableEndHours
+                                .contains(selectedEndSlot)) {
+                              selectedEndSlot = availableEndHours.isNotEmpty
+                                  ? availableEndHours.first
                                   : 1;
                             }
                           });
@@ -184,19 +174,19 @@ class _CalendarPageState extends State<CalendarPage> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Text('${localizations.translate('duration')}: '),
+                    Text('${localizations.translate('end_hour')}: '),
                     DropdownButton<int>(
-                      value: selectedDuration,
-                      items: availableDurations
-                          .map((d) => DropdownMenuItem(
-                                value: d,
-                                child: Text('${(d ~/ 4)}h ${(d % 4) * 15}m'),
+                      value: selectedEndSlot,
+                      items: availableEndHours
+                          .map((slot) => DropdownMenuItem(
+                                value: slot,
+                                child: Text(_formatTime(slot)),
                               ))
                           .toList(),
                       onChanged: (value) {
                         if (value != null) {
                           setStateDialog(() {
-                            selectedDuration = value;
+                            selectedEndSlot = value;
                           });
                         }
                       },
@@ -221,9 +211,9 @@ class _CalendarPageState extends State<CalendarPage> {
                       seconds: 1)); // Simula il ritardo di salvataggio
                   setState(() {
                     events.add(CalendarEvent(
-                      date: selectedDay,
-                      hour: selectedStartSlot,
-                      duration: selectedDuration,
+                      date: day,
+                      hour: startSlot,
+                      endHour: selectedEndSlot,
                       title: eventTitle,
                     ));
                   });
@@ -248,12 +238,12 @@ class _CalendarPageState extends State<CalendarPage> {
   void _showEditEventDialog(CalendarEvent event) {
     final localizations = AppLocalizations.of(context);
     String eventTitle = event.title;
-    int duration = event.duration;
     DateTime selectedDay = event.date;
     int selectedStartSlot = event.hour; // Correctly calculate the start slot
+    int selectedEndSlot = event.endHour;
     TextEditingController controller = TextEditingController(text: event.title);
-    List<int> availableDurations =
-        _getAvailableDurations(event.date, selectedStartSlot, event);
+    List<int> availableEndHours =
+        _getAvailableEndHours(event.date, selectedStartSlot, event);
 
     // Ensure the selectedStartSlot is valid
     if (!hours.contains(selectedStartSlot)) {
@@ -318,11 +308,11 @@ class _CalendarPageState extends State<CalendarPage> {
                         if (value != null) {
                           setStateDialog(() {
                             selectedStartSlot = value;
-                            availableDurations = _getAvailableDurations(
+                            availableEndHours = _getAvailableEndHours(
                                 selectedDay, selectedStartSlot, event);
-                            if (!availableDurations.contains(duration)) {
-                              duration = availableDurations.isNotEmpty
-                                  ? availableDurations.first
+                            if (!availableEndHours.contains(selectedEndSlot)) {
+                              selectedEndSlot = availableEndHours.isNotEmpty
+                                  ? availableEndHours.first
                                   : 1;
                             }
                           });
@@ -334,19 +324,19 @@ class _CalendarPageState extends State<CalendarPage> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Text('${localizations.translate('duration')}: '),
+                    Text('${localizations.translate('end_hour')}: '),
                     DropdownButton<int>(
-                      value: duration,
-                      items: availableDurations
-                          .map((d) => DropdownMenuItem(
-                                value: d,
-                                child: Text('${(d ~/ 4)}h ${(d % 4) * 15}m'),
+                      value: selectedEndSlot,
+                      items: availableEndHours
+                          .map((slot) => DropdownMenuItem(
+                                value: slot,
+                                child: Text(_formatTime(slot)),
                               ))
                           .toList(),
                       onChanged: (value) {
                         if (value != null) {
                           setStateDialog(() {
-                            duration = value;
+                            selectedEndSlot = value;
                           });
                         }
                       },
@@ -360,10 +350,9 @@ class _CalendarPageState extends State<CalendarPage> {
                 onPressed: () {
                   setState(() {
                     event.title = eventTitle;
-                    event.duration = duration;
                     event.date = selectedDay;
-                    event.hour =
-                        6 + (selectedStartSlot ~/ 4); // Adjust for 6:00 start
+                    event.hour = selectedStartSlot;
+                    event.endHour = selectedEndSlot;
                   });
                   Navigator.pop(context);
                 },
@@ -439,20 +428,24 @@ class _CalendarPageState extends State<CalendarPage> {
 
         if (_draggedEvent != null) {
           // Calculate the maximum allowed index for the dragged event
-          int maxIndex = hours.length - _draggedEvent!.duration;
+          int maxIndex = hours.length - (_draggedEvent!.endHour - _draggedEvent!.hour);
           newIndexY = newIndexY.clamp(0, maxIndex);
 
           // Update the dragged event's start hour
           int newStartHour = hours[newIndexY];
-          if (_getAvailableDurations(_dragStartDay!, newStartHour, _draggedEvent)
-              .contains(_draggedEvent!.duration)) {
+          int eventDuration = _draggedEvent!.endHour - _draggedEvent!.hour;
+          int newEndHour = newStartHour + eventDuration;
+
+          if (_getAvailableEndHours(_dragStartDay!, newStartHour, _draggedEvent)
+              .contains(newEndHour)) {
             _draggedEvent!.hour = newStartHour;
+            _draggedEvent!.endHour = newEndHour;
 
             // Ensure the relative position of overlapping events remains consistent
             List<CalendarEvent> overlappingEvents = events.where((e) {
               return _isSameDay(e.date, _dragStartDay!) &&
-                  ((e.hour < _draggedEvent!.hour + _draggedEvent!.duration &&
-                      e.hour + e.duration > _draggedEvent!.hour));
+                  ((e.hour < _draggedEvent!.endHour &&
+                      e.endHour > _draggedEvent!.hour));
             }).toList();
 
             overlappingEvents.sort((a, b) => a.hour.compareTo(b.hour));
@@ -541,7 +534,7 @@ class _CalendarPageState extends State<CalendarPage> {
     for (var event in dayEvents) {
       List<CalendarEvent> overlappingEvents = dayEvents.where((e) {
         return e != event &&
-            ((e.hour < event.hour + event.duration && e.hour + e.duration > event.hour));
+            ((e.hour < event.endHour && e.endHour > event.hour));
       }).toList();
 
       overlappingEvents.add(event); // Include the current event
@@ -612,7 +605,7 @@ class _CalendarPageState extends State<CalendarPage> {
       left: left, // Use calculated horizontal position
       top: cellHeight * (event.hour - hours.first),
       width: columnWidth - 2,
-      height: cellHeight * event.duration,
+      height: cellHeight * (event.endHour - event.hour),
       child: GestureDetector(
         onTap: () => _showEditEventDialog(event),
         onLongPressStart: (_) => setState(() {
@@ -761,8 +754,8 @@ class _CalendarPageState extends State<CalendarPage> {
         // Find all events that overlap partially or completely
         List<CalendarEvent> overlappingEvents = events.where((e) {
           return _isSameDay(e.date, day) &&
-              ((e.hour < event.hour + event.duration &&
-                  e.hour + e.duration > event.hour));
+              ((e.hour < event.hour + event.endHour &&
+                  e.hour + e.endHour > event.hour));
         }).toList();
 
         // Calculate the width for each event based on the number of overlapping events
@@ -782,7 +775,7 @@ class _CalendarPageState extends State<CalendarPage> {
               left: widthFactor * i,
               top: cellHeight * (overlappingEvent.hour - hours.first),
               width: widthFactor,
-              height: cellHeight * overlappingEvent.duration,
+              height: cellHeight * (overlappingEvent.endHour - overlappingEvent.hour),
               child: GestureDetector(
                 onTap: () => _showEditEventDialog(overlappingEvent),
                 onLongPressStart: (_) => setState(() {
@@ -830,10 +823,10 @@ class _CalendarPageState extends State<CalendarPage> {
         }
 
         // Increment index by event duration but still add empty cells for skipped slots
-        for (int i = 1; i < event.duration; i++) {
+        for (int i = 1; i < event.endHour - event.hour; i++) {
           cells.add(_buildEmptyCell(index + i, day, scrollController, pageIndex));
         }
-        index += event.duration;
+        index += event.endHour - event.hour;
       } else {
         index++;
       }
