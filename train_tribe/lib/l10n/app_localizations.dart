@@ -123,6 +123,7 @@ class AppLocalizations {
       'error_user_token_expired': 'Your session has expired. Please log in again.',
       'error_network_request_failed': 'Network error. Please check your internet connection.',
       'error_unexpected': 'An unexpected error occurred. Please try again.',
+      'error_loading_profile': 'Error loading profile',
     },
     'it': {
       // General
@@ -234,6 +235,7 @@ class AppLocalizations {
       'error_user_token_expired': 'La tua sessione è scaduta. Accedi di nuovo.',
       'error_network_request_failed': 'Errore di rete. Controlla la tua connessione a internet.',
       'error_unexpected': 'Si è verificato un errore inaspettato. Riprova.',
+      'error_loading_profile': 'Errore nel caricamento del profilo',
     },
   };
 
