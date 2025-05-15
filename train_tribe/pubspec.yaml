@@ -30,6 +30,7 @@ dependencies:
   timelines_plus: ^1.0.6
   cloud_functions: ^5.5.0
   linked_scroll_controller: ^0.2.0
+  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:
