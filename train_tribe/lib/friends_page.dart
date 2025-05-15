@@ -4,6 +4,8 @@ import 'widgets/responsive_card_list.dart';
 import 'widgets/friend_card.dart';
 import 'dart:io' show Platform;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -13,111 +15,142 @@ class FriendsPage extends StatefulWidget {
 }
 
 class _FriendsPageState extends State<FriendsPage> {
-  final List<String> _allFriends = [
-    'Alice',
-    'Bob',
-    'Charlie',
-    'David',
-    'Djungo',
-    'Eve',
-    'Federico',
-    'Giulia'
-  ];
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Mock friend requests and users to add
-  final List<String> _friendRequests = ['Marco', 'Elena'];
-  List<String> _filteredFriends = [];
-  final Map<String, bool> _isGhostedMap = {};
-  List<String> _usersToAdd = [];
-  String _searchQuery = '';
-  final TextEditingController _searchController = TextEditingController();
-  final Map<String, bool> _friendRequestSent = {};
+  // Helper to get current user ID
+  String get _uid => _auth.currentUser?.uid ?? '';
+
+  // Streams for friends, requests, and sent requests
+  Stream<DocumentSnapshot<Map<String, dynamic>>> get _userDocStream =>
+      _db.collection('users').doc(_uid).snapshots();
+
+  // Search results for new users
+  List<Map<String, dynamic>> _usersToAdd = [];
+  bool _searching = false;
+
+  // Add the missing search controller
+  late final TextEditingController _searchController;
 
   @override
   void initState() {
     super.initState();
-    _filteredFriends = List.from(_allFriends);
-    for (var friend in _allFriends) {
-      _isGhostedMap[friend] = false;
-    }
-    for (var user in ['Luca', 'Martina', 'Simone']) {
-      _friendRequestSent[user] = false;
-    }
+    _searchController = TextEditingController();
   }
 
-  void _filterFriends(String query) {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // --- Firestore logic ---
+
+  Future<void> _sendFriendRequest(String targetUid) async {
+    final myData = await _db.collection('users').doc(_uid).get();
+    final targetData = await _db.collection('users').doc(targetUid).get();
+    if (!targetData.exists) return;
+
+    // Add to my sent requests
+    await _db.collection('users').doc(_uid).update({
+      'sentRequests': FieldValue.arrayUnion([targetUid])
+    });
+    // Add to target's received requests
+    await _db.collection('users').doc(targetUid).update({
+      'receivedRequests': FieldValue.arrayUnion([_uid])
+    });
+  }
+
+  Future<void> _acceptFriendRequest(String requesterUid) async {
+    // Remove from requests
+    await _db.collection('users').doc(_uid).update({
+      'receivedRequests': FieldValue.arrayRemove([requesterUid]),
+      'friends.$requesterUid': {'ghosted': false}
+    });
+    await _db.collection('users').doc(requesterUid).update({
+      'sentRequests': FieldValue.arrayRemove([_uid]),
+      'friends.${_uid}': {'ghosted': false}
+    });
+  }
+
+  Future<void> _declineFriendRequest(String requesterUid) async {
+    await _db.collection('users').doc(_uid).update({
+      'receivedRequests': FieldValue.arrayRemove([requesterUid])
+    });
+    await _db.collection('users').doc(requesterUid).update({
+      'sentRequests': FieldValue.arrayRemove([_uid])
+    });
+  }
+
+  Future<void> _toggleVisibility(String friendUid, bool currentGhosted) async {
+    await _db.collection('users').doc(_uid).update({
+      'friends.$friendUid.ghosted': !currentGhosted
+    });
+  }
+
+  Future<void> _deleteFriend(String friendUid) async {
+    await _db.collection('users').doc(_uid).update({
+      'friends.$friendUid': FieldValue.delete()
+    });
+    await _db.collection('users').doc(friendUid).update({
+      'friends.${_uid}': FieldValue.delete()
+    });
+  }
+
+  Future<void> _searchUsers(String query) async {
     setState(() {
-      _searchQuery = query;
-      if (query.isNotEmpty) {
-        _filteredFriends = _allFriends
-            .where(
-                (friend) => friend.toLowerCase().contains(query.toLowerCase()))
-            .toList();
-      } else {
-        _filteredFriends = List.from(_allFriends);
-        _usersToAdd = [];
-      }
+      _searching = true;
+      _usersToAdd = [];
+    });
+    final results = await _db
+        .collection('users')
+        .where('username', isGreaterThanOrEqualTo: query)
+        .where('username', isLessThanOrEqualTo: '$query\uf8ff')
+        .limit(10)
+        .get();
+    final myDoc = await _db.collection('users').doc(_uid).get();
+    final myFriends = (myDoc.data()?['friends'] ?? {}).keys.toSet();
+    final receivedReqs = Set<String>.from(myDoc.data()?['receivedRequests'] ?? []);
+    setState(() {
+      _usersToAdd = results.docs
+          .where((doc) =>
+              doc.id != _uid &&
+              !myFriends.contains(doc.id) &&
+              //!sentReqs.contains(doc.id) && // <-- REMOVE this line to allow showing users with sent requests
+              !receivedReqs.contains(doc.id))
+          .map((doc) => {'uid': doc.id, ...doc.data()})
+          .toList();
+      _searching = false;
+    });
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _usersToAdd = <Map<String, dynamic>>[]; // Ensure correct type
     });
   }
 
   void _onSearchSubmitted(String query) {
-    // Simulate loading users to add (not in friends)
-    final allPossibleUsers = ['Luca', 'Martina', 'Simone', 'Alice', 'Bob'];
-    setState(() {
-      _usersToAdd = allPossibleUsers
-          .where((user) =>
-              !_allFriends.contains(user) &&
-              user.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });
+    if (query.isNotEmpty) {
+      _searchUsers(query);
+    }
   }
 
-  void _toggleVisibility(String friend) {
-    setState(() {
-      _isGhostedMap[friend] = !_isGhostedMap[friend]!;
-    });
-  }
-
-  void _acceptFriendRequest(String user) {
-    setState(() {
-      _allFriends.add(user);
-      _filteredFriends.add(user);
-      _isGhostedMap[user] = false;
-      _friendRequests.remove(user);
-    });
-  }
-
-  void _declineFriendRequest(String user) {
-    setState(() {
-      _friendRequests.remove(user);
-    });
-  }
-
-  void _sendFriendRequest(String user) {
-    setState(() {
-      _friendRequestSent[user] = true;
-    });
-  }
-
-  void _showFriendDialog(BuildContext context, String friend) {
+  void _showFriendDialog(BuildContext context, String friendUid, String friendName, bool isGhosted, bool hasPhone) {
     showDialog(
       context: context,
       builder: (context) => FriendPopupDialog(
-        friend: friend,
-        isGhosted: _isGhostedMap[friend] ?? false,
+        friend: friendName,
+        isGhosted: isGhosted,
         onDelete: () {
-          setState(() {
-            _allFriends.remove(friend);
-            _filteredFriends.remove(friend);
-            _isGhostedMap.remove(friend);
-          });
+          _deleteFriend(friendUid);
           Navigator.pop(context);
         },
         onToggleGhost: () {
-          _toggleVisibility(friend);
+          _toggleVisibility(friendUid, isGhosted);
           Navigator.pop(context);
         },
-        hasPhone: friend == 'Alice' || friend == 'Bob',
+        hasPhone: hasPhone,
       ),
     );
   }
@@ -126,46 +159,59 @@ class _FriendsPageState extends State<FriendsPage> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(localizations.translate('friends')),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Friend Requests Section
-              if (_friendRequests.isNotEmpty)
-                FriendRequestsContainer(
-                  friendRequests: _friendRequests,
-                  onAccept: _acceptFriendRequest,
-                  onDecline: _declineFriendRequest,
-                ),
-              // Friends List Section
-              FriendsSearchContainer(
-                searchController: _searchController,
-                onSearchChanged: _filterFriends,
-                onSearchSubmitted: _onSearchSubmitted,
-                filteredFriends: _filteredFriends,
-                usersToAdd: _usersToAdd,
-                isGhostedMap: _isGhostedMap,
-                friendRequestSent: _friendRequestSent,
-                onToggleVisibility: _toggleVisibility,
-                onShowFriendDialog: _showFriendDialog,
-                onSendFriendRequest: _sendFriendRequest,
-              ),
-            ],
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: _userDocStream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final userData = snapshot.data!.data() ?? {};
+        final friends = userData['friends'] as Map<String, dynamic>? ?? {};
+        final receivedRequests = List<String>.from(userData['receivedRequests'] ?? []);
+        final sentRequests = List<String>.from(userData['sentRequests'] ?? []);
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(localizations.translate('friends')),
+            centerTitle: true,
+            elevation: 0,
           ),
-        ),
-      ),
+          body: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (receivedRequests.isNotEmpty)
+                    FriendRequestsContainer(
+                      friendRequests: receivedRequests,
+                      onAccept: _acceptFriendRequest,
+                      onDecline: _declineFriendRequest,
+                    ),
+                  FriendsSearchContainer(
+                    searchController: _searchController,
+                    onSearchChanged: _onSearchChanged,
+                    onSearchSubmitted: _onSearchSubmitted,
+                    filteredFriends: friends.entries.toList(),
+                    usersToAdd: _usersToAdd,
+                    sentRequests: sentRequests,
+                    onToggleVisibility: (friendUid, isGhosted) => _toggleVisibility(friendUid, isGhosted),
+                    onShowFriendDialog: (ctx, friendUid, friendName, isGhosted, hasPhone) =>
+                        _showFriendDialog(ctx, friendUid, friendName, isGhosted, hasPhone),
+                    onSendFriendRequest: _sendFriendRequest,
+                    searching: _searching,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
+// FriendRequestsContainer: fetch user info for each request
 class FriendRequestsContainer extends StatelessWidget {
   final List<String> friendRequests;
   final void Function(String) onAccept;
@@ -203,30 +249,37 @@ class FriendRequestsContainer extends StatelessWidget {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 12),
-          ...friendRequests.map((user) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundImage: AssetImage('images/djungelskog.jpg'),
-                      radius: 22,
+          ...friendRequests.map((uid) => FutureBuilder<DocumentSnapshot>(
+                future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const SizedBox(height: 48);
+                  final user = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundImage: AssetImage('images/djungelskog.jpg'),
+                          radius: 22,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(user['username'] ?? 'Unknown', style: const TextStyle(fontSize: 16)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.redAccent),
+                          tooltip: localizations.translate('decline'),
+                          onPressed: () => onDecline(uid),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.check, color: Colors.green),
+                          tooltip: localizations.translate('accept'),
+                          onPressed: () => onAccept(uid),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(user, style: const TextStyle(fontSize: 16)),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.redAccent),
-                      tooltip: localizations.translate('decline'),
-                      onPressed: () => onDecline(user),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.check, color: Colors.green),
-                      tooltip: localizations.translate('accept'),
-                      onPressed: () => onAccept(user),
-                    ),
-                  ],
-                ),
+                  );
+                },
               )),
         ],
       ),
@@ -234,17 +287,18 @@ class FriendRequestsContainer extends StatelessWidget {
   }
 }
 
+// FriendsSearchContainer: update to use Firestore data
 class FriendsSearchContainer extends StatelessWidget {
   final TextEditingController searchController;
   final void Function(String) onSearchChanged;
   final void Function(String) onSearchSubmitted;
-  final List<String> filteredFriends;
-  final List<String> usersToAdd;
-  final Map<String, bool> isGhostedMap;
-  final Map<String, bool> friendRequestSent;
-  final void Function(String) onToggleVisibility;
-  final void Function(BuildContext, String) onShowFriendDialog;
+  final List<MapEntry<String, dynamic>> filteredFriends;
+  final List<Map<String, dynamic>> usersToAdd;
+  final List<String> sentRequests;
+  final void Function(String, bool) onToggleVisibility;
+  final void Function(BuildContext, String, String, bool, bool) onShowFriendDialog;
   final void Function(String) onSendFriendRequest;
+  final bool searching;
 
   const FriendsSearchContainer({
     super.key,
@@ -253,11 +307,11 @@ class FriendsSearchContainer extends StatelessWidget {
     required this.onSearchSubmitted,
     required this.filteredFriends,
     required this.usersToAdd,
-    required this.isGhostedMap,
-    required this.friendRequestSent,
+    required this.sentRequests,
     required this.onToggleVisibility,
     required this.onShowFriendDialog,
     required this.onSendFriendRequest,
+    required this.searching,
   });
 
   @override
@@ -266,11 +320,11 @@ class FriendsSearchContainer extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -323,29 +377,35 @@ class FriendsSearchContainer extends StatelessWidget {
           ),
           // Friends List
           if (filteredFriends.isNotEmpty)
-            ...filteredFriends.map((friend) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundImage: AssetImage('images/djungelskog.jpg'),
-                    ),
-                    title: Text(friend),
-                    trailing: IconButton(
-                      icon: Icon(
-                        isGhostedMap[friend] == true
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: isGhostedMap[friend] == true
-                            ? Colors.redAccent
-                            : Colors.green,
+            ...filteredFriends.map((entry) => FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
+                  builder: (context, snapshot) {
+                    final friendData = entry.value as Map<String, dynamic>;
+                    final isGhosted = friendData['ghosted'] == true;
+                    final user = snapshot.data?.data() as Map<String, dynamic>? ?? {};
+                    final username = user['username'] ?? 'Unknown';
+                    final hasPhone = (user['phone'] ?? '').toString().isNotEmpty;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: AssetImage('images/djungelskog.jpg'),
+                        ),
+                        title: Text(username),
+                        trailing: IconButton(
+                          icon: Icon(
+                            isGhosted ? Icons.visibility_off : Icons.visibility,
+                            color: isGhosted ? Colors.redAccent : Colors.green,
+                          ),
+                          tooltip: isGhosted
+                              ? localizations.translate('unghost')
+                              : localizations.translate('ghost'),
+                          onPressed: () => onToggleVisibility(entry.key, isGhosted),
+                        ),
+                        onTap: () => onShowFriendDialog(context, entry.key, username, isGhosted, hasPhone),
                       ),
-                      tooltip: isGhostedMap[friend] == true
-                          ? localizations.translate('unghost')
-                          : localizations.translate('ghost'),
-                      onPressed: () => onToggleVisibility(friend),
-                    ),
-                    onTap: () => onShowFriendDialog(context, friend),
-                  ),
+                    );
+                  },
                 )),
           if (filteredFriends.isEmpty)
             Padding(
@@ -358,6 +418,11 @@ class FriendsSearchContainer extends StatelessWidget {
               ),
             ),
           // Separator and users to add
+          if (searching)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
           if (usersToAdd.isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -382,15 +447,15 @@ class FriendsSearchContainer extends StatelessWidget {
                       backgroundImage: AssetImage('images/djungelskog.jpg'),
                     ),
                     title: Text(
-                      user,
+                      user['username'] ?? '',
                       overflow: TextOverflow.ellipsis,
                     ),
-                    trailing: friendRequestSent[user] == true
+                    trailing: sentRequests.contains(user['uid'])
                         ? const Icon(Icons.check, color: Colors.green)
                         : IconButton(
                             icon: const Icon(Icons.add, color: Colors.blue),
                             tooltip: localizations.translate('add_friend'),
-                            onPressed: () => onSendFriendRequest(user),
+                            onPressed: () => onSendFriendRequest(user['uid']),
                           ),
                   ),
                 )),
