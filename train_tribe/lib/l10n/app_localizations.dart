@@ -109,6 +109,8 @@ class AppLocalizations {
       'whatsapp': 'Whatsapp',
       'phone_number_note': 'Optional. Used only for retrieving contacts as friends.',
       'generate_avatars': 'Generate Avatars',
+      'search_and_add_friends_hint': 'Type to filter your friends. Press enter or the button to search and add new friends.',
+      'search_and_add_friends_tooltip': 'Search and add new friends',
 
       // Error Messages
       'error': 'Error',
@@ -124,6 +126,14 @@ class AppLocalizations {
       'error_network_request_failed': 'Network error. Please check your internet connection.',
       'error_unexpected': 'An unexpected error occurred. Please try again.',
       'error_loading_profile': 'Error loading profile',
+      'friend_requests': 'Friend Requests',
+      'accept': 'Accept',
+      'decline': 'Decline',
+      'unghost': 'Un-ghost',
+      'no_friends_found': 'No friends found',
+      'add_new_friends': 'Add new friends',
+      'add_friend': 'Add friend',
+      'request_sent': 'Request sent',
     },
     'it': {
       // General
@@ -221,6 +231,8 @@ class AppLocalizations {
       'whatsapp': 'Whatsapp',
       'phone_number_note': 'Opzionale. Usato solo per recuperare i contatti come amici.',
       'generate_avatars': 'Genera Avatar',
+      'search_and_add_friends_hint': 'Scrivi per filtrare i tuoi amici. Premi invio o il pulsante per cercare e aggiungere nuovi amici.',
+      'search_and_add_friends_tooltip': 'Cerca e aggiungi nuovi amici',
 
       // Error Messages
       'error': 'Errore',
@@ -236,6 +248,14 @@ class AppLocalizations {
       'error_network_request_failed': 'Errore di rete. Controlla la tua connessione a internet.',
       'error_unexpected': 'Si è verificato un errore inaspettato. Riprova.',
       'error_loading_profile': 'Errore nel caricamento del profilo',
+      'friend_requests': 'Richieste di amicizia',
+      'accept': 'Accetta',
+      'decline': 'Rifiuta',
+      'unghost': 'Rendi visibile',
+      'no_friends_found': 'Nessun amico trovato',
+      'add_new_friends': 'Aggiungi nuovi amici',
+      'add_friend': 'Aggiungi amico',
+      'request_sent': 'Richiesta inviata',
     },
   };
 
