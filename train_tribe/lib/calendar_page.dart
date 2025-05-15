@@ -575,6 +575,18 @@ class _CalendarPageState extends State<CalendarPage> {
               overlappingEvents[i].alignment = Alignment(-1.0 + (2.0 / overlappingEvents.length) * i, 0.0);
               overlappingEvents[i].widthFactor = 1.0 / overlappingEvents.length;
             }
+
+            // Update the generator event if the dragged event is a copy
+            if (_draggedEvent!.generatedBy != null) {
+              CalendarEvent? generatorEvent = events.cast<CalendarEvent?>().firstWhere(
+              (e) => e?.id == _draggedEvent!.generatedBy,
+              orElse: () => null,
+              );
+              if (generatorEvent != null) {
+              generatorEvent.hour = newStartHour;
+              generatorEvent.endHour = newEndHour;
+              }
+            }
           }
         }
 
