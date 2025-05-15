@@ -109,7 +109,8 @@ class _CalendarPageState extends State<CalendarPage> {
       return;
     }
     final localizations = AppLocalizations.of(context);
-    String eventTitle = '';
+    String departureStation = '';
+    String arrivalStation = '';
     bool isSaving = false; // Indicatore di caricamento
     int safeStart = startIndex.clamp(0, hours.length - 1);
     int startSlot = safeStart;
@@ -132,9 +133,17 @@ class _CalendarPageState extends State<CalendarPage> {
               children: [
                 TextField(
                   decoration: InputDecoration(
-                      hintText: localizations.translate('event_title')),
+                      hintText: localizations.translate('departure_station')),
                   onChanged: (value) {
-                    eventTitle = value;
+                    departureStation = value;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  decoration: InputDecoration(
+                      hintText: localizations.translate('arrival_station')),
+                  onChanged: (value) {
+                    arrivalStation = value;
                   },
                 ),
                 const SizedBox(height: 10),
@@ -259,15 +268,14 @@ class _CalendarPageState extends State<CalendarPage> {
             actions: [
               TextButton(
                 onPressed: () async {
-                  if (eventTitle.isEmpty) {
-                    eventTitle =
-                        'Nuovo Evento'; // Imposta il titolo predefinito
+                  if (departureStation.isEmpty || arrivalStation.isEmpty) {
+                    return; // Ensure both fields are filled
                   }
+                  String eventTitle = '$departureStation - $arrivalStation';
                   setStateDialog(() {
                     isSaving = true;
                   });
-                  await Future.delayed(const Duration(
-                      seconds: 1)); // Simula il ritardo di salvataggio
+                  await Future.delayed(const Duration(seconds: 1));
                   setState(() {
                     events.add(CalendarEvent(
                       date: day,
@@ -298,7 +306,8 @@ class _CalendarPageState extends State<CalendarPage> {
   // Adjust the logic to calculate the correct start hour for events
   void _showEditEventDialog(CalendarEvent event) {
     final localizations = AppLocalizations.of(context);
-    String eventTitle = event.title;
+    String departureStation = event.title.split(' - ').first;
+    String arrivalStation = event.title.split(' - ').last;
     DateTime selectedDay = event.date;
     int selectedStartSlot = event.hour;
     int selectedEndSlot = event.endHour;
@@ -323,11 +332,20 @@ class _CalendarPageState extends State<CalendarPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: controller,
+                  controller: TextEditingController(text: departureStation),
                   decoration: InputDecoration(
-                      hintText: localizations.translate('event_title')),
+                      hintText: localizations.translate('departure_station')),
                   onChanged: (value) {
-                    eventTitle = value;
+                    departureStation = value;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: TextEditingController(text: arrivalStation),
+                  decoration: InputDecoration(
+                      hintText: localizations.translate('arrival_station')),
+                  onChanged: (value) {
+                    arrivalStation = value;
                   },
                 ),
                 const SizedBox(height: 10),
@@ -448,6 +466,10 @@ class _CalendarPageState extends State<CalendarPage> {
             actions: [
               TextButton(
                 onPressed: () {
+                  if (departureStation.isEmpty || arrivalStation.isEmpty) {
+                    return; // Ensure both fields are filled
+                  }
+                  String eventTitle = '$departureStation - $arrivalStation';
                   setState(() {
                     if (isRecurrent) {
                       // Update the generator event and all its copies
