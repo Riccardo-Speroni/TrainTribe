@@ -11,7 +11,8 @@ class CalendarEvent {
   DateTime date;
   int hour; // Start hour
   int endHour; // End hour
-  String title;
+  String departureStation;
+  String arrivalStation;
   double? widthFactor; // Factor to adjust width for overlapping events
   Alignment? alignment; // Alignment for the event cell
   bool isBeingDragged = false; // Indicates if the event is being dragged
@@ -24,7 +25,8 @@ class CalendarEvent {
     required this.date,
     required this.hour,
     required this.endHour,
-    required this.title,
+    required this.departureStation,
+    required this.arrivalStation,
     this.widthFactor,
     this.alignment,
     this.isRecurrent = false,
@@ -271,7 +273,6 @@ class _CalendarPageState extends State<CalendarPage> {
                   if (departureStation.isEmpty || arrivalStation.isEmpty) {
                     return; // Ensure both fields are filled
                   }
-                  String eventTitle = '$departureStation - $arrivalStation';
                   setStateDialog(() {
                     isSaving = true;
                   });
@@ -281,7 +282,8 @@ class _CalendarPageState extends State<CalendarPage> {
                       date: day,
                       hour: startSlot,
                       endHour: selectedEndSlot,
-                      title: eventTitle,
+                      departureStation: departureStation,
+                      arrivalStation: arrivalStation,
                       isRecurrent: isRecurrent,
                       recurrenceEndDate: recurrenceEndDate,
                     ));
@@ -306,12 +308,12 @@ class _CalendarPageState extends State<CalendarPage> {
   // Adjust the logic to calculate the correct start hour for events
   void _showEditEventDialog(CalendarEvent event) {
     final localizations = AppLocalizations.of(context);
-    String departureStation = event.title.split(' - ').first;
-    String arrivalStation = event.title.split(' - ').last;
+    String departureStation = event.departureStation;
+    String arrivalStation = event.arrivalStation;
     DateTime selectedDay = event.date;
     int selectedStartSlot = event.hour;
     int selectedEndSlot = event.endHour;
-    TextEditingController controller = TextEditingController(text: event.title);
+    TextEditingController controller = TextEditingController(text: event.departureStation);
     List<int> availableEndHours = _getAvailableEndHours(event.date, selectedStartSlot, event);
 
     bool isRecurrent = event.isRecurrent;
@@ -469,19 +471,20 @@ class _CalendarPageState extends State<CalendarPage> {
                   if (departureStation.isEmpty || arrivalStation.isEmpty) {
                     return; // Ensure both fields are filled
                   }
-                  String eventTitle = '$departureStation - $arrivalStation';
                   setState(() {
                     if (isRecurrent) {
                       // Update the generator event and all its copies
                       generatorEvent!.isRecurrent = true;
                       generatorEvent.recurrenceEndDate = recurrenceEndDate;
-                      generatorEvent.title = eventTitle;
+                      generatorEvent.departureStation = departureStation;
+                      generatorEvent.arrivalStation = arrivalStation;
                       generatorEvent.hour = selectedStartSlot;
                       generatorEvent.endHour = selectedEndSlot;
 
                       for (var e in events) {
                         if (e.generatedBy == generatorEvent.id) {
-                          e.title = eventTitle;
+                          e.departureStation = departureStation;
+                          e.arrivalStation = arrivalStation;
                           e.hour = selectedStartSlot;
                           e.endHour = selectedEndSlot;
                           e.recurrenceEndDate = recurrenceEndDate;
@@ -489,7 +492,8 @@ class _CalendarPageState extends State<CalendarPage> {
                       }
                     } else {
                       // Update only the single event
-                      generatorEvent!.title = eventTitle;
+                      generatorEvent!.departureStation = departureStation;
+                      generatorEvent.arrivalStation = arrivalStation;
                       generatorEvent.date = selectedDay;
                       generatorEvent.hour = selectedStartSlot;
                       generatorEvent.endHour = selectedEndSlot;
@@ -780,7 +784,8 @@ class _CalendarPageState extends State<CalendarPage> {
                 date: currentDate,
                 hour: event.hour,
                 endHour: event.endHour,
-                title: event.title,
+                departureStation: event.departureStation,
+                arrivalStation: event.arrivalStation,
                 isRecurrent: event.isRecurrent,
                 recurrenceEndDate: event.recurrenceEndDate,
                 generatedBy: event.id, // Link the copy to the original event
@@ -885,7 +890,7 @@ class _CalendarPageState extends State<CalendarPage> {
                   ),
                   child: Center(
                     child: Text(
-                      overlappingEvent.title,
+                      '${overlappingEvent.departureStation} - ${overlappingEvent.arrivalStation}',
                       style: const TextStyle(
                           fontSize: 12,
                           color: Colors.white,
@@ -979,7 +984,7 @@ class _CalendarPageState extends State<CalendarPage> {
           ),
           child: Center(
             child: Text(
-              event.title,
+              '${event.departureStation} - ${event.arrivalStation}',
               style: const TextStyle(
                   fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
