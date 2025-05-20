@@ -52,20 +52,6 @@ void main() async {
     print('Failed to initialize Firebase: $e');
   }
 
-  // Debug login
-  try {
-    print('Attempting to sign in...');
-    final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: 'test@example.com', // Sostituisci con un'email valida
-      password: 'password123',   // Sostituisci con una password valida
-    );
-    print('Login successful: ${userCredential.user?.email}');
-  } on FirebaseAuthException catch (e) {
-    print('FirebaseAuthException: ${e.code} - ${e.message}');
-  } catch (e) {
-    print('Unexpected error during login: $e');
-  }
-
   runApp(MyApp());
 }
 

@@ -15,9 +15,9 @@ class ProfilePicture extends StatelessWidget {
       foregroundImage: (picture != null && picture!.startsWith('http'))
           ? NetworkImage(picture!) // Use the URL if it's a valid image link
           : null,
-      child: (picture == null || picture!.startsWith('http'))
+      child: (picture == null || !picture!.startsWith('http'))
           ? Initicon(
-              text: picture ?? "?", // Use initials or a fallback "?"
+              text: "${picture?[0]} ${picture?[1]}", // Use initials or a fallback "?"
               backgroundColor: Colors.transparent,
               style: TextStyle(
                 color: Colors.white,

@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">train_tribe</string>
+    <string name="facebook_app_id">680284117813673</string>
+    <string name="facebook_client_token">302bc75839563b89685026d0257131e8</string>
+</resources>
