@@ -300,7 +300,7 @@ class _CalendarPageState extends State<CalendarPage> {
                   // Salva su Firestore
                   final user = FirebaseAuth.instance.currentUser;
                   if (user != null) {
-                    final eventsCollection = FirebaseFirestore.instance.collection('events');
+                    final eventsCollection = FirebaseFirestore.instance.collection('users/${user.uid}/events');
                     final newEventRef = eventsCollection.doc();
                     final eventStart = DateTime(
                       day.year, day.month, day.day,
@@ -322,13 +322,6 @@ class _CalendarPageState extends State<CalendarPage> {
                           : null,
                       'recurrent': isRecurrent,
                     });
-                    // Aggiungi riferimento nella sottocollezione dell'utente
-                    await FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(user.uid)
-                        .collection('events')
-                        .doc(newEventRef.id)
-                        .set({});
                     // Aggiorna la lista locale
                     setState(() {
                       events.add(CalendarEvent(
@@ -1181,13 +1174,14 @@ class _CalendarPageState extends State<CalendarPage> {
         .collection('users')
         .doc(userId)
         .collection('events');
-
     final userEventsSnapshot = await userEventsRef.get();
     List<CalendarEvent> result = [];
 
     for (var doc in userEventsSnapshot.docs) {
       final eventId = doc.id;
       final eventDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
           .collection('events')
           .doc(eventId)
           .get();
