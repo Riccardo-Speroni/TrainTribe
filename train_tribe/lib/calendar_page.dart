@@ -607,6 +607,14 @@ class _CalendarPageState extends State<CalendarPage> {
                       events.removeWhere((e) =>
                           e.id == generatorEvent.id || e.generatedBy == generatorEvent.id);
                     });
+                    // Elimina dal database
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user != null) {
+                      await FirebaseFirestore.instance
+                          .collection('users/${user.uid}/events')
+                          .doc(generatorEvent.id)
+                          .delete();
+                    }
                     Navigator.pop(context);
                   }
                 },
@@ -763,21 +771,46 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   // Define the missing method to handle drag event movement
-  void _handleDragEventMove(DateTime day) {
+  void _handleDragEventMove(DateTime day) async {
     if (_draggedEvent != null &&
         _dragStartIndex != null &&
         _dragEndIndex != null) {
       int newStartIndex = _dragEndIndex!.clamp(0, hours.length - 1);
       int newStartHour = hours[newStartIndex];
+      int eventDuration = _draggedEvent!.endHour - _draggedEvent!.hour;
+      int newEndHour = newStartHour + eventDuration;
 
       setState(() {
         // Update the dragged event's start hour and day
         _draggedEvent!.hour = newStartHour;
+        _draggedEvent!.endHour = newEndHour;
         _draggedEvent!.date = day;
 
         // Adjust overlapping events dynamically
         _adjustOverlappingEvents(day);
       });
+
+      // Aggiorna su Firestore nel path corretto
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final eventDoc = FirebaseFirestore.instance
+            .collection('users/${user.uid}/events')
+            .doc(_draggedEvent!.id);
+        final eventStart = DateTime(
+          day.year, day.month, day.day,
+          6 + (newStartHour ~/ 4),
+          (newStartHour % 4) * 15,
+        );
+        final eventEnd = DateTime(
+          day.year, day.month, day.day,
+          6 + (newEndHour ~/ 4),
+          (newEndHour % 4) * 15,
+        );
+        await eventDoc.update({
+          'event_start': Timestamp.fromDate(eventStart),
+          'event_end': Timestamp.fromDate(eventEnd),
+        });
+      }
     }
     _resetDragState(); // Reset the drag state
   }
