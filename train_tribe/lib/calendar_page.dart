@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart'; // Import the package
 import 'package:uuid/uuid.dart'; // Add this import for generating unique IDs
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CalendarEvent {
   final String id; // Unique identifier for the event
@@ -32,6 +34,24 @@ class CalendarEvent {
     this.isRecurrent = false,
     this.recurrenceEndDate,
   }) : id = id ?? const Uuid().v4(); // Generate a unique ID if not provided
+
+  // Factory per creare un evento da un documento Firebase
+  factory CalendarEvent.fromFirestore(String id, Map<String, dynamic> data) {
+    final DateTime start = (data['event_start'] as Timestamp).toDate();
+    final DateTime end = (data['event_end'] as Timestamp).toDate();
+    return CalendarEvent(
+      id: id,
+      date: DateTime(start.year, start.month, start.day),
+      hour: ((start.hour - 6) * 4 + (start.minute ~/ 15)).clamp(0, 75),
+      endHour: ((end.hour - 6) * 4 + (end.minute ~/ 15)).clamp(0, 76),
+      departureStation: data['origin'] ?? '',
+      arrivalStation: data['destination'] ?? '',
+      isRecurrent: data['recurrent'] ?? false,
+      recurrenceEndDate: data['recurrence_end'] != null
+          ? (data['recurrence_end'] as Timestamp).toDate()
+          : null,
+    );
+  }
 }
 
 class CalendarPage extends StatefulWidget {
@@ -276,18 +296,54 @@ class _CalendarPageState extends State<CalendarPage> {
                   setStateDialog(() {
                     isSaving = true;
                   });
-                  await Future.delayed(const Duration(seconds: 1));
-                  setState(() {
-                    events.add(CalendarEvent(
-                      date: day,
-                      hour: startSlot,
-                      endHour: selectedEndSlot,
-                      departureStation: departureStation,
-                      arrivalStation: arrivalStation,
-                      isRecurrent: isRecurrent,
-                      recurrenceEndDate: recurrenceEndDate,
-                    ));
-                  });
+
+                  // Salva su Firestore
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    final eventsCollection = FirebaseFirestore.instance.collection('events');
+                    final newEventRef = eventsCollection.doc();
+                    final eventStart = DateTime(
+                      day.year, day.month, day.day,
+                      6 + (startSlot ~/ 4),
+                      (startSlot % 4) * 15,
+                    );
+                    final eventEnd = DateTime(
+                      day.year, day.month, day.day,
+                      6 + (selectedEndSlot ~/ 4),
+                      (selectedEndSlot % 4) * 15,
+                    );
+                    await newEventRef.set({
+                      'origin': departureStation,
+                      'destination': arrivalStation,
+                      'event_start': Timestamp.fromDate(eventStart),
+                      'event_end': Timestamp.fromDate(eventEnd),
+                      'recurrence_end': isRecurrent && recurrenceEndDate != null
+                          ? Timestamp.fromDate(recurrenceEndDate!)
+                          : null,
+                      'recurrent': isRecurrent,
+                    });
+                    // Aggiungi riferimento nella sottocollezione dell'utente
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(user.uid)
+                        .collection('events')
+                        .doc(newEventRef.id)
+                        .set({});
+                    // Aggiorna la lista locale
+                    setState(() {
+                      events.add(CalendarEvent(
+                        id: newEventRef.id,
+                        date: day,
+                        hour: startSlot,
+                        endHour: selectedEndSlot,
+                        departureStation: departureStation,
+                        arrivalStation: arrivalStation,
+                        isRecurrent: isRecurrent,
+                        recurrenceEndDate: recurrenceEndDate,
+                      ));
+                    });
+                  }
+
                   Navigator.pop(context);
                 },
                 child: Text(localizations.translate('save')),
@@ -467,14 +523,14 @@ class _CalendarPageState extends State<CalendarPage> {
             ),
             actions: [
               TextButton(
-                onPressed: () {
+                onPressed: () async {
                   if (departureStation.isEmpty || arrivalStation.isEmpty) {
                     return; // Ensure both fields are filled
                   }
                   setState(() {
                     if (isRecurrent) {
                       // Update the generator event and all its copies
-                      generatorEvent!.isRecurrent = true;
+                      generatorEvent.isRecurrent = true;
                       generatorEvent.recurrenceEndDate = recurrenceEndDate;
                       generatorEvent.departureStation = departureStation;
                       generatorEvent.arrivalStation = arrivalStation;
@@ -492,7 +548,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       }
                     } else {
                       // Update only the single event
-                      generatorEvent!.departureStation = departureStation;
+                      generatorEvent.departureStation = departureStation;
                       generatorEvent.arrivalStation = arrivalStation;
                       generatorEvent.date = selectedDay;
                       generatorEvent.hour = selectedStartSlot;
@@ -501,6 +557,33 @@ class _CalendarPageState extends State<CalendarPage> {
                       generatorEvent.recurrenceEndDate = null;
                     }
                   });
+
+                  // Aggiorna su Firestore
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    final eventDoc = FirebaseFirestore.instance.collection('events').doc(generatorEvent.id);
+                    final eventStart = DateTime(
+                      selectedDay.year, selectedDay.month, selectedDay.day,
+                      6 + (selectedStartSlot ~/ 4),
+                      (selectedStartSlot % 4) * 15,
+                    );
+                    final eventEnd = DateTime(
+                      selectedDay.year, selectedDay.month, selectedDay.day,
+                      6 + (selectedEndSlot ~/ 4),
+                      (selectedEndSlot % 4) * 15,
+                    );
+                    await eventDoc.update({
+                      'origin': departureStation,
+                      'destination': arrivalStation,
+                      'event_start': Timestamp.fromDate(eventStart),
+                      'event_end': Timestamp.fromDate(eventEnd),
+                      'recurrence_end': isRecurrent && recurrenceEndDate != null
+                          ? Timestamp.fromDate(recurrenceEndDate!)
+                          : null,
+                      'recurrent': isRecurrent,
+                    });
+                  }
+
                   Navigator.pop(context);
                 },
                 child: Text(localizations.translate('save')),
@@ -530,7 +613,7 @@ class _CalendarPageState extends State<CalendarPage> {
                   if (confirmDelete) {
                     setState(() {
                       events.removeWhere((e) =>
-                          e.id == generatorEvent!.id || e.generatedBy == generatorEvent.id);
+                          e.id == generatorEvent.id || e.generatedBy == generatorEvent.id);
                     });
                     Navigator.pop(context);
                   }
@@ -1075,6 +1158,45 @@ class _CalendarPageState extends State<CalendarPage> {
         }),
       ),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserEvents();
+  }
+
+  Future<void> _loadUserEvents() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    List<CalendarEvent> loadedEvents = await fetchEventsFromFirebase(user.uid);
+    setState(() {
+      events.clear();
+      events.addAll(loadedEvents);
+    });
+  }
+
+  Future<List<CalendarEvent>> fetchEventsFromFirebase(String userId) async {
+    final userEventsRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('events');
+
+    final userEventsSnapshot = await userEventsRef.get();
+    List<CalendarEvent> result = [];
+
+    for (var doc in userEventsSnapshot.docs) {
+      final eventId = doc.id;
+      final eventDoc = await FirebaseFirestore.instance
+          .collection('events')
+          .doc(eventId)
+          .get();
+      if (eventDoc.exists) {
+        result.add(CalendarEvent.fromFirestore(eventDoc.id, eventDoc.data()!));
+      }
+    }
+    print('Loaded ${result.length} events from Firebase for user $userId');
+    return result;
   }
 
   @override
