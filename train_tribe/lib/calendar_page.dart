@@ -522,14 +522,12 @@ class _CalendarPageState extends State<CalendarPage> {
                   }
                   setState(() {
                     if (isRecurrent) {
-                      // Update the generator event and all its copies
                       generatorEvent.isRecurrent = true;
                       generatorEvent.recurrenceEndDate = recurrenceEndDate;
                       generatorEvent.departureStation = departureStation;
                       generatorEvent.arrivalStation = arrivalStation;
                       generatorEvent.hour = selectedStartSlot;
                       generatorEvent.endHour = selectedEndSlot;
-
                       for (var e in events) {
                         if (e.generatedBy == generatorEvent.id) {
                           e.departureStation = departureStation;
@@ -540,7 +538,6 @@ class _CalendarPageState extends State<CalendarPage> {
                         }
                       }
                     } else {
-                      // Update only the single event
                       generatorEvent.departureStation = departureStation;
                       generatorEvent.arrivalStation = arrivalStation;
                       generatorEvent.date = selectedDay;
@@ -551,10 +548,12 @@ class _CalendarPageState extends State<CalendarPage> {
                     }
                   });
 
-                  // Aggiorna su Firestore
+                  // Aggiorna su Firestore nel path corretto
                   final user = FirebaseAuth.instance.currentUser;
                   if (user != null) {
-                    final eventDoc = FirebaseFirestore.instance.collection('events').doc(generatorEvent.id);
+                    final eventDoc = FirebaseFirestore.instance
+                        .collection('users/${user.uid}/events')
+                        .doc(generatorEvent.id);
                     final eventStart = DateTime(
                       selectedDay.year, selectedDay.month, selectedDay.day,
                       6 + (selectedStartSlot ~/ 4),
