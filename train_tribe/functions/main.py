@@ -2,12 +2,16 @@
 # To get started, simply uncomment the below code or create your own.
 # Deploy with `firebase deploy`
 
+import logging
+from math import e
 from firebase_functions import https_fn
 from firebase_functions import scheduler_fn
+from firebase_functions import firestore_fn
 from firebase_admin import initialize_app
 from firebase_functions.params import SecretParam
 from jsonifier import jsonify
 from event_options_builder import build_event_options
+from event_options_save_to_db import event_options_save_to_db
 from bucket_manager import download_from_bucket
 import random
 import os
@@ -60,6 +64,7 @@ initialize_app()
 #         return f"Scheduled jsonify error: {result['message']}"
 
 
+
 @https_fn.on_request()
 def call_jsonify(req: https_fn.Request) -> https_fn.Response:
     
@@ -76,23 +81,7 @@ def call_jsonify(req: https_fn.Request) -> https_fn.Response:
         return https_fn.Response(f"Error: {result['message']}", status=500)
 
 
-@https_fn.on_request(secrets=[GOOGLE_MAPS_API_KEY])
-def get_trip_options(req: https_fn.Request) -> https_fn.Response:
-    # Get parameters from the request
-    origin = req.args.get("origin")
-    destination = req.args.get("destination")
-    event_start_time = req.args.get("event_start_time")
-    event_end_time = req.args.get("event_end_time")
-
-    if not GOOGLE_MAPS_API_KEY.value:
-        return https_fn.Response("API key is required", status=400)
-    if not origin or not destination:
-        return https_fn.Response("Origin or destination is required", status=400)
-    if not event_start_time:
-        return https_fn.Response("Event start time is required", status=400)
-    if not event_end_time:
-        return https_fn.Response("Arrival time is required", status=400)
-
+def process_trip_options(origin, destination, event_start_time, event_end_time):
     id = random.randint(1000000, 9999999)
     maps_response_full_path = maps_response_partial_path + str(id) + ".json"
     full_legs_full_path = full_legs_partial_path + str(id) + ".json"
@@ -114,8 +103,57 @@ def get_trip_options(req: https_fn.Request) -> https_fn.Response:
         "full_legs_path": full_legs_full_path,
         "event_options_path": event_options_full_path,
     }
+    return build_event_options(params), event_options_full_path, id
 
-    result = build_event_options(params)
+
+@firestore_fn.on_document_written(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
+def firestore_event_trip_options(event: firestore_fn.Event[dict], context) -> None:
+    data = event.data
+    if not data:
+        return
+    origin = data.get("origin")
+    destination = data.get("destination")
+    event_start_time = data.get("event_start")
+    event_end_time = data.get("event_end")
+    if not (origin and destination and event_start_time and event_end_time):
+        return
+    result, event_options_full_path, id = process_trip_options(origin, destination, event_start_time, event_end_time)
+    #TODO: manage recurring events
+    if result["success"]:
+        params = {
+            "user_id": context.params.user_id,
+            "event_id": context.params.event_id,
+            "event_options_path": event_options_full_path,
+            "bucket_name": bucket_name,
+        }
+        event_options_save_to_db(params)
+        if result["success"]:
+            logging.info(f"Event options saved to DB for event {id}")
+        else:
+            logging.error(f"Error saving event options to DB: {result['message']}")
+    else:
+        logging.error(f"Error processing event options: {result['message']}")
+
+
+
+@https_fn.on_request(secrets=[GOOGLE_MAPS_API_KEY])
+def get_trip_options(req: https_fn.Request) -> https_fn.Response:
+    # Get parameters from the request
+    origin = req.args.get("origin")
+    destination = req.args.get("destination")
+    event_start_time = req.args.get("event_start_time")
+    event_end_time = req.args.get("event_end_time")
+
+    if not GOOGLE_MAPS_API_KEY.value:
+        return https_fn.Response("API key is required", status=400)
+    if not origin or not destination:
+        return https_fn.Response("Origin or destination is required", status=400)
+    if not event_start_time:
+        return https_fn.Response("Event start time is required", status=400)
+    if not event_end_time:
+        return https_fn.Response("Arrival time is required", status=400)
+
+    result, event_options_full_path, id = process_trip_options(origin, destination, event_start_time, event_end_time)
 
     if result["success"]:
         # Download the result file from the bucket

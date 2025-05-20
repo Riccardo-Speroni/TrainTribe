@@ -3,24 +3,35 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart'; // Import the package
+import 'package:uuid/uuid.dart'; // Add this import for generating unique IDs
 
 class CalendarEvent {
+  final String id; // Unique identifier for the event
+  String? generatedBy; // ID of the original event for recurrent copies
   DateTime date;
   int hour; // Start hour
   int endHour; // End hour
-  String title;
+  String departureStation;
+  String arrivalStation;
   double? widthFactor; // Factor to adjust width for overlapping events
   Alignment? alignment; // Alignment for the event cell
   bool isBeingDragged = false; // Indicates if the event is being dragged
+  bool isRecurrent; // Indicates if the event is recurrent
+  DateTime? recurrenceEndDate; // End date for recurrence
 
   CalendarEvent({
+    String? id,
+    this.generatedBy,
     required this.date,
     required this.hour,
     required this.endHour,
-    required this.title,
+    required this.departureStation,
+    required this.arrivalStation,
     this.widthFactor,
     this.alignment,
-  });
+    this.isRecurrent = false,
+    this.recurrenceEndDate,
+  }) : id = id ?? const Uuid().v4(); // Generate a unique ID if not provided
 }
 
 class CalendarPage extends StatefulWidget {
@@ -100,7 +111,8 @@ class _CalendarPageState extends State<CalendarPage> {
       return;
     }
     final localizations = AppLocalizations.of(context);
-    String eventTitle = '';
+    String departureStation = '';
+    String arrivalStation = '';
     bool isSaving = false; // Indicatore di caricamento
     int safeStart = startIndex.clamp(0, hours.length - 1);
     int startSlot = safeStart;
@@ -108,6 +120,9 @@ class _CalendarPageState extends State<CalendarPage> {
 
     List<int> availableEndHours =
         _getAvailableEndHours(day, startSlot);
+
+    bool isRecurrent = false;
+    DateTime? recurrenceEndDate = day.add(const Duration(days: 7)); // Default to one week later
 
     showDialog(
       context: context,
@@ -120,9 +135,17 @@ class _CalendarPageState extends State<CalendarPage> {
               children: [
                 TextField(
                   decoration: InputDecoration(
-                      hintText: localizations.translate('event_title')),
+                      hintText: localizations.translate('departure_station')),
                   onChanged: (value) {
-                    eventTitle = value;
+                    departureStation = value;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  decoration: InputDecoration(
+                      hintText: localizations.translate('arrival_station')),
+                  onChanged: (value) {
+                    arrivalStation = value;
                   },
                 ),
                 const SizedBox(height: 10),
@@ -202,6 +225,44 @@ class _CalendarPageState extends State<CalendarPage> {
                     ),
                   ],
                 ),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: isRecurrent,
+                      onChanged: (value) {
+                        setStateDialog(() {
+                          isRecurrent = value ?? false;
+                        });
+                      },
+                    ),
+                    Text(localizations.translate('recurrent')),
+                  ],
+                ),
+                if (isRecurrent)
+                  Row(
+                    children: [
+                      Text('${localizations.translate('end_recurrence')}: '),
+                      TextButton(
+                        onPressed: () async {
+                          DateTime? pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: recurrenceEndDate ?? day,
+                            firstDate: day,
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                          );
+                          if (pickedDate != null) {
+                            setStateDialog(() {
+                              recurrenceEndDate = pickedDate;
+                            });
+                          }
+                        },
+                        child: Text(recurrenceEndDate != null
+                            ? DateFormat('EEE, MMM d', localizations.languageCode())
+                                .format(recurrenceEndDate!)
+                            : localizations.translate('select_date')),
+                      ),
+                    ],
+                  ),
                 if (isSaving)
                   const CircularProgressIndicator(), // Indicatore di caricamento
               ],
@@ -209,21 +270,22 @@ class _CalendarPageState extends State<CalendarPage> {
             actions: [
               TextButton(
                 onPressed: () async {
-                  if (eventTitle.isEmpty) {
-                    eventTitle =
-                        'Nuovo Evento'; // Imposta il titolo predefinito
+                  if (departureStation.isEmpty || arrivalStation.isEmpty) {
+                    return; // Ensure both fields are filled
                   }
                   setStateDialog(() {
                     isSaving = true;
                   });
-                  await Future.delayed(const Duration(
-                      seconds: 1)); // Simula il ritardo di salvataggio
+                  await Future.delayed(const Duration(seconds: 1));
                   setState(() {
                     events.add(CalendarEvent(
                       date: day,
                       hour: startSlot,
                       endHour: selectedEndSlot,
-                      title: eventTitle,
+                      departureStation: departureStation,
+                      arrivalStation: arrivalStation,
+                      isRecurrent: isRecurrent,
+                      recurrenceEndDate: recurrenceEndDate,
                     ));
                   });
                   Navigator.pop(context);
@@ -246,18 +308,21 @@ class _CalendarPageState extends State<CalendarPage> {
   // Adjust the logic to calculate the correct start hour for events
   void _showEditEventDialog(CalendarEvent event) {
     final localizations = AppLocalizations.of(context);
-    String eventTitle = event.title;
+    String departureStation = event.departureStation;
+    String arrivalStation = event.arrivalStation;
     DateTime selectedDay = event.date;
-    int selectedStartSlot = event.hour; // Correctly calculate the start slot
+    int selectedStartSlot = event.hour;
     int selectedEndSlot = event.endHour;
-    TextEditingController controller = TextEditingController(text: event.title);
-    List<int> availableEndHours =
-        _getAvailableEndHours(event.date, selectedStartSlot, event);
+    TextEditingController controller = TextEditingController(text: event.departureStation);
+    List<int> availableEndHours = _getAvailableEndHours(event.date, selectedStartSlot, event);
 
-    // Ensure the selectedStartSlot is valid
-    if (!hours.contains(selectedStartSlot)) {
-      selectedStartSlot = hours.first;
-    }
+    bool isRecurrent = event.isRecurrent;
+    DateTime? recurrenceEndDate = event.recurrenceEndDate ?? event.date.add(const Duration(days: 7));
+
+    // Locate the generator event if this is a copy
+    CalendarEvent? generatorEvent = event.generatedBy != null
+        ? events.firstWhere((e) => e.id == event.generatedBy, orElse: () => event)
+        : event;
 
     showDialog(
       context: context,
@@ -269,11 +334,20 @@ class _CalendarPageState extends State<CalendarPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: controller,
+                  controller: TextEditingController(text: departureStation),
                   decoration: InputDecoration(
-                      hintText: localizations.translate('event_title')),
+                      hintText: localizations.translate('departure_station')),
                   onChanged: (value) {
-                    eventTitle = value;
+                    departureStation = value;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: TextEditingController(text: arrivalStation),
+                  decoration: InputDecoration(
+                      hintText: localizations.translate('arrival_station')),
+                  onChanged: (value) {
+                    arrivalStation = value;
                   },
                 ),
                 const SizedBox(height: 10),
@@ -286,8 +360,7 @@ class _CalendarPageState extends State<CalendarPage> {
                           context: context,
                           initialDate: selectedDay,
                           firstDate: DateTime.now(),
-                          lastDate:
-                              DateTime.now().add(const Duration(days: 365)),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
                         );
                         if (pickedDate != null) {
                           setStateDialog(() {
@@ -352,16 +425,81 @@ class _CalendarPageState extends State<CalendarPage> {
                     ),
                   ],
                 ),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: isRecurrent,
+                      onChanged: (value) {
+                        setStateDialog(() {
+                          isRecurrent = value ?? false;
+                        });
+                      },
+                    ),
+                    Text(localizations.translate('recurrent')),
+                  ],
+                ),
+                if (isRecurrent)
+                  Row(
+                    children: [
+                      Text('${localizations.translate('end_recurrence')}: '),
+                      TextButton(
+                        onPressed: () async {
+                          DateTime? pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: recurrenceEndDate ?? selectedDay,
+                            firstDate: selectedDay,
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                          );
+                          if (pickedDate != null) {
+                            setStateDialog(() {
+                              recurrenceEndDate = pickedDate;
+                            });
+                          }
+                        },
+                        child: Text(recurrenceEndDate != null
+                            ? DateFormat('EEE, MMM d', localizations.languageCode())
+                                .format(recurrenceEndDate!)
+                            : localizations.translate('select_date')),
+                      ),
+                    ],
+                  ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () {
+                  if (departureStation.isEmpty || arrivalStation.isEmpty) {
+                    return; // Ensure both fields are filled
+                  }
                   setState(() {
-                    event.title = eventTitle;
-                    event.date = selectedDay;
-                    event.hour = selectedStartSlot;
-                    event.endHour = selectedEndSlot;
+                    if (isRecurrent) {
+                      // Update the generator event and all its copies
+                      generatorEvent!.isRecurrent = true;
+                      generatorEvent.recurrenceEndDate = recurrenceEndDate;
+                      generatorEvent.departureStation = departureStation;
+                      generatorEvent.arrivalStation = arrivalStation;
+                      generatorEvent.hour = selectedStartSlot;
+                      generatorEvent.endHour = selectedEndSlot;
+
+                      for (var e in events) {
+                        if (e.generatedBy == generatorEvent.id) {
+                          e.departureStation = departureStation;
+                          e.arrivalStation = arrivalStation;
+                          e.hour = selectedStartSlot;
+                          e.endHour = selectedEndSlot;
+                          e.recurrenceEndDate = recurrenceEndDate;
+                        }
+                      }
+                    } else {
+                      // Update only the single event
+                      generatorEvent!.departureStation = departureStation;
+                      generatorEvent.arrivalStation = arrivalStation;
+                      generatorEvent.date = selectedDay;
+                      generatorEvent.hour = selectedStartSlot;
+                      generatorEvent.endHour = selectedEndSlot;
+                      generatorEvent.isRecurrent = false;
+                      generatorEvent.recurrenceEndDate = null;
+                    }
                   });
                   Navigator.pop(context);
                 },
@@ -391,7 +529,8 @@ class _CalendarPageState extends State<CalendarPage> {
                   );
                   if (confirmDelete) {
                     setState(() {
-                      events.remove(event);
+                      events.removeWhere((e) =>
+                          e.id == generatorEvent!.id || e.generatedBy == generatorEvent.id);
                     });
                     Navigator.pop(context);
                   }
@@ -461,6 +600,18 @@ class _CalendarPageState extends State<CalendarPage> {
             for (int i = 0; i < overlappingEvents.length; i++) {
               overlappingEvents[i].alignment = Alignment(-1.0 + (2.0 / overlappingEvents.length) * i, 0.0);
               overlappingEvents[i].widthFactor = 1.0 / overlappingEvents.length;
+            }
+
+            // Update the generator event if the dragged event is a copy
+            if (_draggedEvent!.generatedBy != null) {
+              CalendarEvent? generatorEvent = events.cast<CalendarEvent?>().firstWhere(
+              (e) => e?.id == _draggedEvent!.generatedBy,
+              orElse: () => null,
+              );
+              if (generatorEvent != null) {
+              generatorEvent.hour = newStartHour;
+              generatorEvent.endHour = newEndHour;
+              }
             }
           }
         }
@@ -603,9 +754,55 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
+  // Helper to check if a date is within a recurrence range
+  bool _isWithinRecurrence(DateTime date, CalendarEvent event) {
+    if (!event.isRecurrent || event.recurrenceEndDate == null) {
+      return false;
+    }
+    return date.isAfter(event.date.subtract(const Duration(days: 1))) &&
+        date.isBefore(event.recurrenceEndDate!.add(const Duration(days: 1)));
+  }
+
+  // Generate copies of recurrent events every 7 days until the recurrence end date
+  List<CalendarEvent> _generateRecurrentEvents(List<DateTime> visibleDays) {
+    List<CalendarEvent> recurrentEvents = [];
+    DateTime startOfWeek = visibleDays.first;
+    DateTime endOfWeek = visibleDays.last;
+
+    for (var event in events) {
+      if (event.isRecurrent && event.recurrenceEndDate != null) {
+        // Check if the event's recurrence overlaps with the visible week
+        if (event.date.isBefore(endOfWeek.add(const Duration(days: 1))) &&
+            event.recurrenceEndDate!.isAfter(startOfWeek.subtract(const Duration(days: 1)))) {
+          // Generate a copy of the event every 7 days
+          DateTime currentDate = event.date;
+          while (currentDate.isBefore(event.recurrenceEndDate!.add(const Duration(days: 1)))) {
+            if (currentDate.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
+                currentDate.isBefore(endOfWeek.add(const Duration(days: 1))) &&
+                !_isSameDay(currentDate, event.date)) {
+              recurrentEvents.add(CalendarEvent(
+                date: currentDate,
+                hour: event.hour,
+                endHour: event.endHour,
+                departureStation: event.departureStation,
+                arrivalStation: event.arrivalStation,
+                isRecurrent: event.isRecurrent,
+                recurrenceEndDate: event.recurrenceEndDate,
+                generatedBy: event.id, // Link the copy to the original event
+              ));
+            }
+            currentDate = currentDate.add(const Duration(days: 7));
+          }
+        }
+      }
+    }
+    return recurrentEvents;
+  }
+
   // Update the day column builder to fix event width and alignment
   Widget _buildDayColumn(
-      DateTime day, ScrollController scrollController, int pageIndex) {
+      DateTime day, ScrollController scrollController, int pageIndex,
+      {List<CalendarEvent>? additionalEvents}) {
     List<Widget> cells = [];
     List<Widget> eventWidgets = [];
     int index = 0;
@@ -614,24 +811,39 @@ class _CalendarPageState extends State<CalendarPage> {
     int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
     double cellWidth = MediaQuery.of(context).size.width / daysToShow;
 
+    // Collect all events for the day, including recurrent events
+    List<CalendarEvent> dayEvents = events
+        .where((event) => _isSameDay(event.date, day))
+        .toList();
+
+    if (additionalEvents != null) {
+      dayEvents.addAll(additionalEvents
+          .where((event) => _isSameDay(event.date, day))
+          .toList());
+    }
+
+    // Sort events by start hour to ensure proper rendering order
+    dayEvents.sort((a, b) => a.hour.compareTo(b.hour));
+
     while (index < hours.length) {
       int currentHour = hours[index];
-      CalendarEvent? event = _getEventForCell(day, currentHour);
+      CalendarEvent? event = dayEvents.cast<CalendarEvent?>().firstWhere(
+          (e) => e?.hour == currentHour && _isSameDay(e!.date, day),
+          orElse: () => null);
 
       // Always add an empty cell
       cells.add(_buildEmptyCell(index, day, scrollController, pageIndex));
 
       if (event != null) {
         // Find all events that overlap partially or completely
-        List<CalendarEvent> overlappingEvents = events.where((e) {
-          return _isSameDay(e.date, day) &&
-              ((e.hour < event.endHour && e.endHour > event.hour));
+        List<CalendarEvent> overlappingEvents = dayEvents.where((e) {
+          return (e.hour < event.endHour && e.endHour > event.hour);
         }).toList();
 
         // Calculate the width for each event based on the number of overlapping events
         int totalOverlapping = overlappingEvents.isNotEmpty ? overlappingEvents.length : 1;
         int correctionFactor = MediaQuery.of(context).size.width > 600 ? 12 : 30;
-        double widthFactor = (cellWidth - correctionFactor) / totalOverlapping; // Subtract 4 for padding/margin
+        double widthFactor = (cellWidth - correctionFactor) / totalOverlapping;
 
         // Position each overlapping event with the calculated width
         for (int i = 0; i < overlappingEvents.length; i++) {
@@ -642,7 +854,7 @@ class _CalendarPageState extends State<CalendarPage> {
             Positioned(
               left: widthFactor * i,
               top: cellHeight * (overlappingEvent.hour - hours.first),
-              width: widthFactor, // Use the adjusted width
+              width: widthFactor,
               height: cellHeight * (overlappingEvent.endHour - overlappingEvent.hour),
               child: GestureDetector(
                 onTap: () => _showEditEventDialog(overlappingEvent),
@@ -660,8 +872,12 @@ class _CalendarPageState extends State<CalendarPage> {
                   margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
                   decoration: BoxDecoration(
                     color: isBeingDragged
-                        ? Colors.blueAccent.withOpacity(0.7)
-                        : Colors.lightBlueAccent,
+                        ? overlappingEvent.isRecurrent
+                            ? Colors.purpleAccent.withOpacity(0.7)
+                            : Colors.blueAccent.withOpacity(0.7)
+                        : overlappingEvent.isRecurrent
+                            ? Colors.purpleAccent
+                            : Colors.lightBlueAccent,
                     borderRadius: BorderRadius.circular(8.0),
                     boxShadow: [
                       BoxShadow(
@@ -674,7 +890,7 @@ class _CalendarPageState extends State<CalendarPage> {
                   ),
                   child: Center(
                     child: Text(
-                      overlappingEvent.title,
+                      '${overlappingEvent.departureStation} - ${overlappingEvent.arrivalStation}',
                       style: const TextStyle(
                           fontSize: 12,
                           color: Colors.white,
@@ -704,9 +920,9 @@ class _CalendarPageState extends State<CalendarPage> {
         clipBehavior: Clip.hardEdge,
         children: [
           Column(
-            children: cells, // Always include the cells
+            children: cells,
           ),
-          ...eventWidgets, // Position events on top of the cells
+          ...eventWidgets,
         ],
       ),
     );
@@ -751,9 +967,11 @@ class _CalendarPageState extends State<CalendarPage> {
           decoration: BoxDecoration(
             color: isBeingDragged
                 ? Colors.blueAccent.withOpacity(0.7)
-                : isPastEvent
-                    ? Colors.grey[600]
-                    : Colors.lightBlueAccent,
+                : event.isRecurrent
+                    ? Colors.purpleAccent // Color recurrent events in purple
+                    : isPastEvent
+                        ? Colors.grey[600]
+                        : Colors.lightBlueAccent,
             borderRadius: BorderRadius.circular(8.0),
             boxShadow: [
               BoxShadow(
@@ -766,7 +984,7 @@ class _CalendarPageState extends State<CalendarPage> {
           ),
           child: Center(
             child: Text(
-              event.title,
+              '${event.departureStation} - ${event.arrivalStation}',
               style: const TextStyle(
                   fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
@@ -869,6 +1087,10 @@ class _CalendarPageState extends State<CalendarPage> {
         screenWidth > 600 ? 7 : 3; // 7 days for desktop, 3 days for mobile
     final PageController pageController = PageController(initialPage: 0);
 
+    // Generate recurrent events for the visible days
+    List<CalendarEvent> recurrentEvents =
+        _generateRecurrentEvents(_getWeekDays(DateTime.now(), daysToShow));
+
     return Scaffold(
       appBar: AppBar(
         title: Text(localizations.translate('calendar')),
@@ -899,6 +1121,10 @@ class _CalendarPageState extends State<CalendarPage> {
                 final List<DateTime> visibleDays = screenWidth > 600
                     ? _getWeekDays(startDay, daysToShow)
                     : _getDays(startDay, daysToShow);
+
+                // Generate recurrent events for the visible days
+                List<CalendarEvent> recurrentEvents =
+                    _generateRecurrentEvents(visibleDays);
 
                 return Column(
                   children: [
@@ -949,7 +1175,11 @@ class _CalendarPageState extends State<CalendarPage> {
                             children: visibleDays.map((day) {
                               return Expanded(
                                 child: _buildDayColumn(
-                                    day, _dayColumnsController, pageIndex), // Use the linked controller
+                                  day,
+                                  _dayColumnsController,
+                                  pageIndex,
+                                  additionalEvents: recurrentEvents, // Pass recurrent events
+                                ),
                               );
                             }).toList(),
                           ),
