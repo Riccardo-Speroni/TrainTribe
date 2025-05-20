@@ -297,11 +297,10 @@ class _CalendarPageState extends State<CalendarPage> {
                     isSaving = true;
                   });
 
-                  // Salva su Firestore
+                  // Salva su Firestore con id generato da Firebase e path corretto
                   final user = FirebaseAuth.instance.currentUser;
                   if (user != null) {
                     final eventsCollection = FirebaseFirestore.instance.collection('users/${user.uid}/events');
-                    final newEventRef = eventsCollection.doc();
                     final eventStart = DateTime(
                       day.year, day.month, day.day,
                       6 + (startSlot ~/ 4),
@@ -312,7 +311,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       6 + (selectedEndSlot ~/ 4),
                       (selectedEndSlot % 4) * 15,
                     );
-                    await newEventRef.set({
+                    final eventData = {
                       'origin': departureStation,
                       'destination': arrivalStation,
                       'event_start': Timestamp.fromDate(eventStart),
@@ -321,11 +320,12 @@ class _CalendarPageState extends State<CalendarPage> {
                           ? Timestamp.fromDate(recurrenceEndDate!)
                           : null,
                       'recurrent': isRecurrent,
-                    });
-                    // Aggiorna la lista locale
+                    };
+                    final newEventRef = await eventsCollection.add(eventData);
+                    final newEventId = newEventRef.id;
                     setState(() {
                       events.add(CalendarEvent(
-                        id: newEventRef.id,
+                        id: newEventId,
                         date: day,
                         hour: startSlot,
                         endHour: selectedEndSlot,
