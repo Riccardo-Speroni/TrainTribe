@@ -35,6 +35,7 @@ class _CalendarPageState extends State<CalendarPage> {
   int? _dragEndIndex; // Index of the cell where the drag ended
   DateTime? _dragStartDay; // Day of the cell where the drag started
   CalendarEvent? _draggedEvent; // Event being dragged
+  double? _dragStartLocalY; // Y position where drag started (for cell selection)
 
   // Returns the event that starts in the slot for the specified day and time, if it exists.
   CalendarEvent? _getEventForCell(DateTime day, int hour) {
@@ -83,10 +84,23 @@ class _CalendarPageState extends State<CalendarPage> {
 
   void _handleLongPressStart(int cellIndex, DateTime day) {
     setState(() {
-      _dragStartIndex = cellIndex.clamp(0, hours.length - 1); // Assicurarsi che l'indice sia valido
-      _dragEndIndex = _dragStartIndex; // Inizialmente uguale all'indice di partenza
-      _dragStartDay = day;
-      _draggedEvent = _getEventForCell(day, hours[cellIndex]); // Imposta l'evento trascinato
+      int safeIndex = cellIndex.clamp(0, hours.length - 1);
+      CalendarEvent? event = _getEventForCell(day, hours[safeIndex]);
+      if (event != null) {
+        // Caso: drag su evento esistente
+        _draggedEvent = event;
+        _dragStartIndex = safeIndex;
+        _dragEndIndex = safeIndex;
+        _dragStartDay = day;
+        _dragStartLocalY = null;
+      } else {
+        // Caso: drag su cella vuota
+        _draggedEvent = null;
+        _dragStartIndex = safeIndex;
+        _dragEndIndex = safeIndex;
+        _dragStartDay = day;
+        _dragStartLocalY = null; // verrà impostato nel primo move update
+      }
     });
   }
 
@@ -97,22 +111,14 @@ class _CalendarPageState extends State<CalendarPage> {
         RenderBox box = context.findRenderObject() as RenderBox;
         Offset localPosition = box.globalToLocal(details.globalPosition);
 
-        // Adjust dragOffset by including the scroll offset
-        double dragOffsetY = localPosition.dy +
-            scrollController.offset -
-            (_dragStartIndex! * cellHeight); // Include scroll offset
-
-        int deltaIndexY = (dragOffsetY / cellHeight).floor() - 4; // Smooth vertical movement
-
-        // Calculate the new vertical index
-        int newIndexY = (_dragStartIndex! + deltaIndexY).clamp(0, hours.length - 1);
+        double absoluteY = localPosition.dy + scrollController.offset;
+        int hoveredIndex = (absoluteY / cellHeight).floor().clamp(0, hours.length - 1);
 
         if (_draggedEvent != null) {
-          // Calculate the maximum allowed index for the dragged event
+          // Caso: drag di un evento esistente
           int maxIndex = hours.length - (_draggedEvent!.endHour - _draggedEvent!.hour);
-          newIndexY = newIndexY.clamp(0, maxIndex);
+          int newIndexY = hoveredIndex.clamp(0, maxIndex);
 
-          // Update the dragged event's start hour
           int newStartHour = hours[newIndexY];
           int eventDuration = _draggedEvent!.endHour - _draggedEvent!.hour;
           int newEndHour = newStartHour + eventDuration;
@@ -138,20 +144,26 @@ class _CalendarPageState extends State<CalendarPage> {
             // Update the generator event if the dragged event is a copy
             if (_draggedEvent!.generatedBy != null) {
               CalendarEvent? generatorEvent = events.cast<CalendarEvent?>().firstWhere(
-              (e) => e?.id == _draggedEvent!.generatedBy,
-              orElse: () => null,
+                (e) => e?.id == _draggedEvent!.generatedBy,
+                orElse: () => null,
               );
               if (generatorEvent != null) {
-              generatorEvent.hour = newStartHour;
-              generatorEvent.endHour = newEndHour;
+                generatorEvent.hour = newStartHour;
+                generatorEvent.endHour = newEndHour;
               }
             }
           }
-        }
-
-        // Update the drag end index
-        if (newIndexY != _dragEndIndex) {
           _dragEndIndex = newIndexY;
+        } else {
+          // Caso: selezione multipla per creazione evento
+          // Salva la posizione iniziale del drag la prima volta che si entra qui
+          if (_dragStartLocalY == null) {
+            _dragStartLocalY = absoluteY;
+          }
+          // Calcola la differenza in celle tra la posizione iniziale e quella attuale
+          int deltaCells = ((absoluteY - _dragStartLocalY!) / cellHeight).round();
+          int newEndIndex = (_dragStartIndex! + deltaCells).clamp(0, hours.length - 1);
+          _dragEndIndex = newEndIndex;
         }
       });
     }
@@ -159,34 +171,24 @@ class _CalendarPageState extends State<CalendarPage> {
 
   void _handleLongPressEnd(DateTime day) {
     if (_dragStartIndex != null && _dragEndIndex != null) {
-      // Check if the event was not moved
-      if (_dragStartIndex == _dragEndIndex && isSameDay(_dragStartDay!, day)) {
-        // Reset the state without modifying the event
-        setState(() {
-          _draggedEvent = null;
-          _dragStartIndex = null;
-          _dragEndIndex = null;
-          _dragStartDay = null;
-        });
-        return;
-      }
-
       if (_draggedEvent != null) {
-        // Only update the event if it was actually moved
+        // Caso: fine drag di un evento esistente
         if (_dragStartIndex != _dragEndIndex || !isSameDay(_dragStartDay!, day)) {
           _handleDragEventMove(_draggedEvent!.date);
         }
       } else {
-        // Handle the creation of a new event
-        _handleDragEventCreation(day);
+        // Caso: fine selezione multipla per creazione evento
+        if (_dragStartIndex != _dragEndIndex || isSameDay(_dragStartDay!, day)) {
+          _handleDragEventCreation(day);
+        }
       }
     }
-    // Reset the drag state
     setState(() {
       _draggedEvent = null;
       _dragStartIndex = null;
       _dragEndIndex = null;
       _dragStartDay = null;
+      _dragStartLocalY = null;
     });
   }
 
