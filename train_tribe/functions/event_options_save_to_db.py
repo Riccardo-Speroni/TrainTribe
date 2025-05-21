@@ -8,11 +8,11 @@ import datetime
 def event_options_save_to_db(params):
     user_id = params.get("user_id")
     event_id = params.get("event_id")
-    event_start_time = params.get("event_start_time")
+    event_start_date = params.get("event_start_date")
     event_options_path = params.get("event_options_path")
     bucket_name = params.get("bucket_name")
     is_recurring = params.get("isRecurring")
-    recurrence_end_time = params.get("recurrence_end_time")
+    recurrence_end_date = params.get("recurrence_end_date")
 
     # Download the event options file from the bucket
 
@@ -50,9 +50,8 @@ def event_options_save_to_db(params):
             from_stop = route[leg_id].get("from")
             to_stop = route[leg_id].get("to")
             if is_recurring:
-                recurrence_counter = event_start_time
-                while(recurrence_counter <= recurrence_end_time):
-                    print(f"At the beginning of the cycle: Recurrence counter={recurrence_counter} and Recurrence end date={recurrence_end_time}")
+                recurrence_counter = event_start_date
+                while(recurrence_counter <= recurrence_end_date):
                     date_str = recurrence_counter.strftime("%Y-%m-%d")
                     # Ensure the date document exists
                     db.collection("trains_match").document(date_str).set({"_exists": True}, merge=True)
@@ -63,10 +62,8 @@ def event_options_save_to_db(params):
                         "confirmed": False,
                     })
                     recurrence_counter += datetime.timedelta(days=7)
-                    print(f"At the end of the cycle: Recurrence counter={recurrence_counter} and Recurrence end date={recurrence_end_time}")
-                    print("Is recurrence_counter <= recurrence_end_time? ", recurrence_counter <= recurrence_end_time)
             else:
-                date_str = event_start_time.date().strftime("%Y-%m-%d")
+                date_str = event_start_date.strftime("%Y-%m-%d")
                 # Ensure the date document exists
                 db.collection("trains_match").document(date_str).set({"lastModified": firestore.SERVER_TIMESTAMP}, merge=True)
                 db.collection("trains_match").document(date_str).collection("trains").document(trip_id).set({"lastModified": firestore.SERVER_TIMESTAMP,}, merge=True)

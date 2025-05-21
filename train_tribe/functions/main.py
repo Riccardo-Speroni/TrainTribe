@@ -125,13 +125,16 @@ def firestore_event_trip_options_create(event: firestore_fn.Event[dict]) -> None
         params = {
             "user_id": event.params["user_id"],
             "event_id": event.params["event_id"],
-            "event_start_time": event_start_time,
+            "event_start_date": event_start_time.astimezone(ZoneInfo("Europe/Rome")).date(),
             "event_options_path": event_options_full_path,
             "bucket_name": bucket_name,
             "isRecurring": data.get("recurrent"),
-            "recurrence_end_time": data.get("recurrence_end") if data.get("recurrent") else None,
+            # Convert recurrence_end to Europe/Rome timezone and pass as date
+            "recurrence_end_date": (
+                data.get("recurrence_end").astimezone(ZoneInfo("Europe/Rome")).date()
+                if data.get("recurrent") and data.get("recurrence_end") else None
+            ),
         }
-        print(f"Original recurrence end date: {data.get('recurrence_end')}")
         event_options_save_to_db(params)
         if result["success"]:
             logging.info(f"Event options saved to DB for event {id}")
@@ -158,7 +161,8 @@ def firestore_event_trip_options_delete(event: firestore_fn.Event[dict]) -> None
         routes = [doc.to_dict() for doc in routes_docs]
 
     if data.get("recurrent"):
-        recurrence_end_date = data.get("recurrence_end").date()
+        # Convert recurrence_end to Europe/Rome timezone and use date
+        recurrence_end_date = data.get("recurrence_end").astimezone(ZoneInfo("Europe/Rome")).date()
         while recurrence_counter <= recurrence_end_date:
             for route in routes:
                 trip_ids = route.get("trip_ids")
