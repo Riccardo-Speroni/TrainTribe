@@ -122,16 +122,6 @@ def firestore_event_trip_options_create(event: firestore_fn.Event[dict]) -> None
         return
     result, event_options_full_path, id = process_trip_options(origin, destination, event_start_time, event_end_time)
     if result["success"]:
-        recurrence_end = None
-        if data.get("recurrent"):
-            recurrence_end = data.get("recurrence_end")
-            if recurrence_end:
-                # Ensure recurrence_end is timezone-aware and set to Europe/Rome midnight
-                if recurrence_end.tzinfo is None:
-                    recurrence_end = recurrence_end.replace(tzinfo=ZoneInfo("Europe/Rome"))
-                else:
-                    recurrence_end = recurrence_end.astimezone(ZoneInfo("Europe/Rome"))
-                recurrence_end = recurrence_end.replace(hour=0, minute=0, second=0, microsecond=0)
         params = {
             "user_id": event.params["user_id"],
             "event_id": event.params["event_id"],
@@ -139,7 +129,7 @@ def firestore_event_trip_options_create(event: firestore_fn.Event[dict]) -> None
             "event_options_path": event_options_full_path,
             "bucket_name": bucket_name,
             "isRecurring": data.get("recurrent"),
-            "recurrence_end_time": recurrence_end if data.get("recurrent") else None,
+            "recurrence_end_time": data.get("recurrence_end") if data.get("recurrent") else None,
         }
         print(f"Original recurrence end date: {data.get('recurrence_end')}")
         event_options_save_to_db(params)
