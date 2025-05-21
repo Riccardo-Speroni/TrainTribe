@@ -22,8 +22,8 @@ from bucket_manager import download_from_bucket, upload_to_bucket
 """
 
 def build_event_options(params):
-    event_start = datetime.strptime(params["event_start_time"], "%Y-%m-%d %H:%M")
-    event_end = datetime.strptime(params["event_end_time"], "%Y-%m-%d %H:%M")
+    event_start = params["event_start_time"]
+    event_end = params["event_end_time"]
     interval = timedelta(minutes=30)
     i = 0
     all_legs = []
@@ -61,7 +61,7 @@ def build_event_options(params):
                 errors.append({"interval": i, "error": str(e)})
         current_time += interval
         i += 1
-    
+
     # Remove duplicate routes
     unique_legs = []
     seen = set()
@@ -73,10 +73,8 @@ def build_event_options(params):
             unique_legs.append(leg)
 
     # Remove routes with legs whose 'from' or 'to' stop arrival_time is outside event timeframe
-    event_start_time = params["event_start_time"][-5:] if len(params["event_start_time"]) > 5 else params["event_start_time"]
-    event_end_time = params["event_end_time"][-5:] if len(params["event_end_time"]) > 5 else params["event_end_time"]
-    event_start = datetime.strptime(event_start_time, "%H:%M")
-    event_end = datetime.strptime(event_end_time, "%H:%M")
+    event_start_time = params["event_start_time"].time()
+    event_end_time = params["event_end_time"].time()
     filtered_legs = []
     for route in unique_legs:
         valid = True
@@ -88,13 +86,15 @@ def build_event_options(params):
             from_stop = next((s for s in stops if s["stop_id"] == from_id), None)
             to_stop = next((s for s in stops if s["stop_id"] == to_id), None)
             if from_stop:
-                arr = datetime.strptime(from_stop["arrival_time"][:5], "%H:%M")
-                if arr < event_start or arr > event_end:
+                arr_time_str = from_stop["arrival_time"][:5]
+                arr_time = datetime.strptime(arr_time_str, "%H:%M").time()
+                if arr_time < event_start_time or arr_time > event_end_time:
                     valid = False
                     break
             if to_stop:
-                arr = datetime.strptime(to_stop["arrival_time"][:5], "%H:%M")
-                if arr < event_start or arr > event_end:
+                arr_time_str = to_stop["arrival_time"][:5]
+                arr_time = datetime.strptime(arr_time_str, "%H:%M").time()
+                if arr_time < event_start_time or arr_time > event_end_time:
                     valid = False
                     break
         if valid:

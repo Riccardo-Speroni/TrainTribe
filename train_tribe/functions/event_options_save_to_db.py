@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 from firebase_admin import firestore
+import datetime
 
 def event_options_save_to_db(params):
     user_id = params.get("user_id")
@@ -11,7 +12,7 @@ def event_options_save_to_db(params):
     event_options_path = params.get("event_options_path")
     bucket_name = params.get("bucket_name")
     is_recurring = params.get("isRecurring")
-    recurrence_end_date = params.get("recurrence_end_date")
+    recurrence_end_time = params.get("recurrence_end_time")
 
     # Download the event options file from the bucket
 
@@ -49,16 +50,27 @@ def event_options_save_to_db(params):
             from_stop = route[leg_id].get("from")
             to_stop = route[leg_id].get("to")
             if is_recurring:
-                recurrence_counter = event_start_time.date()
-                while(recurrence_counter <= recurrence_end_date):
-                    db.collection("trains_match").document(event_start_time.date()).collection("trains").document(trip_id).collection("users").document(user_id).set({
+                recurrence_counter = event_start_time
+                while(recurrence_counter <= recurrence_end_time):
+                    print(f"At the beginning of the cycle: Recurrence counter={recurrence_counter} and Recurrence end date={recurrence_end_time}")
+                    date_str = recurrence_counter.strftime("%Y-%m-%d")
+                    # Ensure the date document exists
+                    db.collection("trains_match").document(date_str).set({"_exists": True}, merge=True)
+                    db.collection("trains_match").document(date_str).collection("trains").document(trip_id).set({"lastModified": firestore.SERVER_TIMESTAMP,}, merge=True)
+                    db.collection("trains_match").document(date_str).collection("trains").document(trip_id).collection("users").document(user_id).set({
                         "from": from_stop,
                         "to": to_stop,
                         "confirmed": False,
                     })
                     recurrence_counter += datetime.timedelta(days=7)
+                    print(f"At the end of the cycle: Recurrence counter={recurrence_counter} and Recurrence end date={recurrence_end_time}")
+                    print("Is recurrence_counter <= recurrence_end_time? ", recurrence_counter <= recurrence_end_time)
             else:
-                db.collection("trains_match").document(event_start_time.date()).collection("trains").document(trip_id).collection("users").document(user_id).set({
+                date_str = event_start_time.date().strftime("%Y-%m-%d")
+                # Ensure the date document exists
+                db.collection("trains_match").document(date_str).set({"lastModified": firestore.SERVER_TIMESTAMP}, merge=True)
+                db.collection("trains_match").document(date_str).collection("trains").document(trip_id).set({"lastModified": firestore.SERVER_TIMESTAMP,}, merge=True)
+                db.collection("trains_match").document(date_str).collection("trains").document(trip_id).collection("users").document(user_id).set({
                     "from": from_stop,
                     "to": to_stop,
                     "confirmed": False,

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'home_page.dart';
@@ -19,6 +20,7 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +53,18 @@ void main() async {
   } catch (e) {
     print('Failed to initialize Firebase: $e');
   }
+
+  // Firestore
+  FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+
+  // Auth
+  FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+
+  // Storage
+  FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
+
+  // Functions
+  FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
 
   runApp(MyApp());
 }
@@ -102,7 +116,7 @@ class _MyAppState extends State<MyApp> {
         if (!userDoc.exists || userDoc.data()?['username'] == null) {
           // Redirect to complete_signup if profile is incomplete
           print('Redirecting to complete_signup page...');
-          //FirebaseAuth.instance.signOut();  DEBUG PURPOSES
+          //FirebaseAuth.instance.signOut();  // DEBUG PURPOSES
           return '/complete_signup';
           // Rule 4: Redirect to root if already logged in and on login/signup page
         } else if (state.fullPath == '/login' || state.fullPath == '/signup') {
