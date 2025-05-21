@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
-// Import for LinkedScrollControllerGroup
 import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
-import 'package:linked_scroll_controller/linked_scroll_controller.dart'; // Import the package
+import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'utils/events_firebase.dart';
 import 'utils/calendar_functions.dart';
-import 'models/calendar_event.dart'; // aggiungi questa importazione
-import 'widgets/event_dialogs.dart'; // aggiungi questa importazione
+import 'models/calendar_event.dart';
+import 'widgets/event_dialogs.dart';
 import 'widgets/calendar_columns.dart';
-import 'widgets/calendar_cells.dart';
 
 class CalendarPage extends StatefulWidget {
   const CalendarPage({super.key});
@@ -340,10 +338,6 @@ class _CalendarPageState extends State<CalendarPage> {
     final int daysToShow =
         screenWidth > 600 ? 7 : 3; // 7 days for desktop, 3 days for mobile
     final PageController pageController = PageController(initialPage: 0);
-
-    // Generate recurrent events for the visible days
-    List<CalendarEvent> recurrentEvents =
-        generateRecurrentEvents(getWeekDays(DateTime.now(), daysToShow),events);
 
     return Scaffold(
       appBar: AppBar(
