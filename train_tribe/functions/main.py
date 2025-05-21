@@ -108,7 +108,7 @@ def process_trip_options(origin, destination, event_start_time, event_end_time):
 
 
 @firestore_fn.on_document_created(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
-def firestore_event_trip_options_create(event: firestore_fn.Event[dict], context) -> None:
+def firestore_event_trip_options_create(event: firestore_fn.Event[dict]) -> None:
     data = event.data.after
     if not data:
         return
@@ -122,8 +122,8 @@ def firestore_event_trip_options_create(event: firestore_fn.Event[dict], context
     #TODO: manage recurring events
     if result["success"]:
         params = {
-            "user_id": context.params.user_id,
-            "event_id": context.params.event_id,
+            "user_id": event.params.user_id,
+            "event_id": event.params.event_id,
             "event_start_time": event_start_time,
             "event_options_path": event_options_full_path,
             "bucket_name": bucket_name,
@@ -138,12 +138,12 @@ def firestore_event_trip_options_create(event: firestore_fn.Event[dict], context
     else:
         logging.error(f"Error processing event options: {result['message']}")
 
-@firestore_fn.on_document_deleted(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
-def firestore_event_trip_options_delete(event: firestore_fn.Event[dict], context) -> None:
+@firestore_fn.on_document_deleted(document="users/{user_id}/events/{event_id}")
+def firestore_event_trip_options_delete(event: firestore_fn.Event[dict]) -> None:
     data = event.data.before
     if not data:
         return
-    user_id = context.params.user_id
+    user_id = event.params.user_id
     event_date = data.get("event_date")
     recurrence_counter = event_date.date()
     db = firestore.client()
@@ -172,16 +172,16 @@ def firestore_event_trip_options_delete(event: firestore_fn.Event[dict], context
                         logging.error(f"User {user_id} is not in trip {trip_id} of date {event_date}: {e}")
 
 @firestore_fn.on_document_updated(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
-def firestore_event_trip_options_update(event: firestore_fn.Event[dict], context) -> None:
-    firestore_event_trip_options_delete(event, context)
-    user_id = context.params.user_id
-    event_id = context.params.event_id
+def firestore_event_trip_options_update(event: firestore_fn.Event[dict]) -> None:
+    firestore_event_trip_options_delete(event)
+    user_id = event.params.user_id
+    event_id = event.params.event_id
     db = firestore.client()
     try:
         db.collection("users").document(user_id).collection("events").document(event_id).collection("routes").delete()
     except Exception as e:
         logging.error(f"Error deleting routes for event {event_id}: {e}")
-    firestore_event_trip_options_create(event, context)
+    firestore_event_trip_options_create(event)
     
 
 @https_fn.on_request(secrets=[GOOGLE_MAPS_API_KEY])
