@@ -1,58 +1,14 @@
 import 'package:flutter/material.dart';
-// Import for LinkedScrollControllerGroup
 import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
-import 'package:linked_scroll_controller/linked_scroll_controller.dart'; // Import the package
-import 'package:uuid/uuid.dart'; // Add this import for generating unique IDs
+import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-class CalendarEvent {
-  final String id; // Unique identifier for the event
-  String? generatedBy; // ID of the original event for recurrent copies
-  DateTime date;
-  int hour; // Start hour
-  int endHour; // End hour
-  String departureStation;
-  String arrivalStation;
-  double? widthFactor; // Factor to adjust width for overlapping events
-  Alignment? alignment; // Alignment for the event cell
-  bool isBeingDragged = false; // Indicates if the event is being dragged
-  bool isRecurrent; // Indicates if the event is recurrent
-  DateTime? recurrenceEndDate; // End date for recurrence
-
-  CalendarEvent({
-    String? id,
-    this.generatedBy,
-    required this.date,
-    required this.hour,
-    required this.endHour,
-    required this.departureStation,
-    required this.arrivalStation,
-    this.widthFactor,
-    this.alignment,
-    this.isRecurrent = false,
-    this.recurrenceEndDate,
-  }) : id = id ?? const Uuid().v4(); // Generate a unique ID if not provided
-
-  // Factory per creare un evento da un documento Firebase
-  factory CalendarEvent.fromFirestore(String id, Map<String, dynamic> data) {
-    final DateTime start = (data['event_start'] as Timestamp).toDate();
-    final DateTime end = (data['event_end'] as Timestamp).toDate();
-    return CalendarEvent(
-      id: id,
-      date: DateTime(start.year, start.month, start.day),
-      hour: ((start.hour - 6) * 4 + (start.minute ~/ 15)).clamp(0, 75),
-      endHour: ((end.hour - 6) * 4 + (end.minute ~/ 15)).clamp(0, 76),
-      departureStation: data['origin'] ?? '',
-      arrivalStation: data['destination'] ?? '',
-      isRecurrent: data['recurrent'] ?? false,
-      recurrenceEndDate: data['recurrence_end'] != null
-          ? (data['recurrence_end'] as Timestamp).toDate()
-          : null,
-    );
-  }
-}
+import 'utils/events_firebase.dart';
+import 'utils/calendar_functions.dart';
+import 'models/calendar_event.dart';
+import 'widgets/event_dialogs.dart';
+import 'widgets/calendar_columns.dart';
 
 class CalendarPage extends StatefulWidget {
   const CalendarPage({super.key});
@@ -79,553 +35,49 @@ class _CalendarPageState extends State<CalendarPage> {
   int? _dragEndIndex; // Index of the cell where the drag ended
   DateTime? _dragStartDay; // Day of the cell where the drag started
   CalendarEvent? _draggedEvent; // Event being dragged
-
-  // Compute the week days starting from a given day
-  List<DateTime> _getDays(DateTime startDay, int count) {
-    return List.generate(count, (index) => startDay.add(Duration(days: index)));
-  }
-
-  // Compute the week days starting from the nearest Monday
-  List<DateTime> _getWeekDays(DateTime startDay, int count) {
-    DateTime monday = startDay.subtract(Duration(days: startDay.weekday - 1));
-    return List.generate(count, (index) => monday.add(Duration(days: index)));
-  }
+  double? _dragStartLocalY; // Y position where drag started (for cell selection)
+  int? _dragStartPageIndex; // Salva la pagina/giorno di partenza per drag evento
 
   // Returns the event that starts in the slot for the specified day and time, if it exists.
   CalendarEvent? _getEventForCell(DateTime day, int hour) {
     for (var event in events) {
-      if (_isSameDay(event.date, day) && event.hour == hour) {
+      if (isSameDay(event.date, day) && event.hour == hour) {
         return event;
       }
     }
     return null;
   }
 
-  // Check if two DateTime represent the same day.
-  bool _isSameDay(DateTime d1, DateTime d2) {
-    return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
-  }
-
-  // Helper to convert slot index to time string, starting from 6:00
-  String _formatTime(int slot) {
-    int hour = 6 + (slot ~/ 4); // Start from 6:00
-    if (hour == 24) hour = 0; // Handle 00:00
-    if (hour == 25) hour = 1; // Display 1:00 instead of 25:00
-    int minute = (slot % 4) * 15;
-    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
-  }
-
-  // Update the logic for available end hours
-  List<int> _getAvailableEndHours(DateTime day, int startSlot,
-      [CalendarEvent? excludeEvent]) {
-    List<int> availableEndHours = [];
-    for (int endSlot = startSlot + 1; endSlot <= hours.length; endSlot++) {
-      availableEndHours.add(endSlot);
-    }
-    return availableEndHours;
-  }
-
   // Show the dialog to add a new event
-  void _showAddEventDialog(DateTime day, int startIndex, [int? endIndex]) {
-    if (day.isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
-      return;
-    }
-    final localizations = AppLocalizations.of(context);
-    String departureStation = '';
-    String arrivalStation = '';
-    bool isSaving = false; // Indicatore di caricamento
-    int safeStart = startIndex.clamp(0, hours.length - 1);
-    int startSlot = safeStart;
-    int selectedEndSlot = endIndex ?? startSlot + 1;
-
-    List<int> availableEndHours =
-        _getAvailableEndHours(day, startSlot);
-
-    bool isRecurrent = false;
-    DateTime? recurrenceEndDate = day.add(const Duration(days: 7)); // Default to one week later
-
-    showDialog(
+  void _onAddEvent(DateTime day, int startIndex, [int? endIndex]) {
+    showAddEventDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(builder: (context, setStateDialog) {
-          return AlertDialog(
-            title: Text(localizations.translate('new_event')),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  decoration: InputDecoration(
-                      hintText: localizations.translate('departure_station')),
-                  onChanged: (value) {
-                    departureStation = value;
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  decoration: InputDecoration(
-                      hintText: localizations.translate('arrival_station')),
-                  onChanged: (value) {
-                    arrivalStation = value;
-                  },
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Text('${localizations.translate('day')}: '),
-                    TextButton(
-                      onPressed: () async {
-                        DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: day,
-                          firstDate: DateTime.now(),
-                          lastDate:
-                              DateTime.now().add(const Duration(days: 365)),
-                        );
-                        if (pickedDate != null) {
-                          setStateDialog(() {
-                            day = pickedDate;
-                          });
-                        }
-                      },
-                      child: Text(
-                          DateFormat('EEE, MMM d', localizations.languageCode())
-                              .format(day)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Text('${localizations.translate('start_hour')}: '),
-                    DropdownButton<int>(
-                      value: startSlot,
-                      items: hours
-                          .map((slot) => DropdownMenuItem(
-                                value: slot,
-                                child: Text(_formatTime(slot)),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setStateDialog(() {
-                            startSlot = value;
-                            availableEndHours = _getAvailableEndHours(
-                                day, startSlot);
-                            if (!availableEndHours
-                                .contains(selectedEndSlot)) {
-                              selectedEndSlot = availableEndHours.isNotEmpty
-                                  ? availableEndHours.first
-                                  : 1;
-                            }
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Text('${localizations.translate('end_hour')}: '),
-                    DropdownButton<int>(
-                      value: selectedEndSlot,
-                      items: availableEndHours
-                          .map((slot) => DropdownMenuItem(
-                                value: slot,
-                                child: Text(_formatTime(slot)),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setStateDialog(() {
-                            selectedEndSlot = value;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Checkbox(
-                      value: isRecurrent,
-                      onChanged: (value) {
-                        setStateDialog(() {
-                          isRecurrent = value ?? false;
-                        });
-                      },
-                    ),
-                    Text(localizations.translate('recurrent')),
-                  ],
-                ),
-                if (isRecurrent)
-                  Row(
-                    children: [
-                      Text('${localizations.translate('end_recurrence')}: '),
-                      TextButton(
-                        onPressed: () async {
-                          DateTime? pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: recurrenceEndDate ?? day,
-                            firstDate: day,
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (pickedDate != null) {
-                            setStateDialog(() {
-                              recurrenceEndDate = pickedDate;
-                            });
-                          }
-                        },
-                        child: Text(recurrenceEndDate != null
-                            ? DateFormat('EEE, MMM d', localizations.languageCode())
-                                .format(recurrenceEndDate!)
-                            : localizations.translate('select_date')),
-                      ),
-                    ],
-                  ),
-                if (isSaving)
-                  const CircularProgressIndicator(), // Indicatore di caricamento
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () async {
-                  if (departureStation.isEmpty || arrivalStation.isEmpty) {
-                    return; // Ensure both fields are filled
-                  }
-                  setStateDialog(() {
-                    isSaving = true;
-                  });
-
-                  // Salva su Firestore con id generato da Firebase e path corretto
-                  final user = FirebaseAuth.instance.currentUser;
-                  if (user != null) {
-                    final eventsCollection = FirebaseFirestore.instance.collection('users/${user.uid}/events');
-                    final eventStart = DateTime(
-                      day.year, day.month, day.day,
-                      6 + (startSlot ~/ 4),
-                      (startSlot % 4) * 15,
-                    );
-                    final eventEnd = DateTime(
-                      day.year, day.month, day.day,
-                      6 + (selectedEndSlot ~/ 4),
-                      (selectedEndSlot % 4) * 15,
-                    );
-                    final eventData = {
-                      'origin': departureStation,
-                      'destination': arrivalStation,
-                      'event_start': Timestamp.fromDate(eventStart),
-                      'event_end': Timestamp.fromDate(eventEnd),
-                      'recurrence_end': isRecurrent && recurrenceEndDate != null
-                          ? Timestamp.fromDate(recurrenceEndDate!)
-                          : null,
-                      'recurrent': isRecurrent,
-                    };
-                    final newEventRef = await eventsCollection.add(eventData);
-                    final newEventId = newEventRef.id;
-                    setState(() {
-                      events.add(CalendarEvent(
-                        id: newEventId,
-                        date: day,
-                        hour: startSlot,
-                        endHour: selectedEndSlot,
-                        departureStation: departureStation,
-                        arrivalStation: arrivalStation,
-                        isRecurrent: isRecurrent,
-                        recurrenceEndDate: recurrenceEndDate,
-                      ));
-                    });
-                  }
-
-                  Navigator.pop(context);
-                },
-                child: Text(localizations.translate('save')),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text(localizations.translate('cancel')),
-              ),
-            ],
-          );
+      day: day,
+      startIndex: startIndex,
+      endIndex: endIndex,
+      hours: hours,
+      events: events,
+      onEventAdded: (CalendarEvent newEvent) {
+        setState(() {
+          events.add(newEvent);
         });
       },
     );
   }
 
   // Adjust the logic to calculate the correct start hour for events
-  void _showEditEventDialog(CalendarEvent event) {
-    final localizations = AppLocalizations.of(context);
-    String departureStation = event.departureStation;
-    String arrivalStation = event.arrivalStation;
-    DateTime selectedDay = event.date;
-    int selectedStartSlot = event.hour;
-    int selectedEndSlot = event.endHour;
-    TextEditingController controller = TextEditingController(text: event.departureStation);
-    List<int> availableEndHours = _getAvailableEndHours(event.date, selectedStartSlot, event);
-
-    bool isRecurrent = event.isRecurrent;
-    DateTime? recurrenceEndDate = event.recurrenceEndDate ?? event.date.add(const Duration(days: 7));
-
-    // Locate the generator event if this is a copy
-    CalendarEvent? generatorEvent = event.generatedBy != null
-        ? events.firstWhere((e) => e.id == event.generatedBy, orElse: () => event)
-        : event;
-
-    showDialog(
+  void _onEditEvent(CalendarEvent event) {
+    showEditEventDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(builder: (context, setStateDialog) {
-          return AlertDialog(
-            title: Text(localizations.translate('edit_event')),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: TextEditingController(text: departureStation),
-                  decoration: InputDecoration(
-                      hintText: localizations.translate('departure_station')),
-                  onChanged: (value) {
-                    departureStation = value;
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: TextEditingController(text: arrivalStation),
-                  decoration: InputDecoration(
-                      hintText: localizations.translate('arrival_station')),
-                  onChanged: (value) {
-                    arrivalStation = value;
-                  },
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Text('${localizations.translate('day')}: '),
-                    TextButton(
-                      onPressed: () async {
-                        DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDay,
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
-                        );
-                        if (pickedDate != null) {
-                          setStateDialog(() {
-                            selectedDay = pickedDate;
-                          });
-                        }
-                      },
-                      child: Text(
-                          DateFormat('EEE, MMM d', localizations.languageCode())
-                              .format(selectedDay)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Text('${localizations.translate('start_hour')}: '),
-                    DropdownButton<int>(
-                      value: selectedStartSlot,
-                      items: hours
-                          .map((slot) => DropdownMenuItem(
-                                value: slot,
-                                child: Text(_formatTime(slot)),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setStateDialog(() {
-                            selectedStartSlot = value;
-                            availableEndHours = _getAvailableEndHours(
-                                selectedDay, selectedStartSlot, event);
-                            if (!availableEndHours.contains(selectedEndSlot)) {
-                              selectedEndSlot = availableEndHours.isNotEmpty
-                                  ? availableEndHours.first
-                                  : 1;
-                            }
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Text('${localizations.translate('end_hour')}: '),
-                    DropdownButton<int>(
-                      value: selectedEndSlot,
-                      items: availableEndHours
-                          .map((slot) => DropdownMenuItem(
-                                value: slot,
-                                child: Text(_formatTime(slot)),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setStateDialog(() {
-                            selectedEndSlot = value;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Checkbox(
-                      value: isRecurrent,
-                      onChanged: (value) {
-                        setStateDialog(() {
-                          isRecurrent = value ?? false;
-                        });
-                      },
-                    ),
-                    Text(localizations.translate('recurrent')),
-                  ],
-                ),
-                if (isRecurrent)
-                  Row(
-                    children: [
-                      Text('${localizations.translate('end_recurrence')}: '),
-                      TextButton(
-                        onPressed: () async {
-                          DateTime? pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: recurrenceEndDate ?? selectedDay,
-                            firstDate: selectedDay,
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (pickedDate != null) {
-                            setStateDialog(() {
-                              recurrenceEndDate = pickedDate;
-                            });
-                          }
-                        },
-                        child: Text(recurrenceEndDate != null
-                            ? DateFormat('EEE, MMM d', localizations.languageCode())
-                                .format(recurrenceEndDate!)
-                            : localizations.translate('select_date')),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () async {
-                  if (departureStation.isEmpty || arrivalStation.isEmpty) {
-                    return; // Ensure both fields are filled
-                  }
-                  setState(() {
-                    if (isRecurrent) {
-                      generatorEvent.isRecurrent = true;
-                      generatorEvent.recurrenceEndDate = recurrenceEndDate;
-                      generatorEvent.departureStation = departureStation;
-                      generatorEvent.arrivalStation = arrivalStation;
-                      generatorEvent.hour = selectedStartSlot;
-                      generatorEvent.endHour = selectedEndSlot;
-                      for (var e in events) {
-                        if (e.generatedBy == generatorEvent.id) {
-                          e.departureStation = departureStation;
-                          e.arrivalStation = arrivalStation;
-                          e.hour = selectedStartSlot;
-                          e.endHour = selectedEndSlot;
-                          e.recurrenceEndDate = recurrenceEndDate;
-                        }
-                      }
-                    } else {
-                      generatorEvent.departureStation = departureStation;
-                      generatorEvent.arrivalStation = arrivalStation;
-                      generatorEvent.date = selectedDay;
-                      generatorEvent.hour = selectedStartSlot;
-                      generatorEvent.endHour = selectedEndSlot;
-                      generatorEvent.isRecurrent = false;
-                      generatorEvent.recurrenceEndDate = null;
-                    }
-                  });
-
-                  // Aggiorna su Firestore nel path corretto
-                  final user = FirebaseAuth.instance.currentUser;
-                  if (user != null) {
-                    final eventDoc = FirebaseFirestore.instance
-                        .collection('users/${user.uid}/events')
-                        .doc(generatorEvent.id);
-                    final eventStart = DateTime(
-                      selectedDay.year, selectedDay.month, selectedDay.day,
-                      6 + (selectedStartSlot ~/ 4),
-                      (selectedStartSlot % 4) * 15,
-                    );
-                    final eventEnd = DateTime(
-                      selectedDay.year, selectedDay.month, selectedDay.day,
-                      6 + (selectedEndSlot ~/ 4),
-                      (selectedEndSlot % 4) * 15,
-                    );
-                    await eventDoc.update({
-                      'origin': departureStation,
-                      'destination': arrivalStation,
-                      'event_start': Timestamp.fromDate(eventStart),
-                      'event_end': Timestamp.fromDate(eventEnd),
-                      'recurrence_end': isRecurrent && recurrenceEndDate != null
-                          ? Timestamp.fromDate(recurrenceEndDate!)
-                          : null,
-                      'recurrent': isRecurrent,
-                    });
-                  }
-
-                  Navigator.pop(context);
-                },
-                child: Text(localizations.translate('save')),
-              ),
-              TextButton(
-                onPressed: () async {
-                  bool confirmDelete = await showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: Text(localizations.translate('confirm_delete')),
-                        content: Text(localizations
-                            .translate('delete_event_confirmation')),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: Text(localizations.translate('yes')),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: Text(localizations.translate('no')),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                  if (confirmDelete) {
-                    setState(() {
-                      events.removeWhere((e) =>
-                          e.id == generatorEvent.id || e.generatedBy == generatorEvent.id);
-                    });
-                    // Elimina dal database
-                    final user = FirebaseAuth.instance.currentUser;
-                    if (user != null) {
-                      await FirebaseFirestore.instance
-                          .collection('users/${user.uid}/events')
-                          .doc(generatorEvent.id)
-                          .delete();
-                    }
-                    Navigator.pop(context);
-                  }
-                },
-                child: Text(localizations.translate('delete')),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(localizations.translate('cancel')),
-              ),
-            ],
-          );
+      event: event,
+      hours: hours,
+      events: events,
+      onEventUpdated: () {
+        setState(() {});
+      },
+      onEventDeleted: (String eventId) {
+        setState(() {
+          events.removeWhere((e) => e.id == eventId || e.generatedBy == eventId);
         });
       },
     );
@@ -633,10 +85,25 @@ class _CalendarPageState extends State<CalendarPage> {
 
   void _handleLongPressStart(int cellIndex, DateTime day) {
     setState(() {
-      _dragStartIndex = cellIndex.clamp(0, hours.length - 1); // Assicurarsi che l'indice sia valido
-      _dragEndIndex = _dragStartIndex; // Inizialmente uguale all'indice di partenza
-      _dragStartDay = day;
-      _draggedEvent = _getEventForCell(day, hours[cellIndex]); // Imposta l'evento trascinato
+      int safeIndex = cellIndex.clamp(0, hours.length - 1);
+      CalendarEvent? event = _getEventForCell(day, hours[safeIndex]);
+      if (event != null) {
+        // Caso: drag su evento esistente
+        _draggedEvent = event;
+        _dragStartIndex = safeIndex;
+        _dragEndIndex = safeIndex;
+        _dragStartDay = day;
+        _dragStartLocalY = null;
+        _dragStartPageIndex = null; // verrà impostato nel primo move update
+      } else {
+        // Caso: drag su cella vuota
+        _draggedEvent = null;
+        _dragStartIndex = safeIndex;
+        _dragEndIndex = safeIndex;
+        _dragStartDay = day;
+        _dragStartLocalY = null;
+        _dragStartPageIndex = null;
+      }
     });
   }
 
@@ -647,34 +114,42 @@ class _CalendarPageState extends State<CalendarPage> {
         RenderBox box = context.findRenderObject() as RenderBox;
         Offset localPosition = box.globalToLocal(details.globalPosition);
 
-        // Adjust dragOffset by including the scroll offset
-        double dragOffsetY = localPosition.dy +
-            scrollController.offset -
-            (_dragStartIndex! * cellHeight); // Include scroll offset
-
-        int deltaIndexY = (dragOffsetY / cellHeight).floor() - 4; // Smooth vertical movement
-
-        // Calculate the new vertical index
-        int newIndexY = (_dragStartIndex! + deltaIndexY).clamp(0, hours.length - 1);
+        double absoluteY = localPosition.dy + scrollController.offset;
+        int hoveredIndex = (absoluteY / cellHeight).floor().clamp(0, hours.length - 1);
 
         if (_draggedEvent != null) {
-          // Calculate the maximum allowed index for the dragged event
-          int maxIndex = hours.length - (_draggedEvent!.endHour - _draggedEvent!.hour);
-          newIndexY = newIndexY.clamp(0, maxIndex);
+          // Drag evento esistente: calcola nuovo giorno e ora
+          if (_dragStartLocalY == null) {
+            _dragStartLocalY = absoluteY;
+          }
+          if (_dragStartPageIndex == null) {
+            _dragStartPageIndex = pageIndex;
+          }
 
-          // Update the dragged event's start hour
-          int newStartHour = hours[newIndexY];
+          // Calcola lo shift verticale (slot) e orizzontale (giorno)
+          int deltaCells = ((absoluteY - _dragStartLocalY!) / cellHeight).round();
+          int newStartIndex = (_dragStartIndex! + deltaCells).clamp(0, hours.length - 1);
+
+          // Calcola il nuovo giorno in base allo spostamento di pagina
+          int deltaDays = pageIndex - _dragStartPageIndex!;
+          DateTime newDay = _dragStartDay!.add(Duration(days: deltaDays));
+
+          int maxIndex = hours.length - (_draggedEvent!.endHour - _draggedEvent!.hour);
+          newStartIndex = newStartIndex.clamp(0, maxIndex);
+
+          int newStartHour = hours[newStartIndex];
           int eventDuration = _draggedEvent!.endHour - _draggedEvent!.hour;
           int newEndHour = newStartHour + eventDuration;
 
-          if (_getAvailableEndHours(_dragStartDay!, newStartHour, _draggedEvent)
+          if (getAvailableEndHours(newDay, newStartHour, _draggedEvent)
               .contains(newEndHour)) {
             _draggedEvent!.hour = newStartHour;
             _draggedEvent!.endHour = newEndHour;
+            _draggedEvent!.date = newDay;
 
             // Ensure the relative position of overlapping events remains consistent
             List<CalendarEvent> overlappingEvents = events.where((e) {
-              return _isSameDay(e.date, _dragStartDay!) &&
+              return isSameDay(e.date, newDay) &&
                   ((e.hour < _draggedEvent!.endHour &&
                       e.endHour > _draggedEvent!.hour));
             }).toList();
@@ -688,20 +163,28 @@ class _CalendarPageState extends State<CalendarPage> {
             // Update the generator event if the dragged event is a copy
             if (_draggedEvent!.generatedBy != null) {
               CalendarEvent? generatorEvent = events.cast<CalendarEvent?>().firstWhere(
-              (e) => e?.id == _draggedEvent!.generatedBy,
-              orElse: () => null,
+                (e) => e?.id == _draggedEvent!.generatedBy,
+                orElse: () => null,
               );
               if (generatorEvent != null) {
-              generatorEvent.hour = newStartHour;
-              generatorEvent.endHour = newEndHour;
+                generatorEvent.hour = newStartHour;
+                generatorEvent.endHour = newEndHour;
+                generatorEvent.date = newDay;
               }
             }
           }
-        }
-
-        // Update the drag end index
-        if (newIndexY != _dragEndIndex) {
-          _dragEndIndex = newIndexY;
+          _dragEndIndex = newStartIndex;
+          _dragStartDay = newDay; // aggiorna il giorno per la visualizzazione
+        } else {
+          // Caso: selezione multipla per creazione evento
+          // Salva la posizione iniziale del drag la prima volta che si entra qui
+          if (_dragStartLocalY == null) {
+            _dragStartLocalY = absoluteY;
+          }
+          // Calcola la differenza in celle tra la posizione iniziale e quella attuale
+          int deltaCells = ((absoluteY - _dragStartLocalY!) / cellHeight).round();
+          int newEndIndex = (_dragStartIndex! + deltaCells).clamp(0, hours.length - 1);
+          _dragEndIndex = newEndIndex;
         }
       });
     }
@@ -709,34 +192,23 @@ class _CalendarPageState extends State<CalendarPage> {
 
   void _handleLongPressEnd(DateTime day) {
     if (_dragStartIndex != null && _dragEndIndex != null) {
-      // Check if the event was not moved
-      if (_dragStartIndex == _dragEndIndex && _isSameDay(_dragStartDay!, day)) {
-        // Reset the state without modifying the event
-        setState(() {
-          _draggedEvent = null;
-          _dragStartIndex = null;
-          _dragEndIndex = null;
-          _dragStartDay = null;
-        });
-        return;
-      }
-
       if (_draggedEvent != null) {
-        // Only update the event if it was actually moved
-        if (_dragStartIndex != _dragEndIndex || !_isSameDay(_dragStartDay!, day)) {
-          _handleDragEventMove(_draggedEvent!.date);
-        }
+        // Caso: fine drag di un evento esistente
+        _handleDragEventMove(_draggedEvent!.date);
       } else {
-        // Handle the creation of a new event
-        _handleDragEventCreation(day);
+        // Caso: fine selezione multipla per creazione evento
+        if (_dragStartIndex != _dragEndIndex || isSameDay(_dragStartDay!, day)) {
+          _handleDragEventCreation(day);
+        }
       }
     }
-    // Reset the drag state
     setState(() {
       _draggedEvent = null;
       _dragStartIndex = null;
       _dragEndIndex = null;
       _dragStartDay = null;
+      _dragStartLocalY = null;
+      _dragStartPageIndex = null;
     });
   }
 
@@ -758,7 +230,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
       // Modifica: Permettiamo la creazione di eventi di un singolo slot
       if (endSlot >= startSlot) {
-        _showAddEventDialog(day, startSlot, endSlot);
+        _onAddEvent(day, startSlot, endSlot);
       }
 
       // Regoliamo gli eventi sovrapposti dopo la creazione
@@ -818,7 +290,9 @@ class _CalendarPageState extends State<CalendarPage> {
   // Reset the drag state after handling the drag event
   void _resetDragState() {
     setState(() {
-      _draggedEvent!.isBeingDragged = false;
+      if (_draggedEvent != null) {
+        _draggedEvent!.isBeingDragged = false;
+      }
     });
     _draggedEvent = null;
     _dragStartIndex = null;
@@ -828,7 +302,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
   // Adjust overlapping events after creation or movement
   void _adjustOverlappingEvents(DateTime day) {
-    List<CalendarEvent> dayEvents = events.where((e) => _isSameDay(e.date, day)).toList();
+    List<CalendarEvent> dayEvents = events.where((e) => isSameDay(e.date, day)).toList();
 
     // Reset alignment and width factor for all events
     for (var event in dayEvents) {
@@ -862,329 +336,7 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
-  // Helper to check if a date is within a recurrence range
-  bool _isWithinRecurrence(DateTime date, CalendarEvent event) {
-    if (!event.isRecurrent || event.recurrenceEndDate == null) {
-      return false;
-    }
-    return date.isAfter(event.date.subtract(const Duration(days: 1))) &&
-        date.isBefore(event.recurrenceEndDate!.add(const Duration(days: 1)));
-  }
-
-  // Generate copies of recurrent events every 7 days until the recurrence end date
-  List<CalendarEvent> _generateRecurrentEvents(List<DateTime> visibleDays) {
-    List<CalendarEvent> recurrentEvents = [];
-    DateTime startOfWeek = visibleDays.first;
-    DateTime endOfWeek = visibleDays.last;
-
-    for (var event in events) {
-      if (event.isRecurrent && event.recurrenceEndDate != null) {
-        // Check if the event's recurrence overlaps with the visible week
-        if (event.date.isBefore(endOfWeek.add(const Duration(days: 1))) &&
-            event.recurrenceEndDate!.isAfter(startOfWeek.subtract(const Duration(days: 1)))) {
-          // Generate a copy of the event every 7 days
-          DateTime currentDate = event.date;
-          while (currentDate.isBefore(event.recurrenceEndDate!.add(const Duration(days: 1)))) {
-            if (currentDate.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
-                currentDate.isBefore(endOfWeek.add(const Duration(days: 1))) &&
-                !_isSameDay(currentDate, event.date)) {
-              recurrentEvents.add(CalendarEvent(
-                date: currentDate,
-                hour: event.hour,
-                endHour: event.endHour,
-                departureStation: event.departureStation,
-                arrivalStation: event.arrivalStation,
-                isRecurrent: event.isRecurrent,
-                recurrenceEndDate: event.recurrenceEndDate,
-                generatedBy: event.id, // Link the copy to the original event
-              ));
-            }
-            currentDate = currentDate.add(const Duration(days: 7));
-          }
-        }
-      }
-    }
-    return recurrentEvents;
-  }
-
-  // Update the day column builder to fix event width and alignment
-  Widget _buildDayColumn(
-      DateTime day, ScrollController scrollController, int pageIndex,
-      {List<CalendarEvent>? additionalEvents}) {
-    List<Widget> cells = [];
-    List<Widget> eventWidgets = [];
-    int index = 0;
-
-    // Calculate the width of the cells based on screen width and number of visible days
-    int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
-    double cellWidth = MediaQuery.of(context).size.width / daysToShow;
-
-    // Collect all events for the day, including recurrent events
-    List<CalendarEvent> dayEvents = events
-        .where((event) => _isSameDay(event.date, day))
-        .toList();
-
-    if (additionalEvents != null) {
-      dayEvents.addAll(additionalEvents
-          .where((event) => _isSameDay(event.date, day))
-          .toList());
-    }
-
-    // Sort events by start hour to ensure proper rendering order
-    dayEvents.sort((a, b) => a.hour.compareTo(b.hour));
-
-    while (index < hours.length) {
-      int currentHour = hours[index];
-      CalendarEvent? event = dayEvents.cast<CalendarEvent?>().firstWhere(
-          (e) => e?.hour == currentHour && _isSameDay(e!.date, day),
-          orElse: () => null);
-
-      // Always add an empty cell
-      cells.add(_buildEmptyCell(index, day, scrollController, pageIndex));
-
-      if (event != null) {
-        // Find all events that overlap partially or completely
-        List<CalendarEvent> overlappingEvents = dayEvents.where((e) {
-          return (e.hour < event.endHour && e.endHour > event.hour);
-        }).toList();
-
-        // Calculate the width for each event based on the number of overlapping events
-        int totalOverlapping = overlappingEvents.isNotEmpty ? overlappingEvents.length : 1;
-        int correctionFactor = MediaQuery.of(context).size.width > 600 ? 12 : 30;
-        double widthFactor = (cellWidth - correctionFactor) / totalOverlapping;
-
-        // Position each overlapping event with the calculated width
-        for (int i = 0; i < overlappingEvents.length; i++) {
-          CalendarEvent overlappingEvent = overlappingEvents[i];
-          bool isBeingDragged = _draggedEvent == overlappingEvent;
-
-          eventWidgets.add(
-            Positioned(
-              left: widthFactor * i,
-              top: cellHeight * (overlappingEvent.hour - hours.first),
-              width: widthFactor,
-              height: cellHeight * (overlappingEvent.endHour - overlappingEvent.hour),
-              child: GestureDetector(
-                onTap: () => _showEditEventDialog(overlappingEvent),
-                onLongPressStart: (_) => setState(() {
-                  _draggedEvent = overlappingEvent;
-                  _dragStartIndex = index;
-                  _dragEndIndex = index;
-                  _dragStartDay = day;
-                }),
-                onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(
-                    details, context, scrollController, pageIndex),
-                onLongPressEnd: (_) => _handleDragEventMove(day),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 50),
-                  margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: isBeingDragged
-                        ? overlappingEvent.isRecurrent
-                            ? Colors.purpleAccent.withOpacity(0.7)
-                            : Colors.blueAccent.withOpacity(0.7)
-                        : overlappingEvent.isRecurrent
-                            ? Colors.purpleAccent
-                            : Colors.lightBlueAccent,
-                    borderRadius: BorderRadius.circular(8.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.5),
-                        spreadRadius: 2,
-                        blurRadius: 5,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${overlappingEvent.departureStation} - ${overlappingEvent.arrivalStation}',
-                      style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }
-
-        // Increment index by event duration but still add empty cells for skipped slots
-        for (int i = 1; i < event.endHour - event.hour; i++) {
-          cells.add(_buildEmptyCell(index + i, day, scrollController, pageIndex));
-        }
-        index += event.endHour - event.hour;
-      } else {
-        index++;
-      }
-    }
-
-    return SizedBox(
-      width: cellWidth,
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        children: [
-          Column(
-            children: cells,
-          ),
-          ...eventWidgets,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEventCell(CalendarEvent event, int index, DateTime day,
-      ScrollController scrollController, int pageIndex) {
-    bool isBeingDragged = _draggedEvent == event;
-    bool isPastEvent = event.date.isBefore(DateTime.now()) &&
-        !_isSameDay(day, DateTime.now()); // Only events before today
-    int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
-
-    double columnWidth = MediaQuery.of(context).size.width / daysToShow;
-
-    // Calculate the horizontal position (left) based on the event's day
-    DateTime startDay = DateTime.now().subtract(Duration(
-        days: DateTime.now().weekday - 1)); // Start from Monday
-    startDay = startDay.add(Duration(days: pageIndex * daysToShow));
-    List<DateTime> visibleDays = _getWeekDays(startDay, daysToShow);
-    int dayIndex = visibleDays.indexWhere((d) => _isSameDay(d, event.date));
-    double left = dayIndex >= 0 ? dayIndex * columnWidth : 0.0;
-
-    return Positioned(
-      left: left, // Use calculated horizontal position
-      top: cellHeight * (event.hour - hours.first),
-      width: columnWidth - 2,
-      height: cellHeight * (event.endHour - event.hour),
-      child: GestureDetector(
-        onTap: () => _showEditEventDialog(event),
-        onLongPressStart: (_) => setState(() {
-          _draggedEvent = event;
-          _dragStartIndex = index;
-          _dragEndIndex = index;
-          _dragStartDay = day;
-        }),
-        onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(
-            details, context, scrollController, pageIndex),
-        onLongPressEnd: (_) => _handleDragEventMove(day),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 50), // Smooth animation
-          margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-          decoration: BoxDecoration(
-            color: isBeingDragged
-                ? Colors.blueAccent.withOpacity(0.7)
-                : event.isRecurrent
-                    ? Colors.purpleAccent // Color recurrent events in purple
-                    : isPastEvent
-                        ? Colors.grey[600]
-                        : Colors.lightBlueAccent,
-            borderRadius: BorderRadius.circular(8.0),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.5),
-                spreadRadius: 2,
-                blurRadius: 5,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              '${event.departureStation} - ${event.arrivalStation}',
-              style: const TextStyle(
-                  fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyCell(int cellIndex, DateTime day,
-      ScrollController scrollController, int pageIndex) {
-    if (day.isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
-      // Prevent highlighting for past days
-      return Container(
-        height: cellHeight,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(4.0),
-          color: Colors.transparent,
-        ),
-      );
-    }
-
-    bool isHighlighted = _dragStartIndex != null &&
-        _dragEndIndex != null &&
-        _dragStartDay != null &&
-        _isSameDay(_dragStartDay!, day) &&
-        _draggedEvent == null && // Ensure no event is being dragged
-        ((cellIndex >= _dragStartIndex! && cellIndex <= _dragEndIndex!) ||
-            (cellIndex <= _dragStartIndex! && cellIndex >= _dragEndIndex!));
-
-    return GestureDetector(
-      onTap: () => _showAddEventDialog(day, cellIndex),
-      onLongPressStart: (_) => _handleLongPressStart(cellIndex, day),
-      onLongPressMoveUpdate: (details) => _handleLongPressMoveUpdate(
-          details, context, scrollController, pageIndex),
-      onLongPressEnd: (_) => _handleLongPressEnd(day),
-      child: Container(
-        height: cellHeight,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(4.0),
-          color:
-              isHighlighted ? Colors.blue.withOpacity(0.7) : Colors.transparent,
-        ),
-      ),
-    );
-  }
-
-  // This method builds the time column (on the left)
-  Widget _buildTimeColumn() {
-    return Container(
-      width: 60,
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(10.0),
-          bottomLeft: Radius.circular(10.0),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.5),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: List.generate(19, (index) {
-          int hour = 6 + index; // Start from 6:00
-          if (hour == 24) hour = 0; // Handle 00:00
-          String label = hour == 0 ? "00:00" : "$hour:00";
-          return Container(
-            height: cellHeight * 4, // Adjust height to match 15-minute slots
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Colors.grey[300]!),
-              ),
-            ),
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
+  
   @override
   void initState() {
     super.initState();
@@ -1201,30 +353,6 @@ class _CalendarPageState extends State<CalendarPage> {
     });
   }
 
-  Future<List<CalendarEvent>> fetchEventsFromFirebase(String userId) async {
-    final userEventsRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('events');
-    final userEventsSnapshot = await userEventsRef.get();
-    List<CalendarEvent> result = [];
-
-    for (var doc in userEventsSnapshot.docs) {
-      final eventId = doc.id;
-      final eventDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('events')
-          .doc(eventId)
-          .get();
-      if (eventDoc.exists) {
-        result.add(CalendarEvent.fromFirestore(eventDoc.id, eventDoc.data()!));
-      }
-    }
-    print('Loaded ${result.length} events from Firebase for user $userId');
-    return result;
-  }
-
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
@@ -1234,10 +362,6 @@ class _CalendarPageState extends State<CalendarPage> {
     final int daysToShow =
         screenWidth > 600 ? 7 : 3; // 7 days for desktop, 3 days for mobile
     final PageController pageController = PageController(initialPage: 0);
-
-    // Generate recurrent events for the visible days
-    List<CalendarEvent> recurrentEvents =
-        _generateRecurrentEvents(_getWeekDays(DateTime.now(), daysToShow));
 
     return Scaffold(
       appBar: AppBar(
@@ -1254,7 +378,8 @@ class _CalendarPageState extends State<CalendarPage> {
               child: Column(
                 children: [
                   SizedBox(height: 40), // Align with the day headers
-                  _buildTimeColumn(),
+                  // _buildTimeColumn(),
+                  CalendarTimeColumn(cellHeight: cellHeight),
                 ],
               ),
             ),
@@ -1267,12 +392,12 @@ class _CalendarPageState extends State<CalendarPage> {
                 final DateTime startDay =
                     DateTime.now().add(Duration(days: pageIndex * daysToShow));
                 final List<DateTime> visibleDays = screenWidth > 600
-                    ? _getWeekDays(startDay, daysToShow)
-                    : _getDays(startDay, daysToShow);
+                    ? getWeekDays(startDay, daysToShow)
+                    : getDays(startDay, daysToShow);
 
                 // Generate recurrent events for the visible days
                 List<CalendarEvent> recurrentEvents =
-                    _generateRecurrentEvents(visibleDays);
+                    generateRecurrentEvents(visibleDays,events);
 
                 return Column(
                   children: [
@@ -1286,7 +411,7 @@ class _CalendarPageState extends State<CalendarPage> {
                               .format(day),
                         )!;
                         bool isPastDay = day.isBefore(DateTime.now()) &&
-                            !_isSameDay(day, DateTime.now());
+                            !isSameDay(day, DateTime.now());
                         return Expanded(
                           child: Container(
                             height: 40,
@@ -1322,11 +447,23 @@ class _CalendarPageState extends State<CalendarPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: visibleDays.map((day) {
                               return Expanded(
-                                child: _buildDayColumn(
-                                  day,
-                                  _dayColumnsController,
-                                  pageIndex,
-                                  additionalEvents: recurrentEvents, // Pass recurrent events
+                                child: CalendarDayColumn(
+                                  day: day,
+                                  hours: hours,
+                                  events: events,
+                                  additionalEvents: recurrentEvents,
+                                  cellHeight: cellHeight,
+                                  draggedEvent: _draggedEvent,
+                                  dragStartIndex: _dragStartIndex,
+                                  dragEndIndex: _dragEndIndex,
+                                  dragStartDay: _dragStartDay,
+                                  onEditEvent: _onEditEvent,
+                                  onAddEvent: _onAddEvent,
+                                  onLongPressStart: _handleLongPressStart,
+                                  onLongPressMoveUpdate: _handleLongPressMoveUpdate,
+                                  onLongPressEnd: _handleLongPressEnd,
+                                  scrollController: _dayColumnsController,
+                                  pageIndex: pageIndex,
                                 ),
                               );
                             }).toList(),
@@ -1344,7 +481,7 @@ class _CalendarPageState extends State<CalendarPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           // Show a dialog to add a new event
-          _showAddEventDialog(
+          _onAddEvent(
               DateTime.now(), 0); // Default to current day and first hour
         },
         backgroundColor: Colors.blueAccent,
