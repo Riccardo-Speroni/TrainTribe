@@ -36,6 +36,7 @@ class _CalendarPageState extends State<CalendarPage> {
   DateTime? _dragStartDay; // Day of the cell where the drag started
   CalendarEvent? _draggedEvent; // Event being dragged
   double? _dragStartLocalY; // Y position where drag started (for cell selection)
+  int? _dragStartPageIndex; // Salva la pagina/giorno di partenza per drag evento
 
   // Returns the event that starts in the slot for the specified day and time, if it exists.
   CalendarEvent? _getEventForCell(DateTime day, int hour) {
@@ -93,13 +94,15 @@ class _CalendarPageState extends State<CalendarPage> {
         _dragEndIndex = safeIndex;
         _dragStartDay = day;
         _dragStartLocalY = null;
+        _dragStartPageIndex = null; // verrà impostato nel primo move update
       } else {
         // Caso: drag su cella vuota
         _draggedEvent = null;
         _dragStartIndex = safeIndex;
         _dragEndIndex = safeIndex;
         _dragStartDay = day;
-        _dragStartLocalY = null; // verrà impostato nel primo move update
+        _dragStartLocalY = null;
+        _dragStartPageIndex = null;
       }
     });
   }
@@ -115,22 +118,38 @@ class _CalendarPageState extends State<CalendarPage> {
         int hoveredIndex = (absoluteY / cellHeight).floor().clamp(0, hours.length - 1);
 
         if (_draggedEvent != null) {
-          // Caso: drag di un evento esistente
-          int maxIndex = hours.length - (_draggedEvent!.endHour - _draggedEvent!.hour);
-          int newIndexY = hoveredIndex.clamp(0, maxIndex);
+          // Drag evento esistente: calcola nuovo giorno e ora
+          if (_dragStartLocalY == null) {
+            _dragStartLocalY = absoluteY;
+          }
+          if (_dragStartPageIndex == null) {
+            _dragStartPageIndex = pageIndex;
+          }
 
-          int newStartHour = hours[newIndexY];
+          // Calcola lo shift verticale (slot) e orizzontale (giorno)
+          int deltaCells = ((absoluteY - _dragStartLocalY!) / cellHeight).round();
+          int newStartIndex = (_dragStartIndex! + deltaCells).clamp(0, hours.length - 1);
+
+          // Calcola il nuovo giorno in base allo spostamento di pagina
+          int deltaDays = pageIndex - _dragStartPageIndex!;
+          DateTime newDay = _dragStartDay!.add(Duration(days: deltaDays));
+
+          int maxIndex = hours.length - (_draggedEvent!.endHour - _draggedEvent!.hour);
+          newStartIndex = newStartIndex.clamp(0, maxIndex);
+
+          int newStartHour = hours[newStartIndex];
           int eventDuration = _draggedEvent!.endHour - _draggedEvent!.hour;
           int newEndHour = newStartHour + eventDuration;
 
-          if (getAvailableEndHours(_dragStartDay!, newStartHour, _draggedEvent)
+          if (getAvailableEndHours(newDay, newStartHour, _draggedEvent)
               .contains(newEndHour)) {
             _draggedEvent!.hour = newStartHour;
             _draggedEvent!.endHour = newEndHour;
+            _draggedEvent!.date = newDay;
 
             // Ensure the relative position of overlapping events remains consistent
             List<CalendarEvent> overlappingEvents = events.where((e) {
-              return isSameDay(e.date, _dragStartDay!) &&
+              return isSameDay(e.date, newDay) &&
                   ((e.hour < _draggedEvent!.endHour &&
                       e.endHour > _draggedEvent!.hour));
             }).toList();
@@ -150,10 +169,12 @@ class _CalendarPageState extends State<CalendarPage> {
               if (generatorEvent != null) {
                 generatorEvent.hour = newStartHour;
                 generatorEvent.endHour = newEndHour;
+                generatorEvent.date = newDay;
               }
             }
           }
-          _dragEndIndex = newIndexY;
+          _dragEndIndex = newStartIndex;
+          _dragStartDay = newDay; // aggiorna il giorno per la visualizzazione
         } else {
           // Caso: selezione multipla per creazione evento
           // Salva la posizione iniziale del drag la prima volta che si entra qui
@@ -173,9 +194,7 @@ class _CalendarPageState extends State<CalendarPage> {
     if (_dragStartIndex != null && _dragEndIndex != null) {
       if (_draggedEvent != null) {
         // Caso: fine drag di un evento esistente
-        if (_dragStartIndex != _dragEndIndex || !isSameDay(_dragStartDay!, day)) {
-          _handleDragEventMove(_draggedEvent!.date);
-        }
+        _handleDragEventMove(_draggedEvent!.date);
       } else {
         // Caso: fine selezione multipla per creazione evento
         if (_dragStartIndex != _dragEndIndex || isSameDay(_dragStartDay!, day)) {
@@ -189,6 +208,7 @@ class _CalendarPageState extends State<CalendarPage> {
       _dragEndIndex = null;
       _dragStartDay = null;
       _dragStartLocalY = null;
+      _dragStartPageIndex = null;
     });
   }
 
@@ -270,7 +290,9 @@ class _CalendarPageState extends State<CalendarPage> {
   // Reset the drag state after handling the drag event
   void _resetDragState() {
     setState(() {
-      _draggedEvent!.isBeingDragged = false;
+      if (_draggedEvent != null) {
+        _draggedEvent!.isBeingDragged = false;
+      }
     });
     _draggedEvent = null;
     _dragStartIndex = null;

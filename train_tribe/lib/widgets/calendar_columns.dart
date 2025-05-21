@@ -68,22 +68,28 @@ class CalendarDayColumn extends StatelessWidget {
           (e) => e?.hour == currentHour && isSameDay(e!.date, day),
           orElse: () => null);
 
-      // Always add an empty cell
-      cells.add(CalendarEmptyCell(
-        cellIndex: index,
-        day: day,
-        cellHeight: cellHeight,
-        dragStartIndex: dragStartIndex,
-        dragEndIndex: dragEndIndex,
-        dragStartDay: dragStartDay,
-        draggedEvent: draggedEvent,
-        onAddEvent: onAddEvent,
-        onLongPressStart: onLongPressStart,
-        onLongPressMoveUpdate: onLongPressMoveUpdate,
-        onLongPressEnd: onLongPressEnd,
-        scrollController: scrollController,
-        pageIndex: pageIndex,
-      ));
+      bool hasEvent = event != null;
+
+      // Se c'è un evento in questo slot, la cella vuota non deve ricevere gesture
+      Widget emptyCell = IgnorePointer(
+        ignoring: hasEvent,
+        child: CalendarEmptyCell(
+          cellIndex: index,
+          day: day,
+          cellHeight: cellHeight,
+          dragStartIndex: dragStartIndex,
+          dragEndIndex: dragEndIndex,
+          dragStartDay: dragStartDay,
+          draggedEvent: draggedEvent,
+          onAddEvent: onAddEvent,
+          onLongPressStart: onLongPressStart,
+          onLongPressMoveUpdate: onLongPressMoveUpdate,
+          onLongPressEnd: onLongPressEnd,
+          scrollController: scrollController,
+          pageIndex: pageIndex,
+        ),
+      );
+      cells.add(emptyCell);
 
       if (event != null) {
         List<CalendarEvent> overlappingEvents = dayEvents.where((e) {
@@ -98,6 +104,9 @@ class CalendarDayColumn extends StatelessWidget {
           CalendarEvent overlappingEvent = overlappingEvents[i];
           bool isBeingDragged = draggedEvent == overlappingEvent;
 
+          // Calcola l'indice di inizio slot per l'evento
+          int eventStartIndex = overlappingEvent.hour - hours.first;
+
           eventWidgets.add(
             Positioned(
               left: widthFactor * i,
@@ -106,7 +115,7 @@ class CalendarDayColumn extends StatelessWidget {
               height: cellHeight * (overlappingEvent.endHour - overlappingEvent.hour),
               child: GestureDetector(
                 onTap: () => onEditEvent(overlappingEvent),
-                onLongPressStart: (_) => onLongPressStart(index, day),
+                onLongPressStart: (_) => onLongPressStart(eventStartIndex, day),
                 onLongPressMoveUpdate: (details) => onLongPressMoveUpdate(
                     details, context, scrollController, pageIndex),
                 onLongPressEnd: (_) => onLongPressEnd(day),
