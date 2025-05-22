@@ -109,8 +109,7 @@ def process_trip_options(origin, destination, event_start_time, event_end_time):
     return build_event_options(params), event_options_full_path, id
 
 
-@firestore_fn.on_document_created(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
-def firestore_event_trip_options_create(event: firestore_fn.Event[dict]) -> None:
+def _create_event_trip_options_logic(event):
     data = event.data
     if not data:
         return
@@ -143,8 +142,11 @@ def firestore_event_trip_options_create(event: firestore_fn.Event[dict]) -> None
     else:
         logging.error(f"Error processing event options: {result['message']}")
 
-@firestore_fn.on_document_deleted(document="users/{user_id}/events/{event_id}")
-def firestore_event_trip_options_delete(event: firestore_fn.Event[dict]) -> None:
+@firestore_fn.on_document_created(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
+def firestore_event_trip_options_create(event: firestore_fn.Event[dict]) -> None:
+    _create_event_trip_options_logic(event)
+
+def _delete_event_trip_options_logic(event):
     data_raw = event.data
     if not data_raw:
         return
@@ -153,13 +155,11 @@ def firestore_event_trip_options_delete(event: firestore_fn.Event[dict]) -> None
     event_start_time = data.get("event_start")
     recurrence_counter = event_start_time.date()
     db = firestore.client()
-
     routes = data.get("routes", [])
     if not routes:
         event_id = event.params["event_id"]
         routes_docs = db.collection("users").document(user_id).collection("events").document(event_id).collection("routes").stream()
         routes = [doc.to_dict() for doc in routes_docs]
-
     if data.get("recurrent"):
         # Convert recurrence_end to Europe/Rome timezone and use date
         recurrence_end_date = data.get("recurrence_end").astimezone(ZoneInfo("Europe/Rome")).date()
@@ -183,17 +183,30 @@ def firestore_event_trip_options_delete(event: firestore_fn.Event[dict]) -> None
                     except Exception as e:
                         logging.error(f"User {user_id} is not in trip {trip_id} of date {event_start_time}: {e}")
 
-# #@firestore_fn.on_document_updated(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
-# def firestore_event_trip_options_update(event: firestore_fn.Event[dict]) -> None:
-#     firestore_event_trip_options_delete(event)
-#     user_id = event.params.user_id
-#     event_id = event.params.event_id
-#     db = firestore.client()
-#     try:
-#         db.collection("users").document(user_id).collection("events").document(event_id).collection("routes").delete()
-#     except Exception as e:
-#         logging.error(f"Error deleting routes for event {event_id}: {e}")
-#     firestore_event_trip_options_create(event)
+@firestore_fn.on_document_deleted(document="users/{user_id}/events/{event_id}")
+def firestore_event_trip_options_delete(event: firestore_fn.Event[dict]) -> None:
+    _delete_event_trip_options_logic(event)
+    
+
+@firestore_fn.on_document_updated(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
+def firestore_event_trip_options_update(event: firestore_fn.Event[dict]) -> None:
+    before = event.data.before
+    after = event.data.after
+    if not before or not after:
+        return
+    keys = ["origin", "destination", "event_start", "event_end"]
+    changed = any(before.get(k) != after.get(k) for k in keys)
+    if not changed:
+        return
+    _delete_event_trip_options_logic(event.data.before)
+    user_id = event.params["user_id"]
+    event_id = event.params["event_id"]
+    db = firestore.client()
+    try:
+        db.collection("users").document(user_id).collection("events").document(event_id).collection("routes").delete()
+    except Exception as e:
+        logging.error(f"Error deleting routes for event {event_id}: {e}")
+    _create_event_trip_options_logic(event.data.after)
     
 
 @https_fn.on_request(secrets=[GOOGLE_MAPS_API_KEY])

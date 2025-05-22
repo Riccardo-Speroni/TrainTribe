@@ -55,17 +55,17 @@ void main() async {
   }
 
   // Uncomment the following lines to use app linked to Firebase emulators
-  // // Firestore
-  // FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+  // Firestore
+  FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
 
-  // // Auth
-  // FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+  // Auth
+  FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
 
-  // // Storage
-  // FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
+  // Storage
+  FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
 
-  // // Functions
-  // FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
+  // Functions
+  FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
 
   runApp(MyApp());
 }
