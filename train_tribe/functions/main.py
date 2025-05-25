@@ -110,9 +110,13 @@ def process_trip_options(origin, destination, event_start_time, event_end_time):
 
 
 def _create_event_trip_options_logic(event):
-    data = event.data
-    if not data:
+    data_raw = event.data
+    if not data_raw:
         return
+    # Usa .after se esiste, altrimenti usa data_raw
+    if hasattr(data_raw, 'after') and data_raw.after:
+        data_raw = data_raw.after
+    data = data_raw.to_dict() if hasattr(data_raw, 'to_dict') else data_raw
     origin = data.get("origin")
     destination = data.get("destination")
     event_start_time = data.get("event_start")
@@ -142,6 +146,7 @@ def _create_event_trip_options_logic(event):
     else:
         logging.error(f"Error processing event options: {result['message']}")
 
+
 @firestore_fn.on_document_created(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
 def firestore_event_trip_options_create(event: firestore_fn.Event[dict]) -> None:
     _create_event_trip_options_logic(event)
@@ -150,7 +155,12 @@ def _delete_event_trip_options_logic(event):
     data_raw = event.data
     if not data_raw:
         return
-    data = data_raw.to_dict()
+    # Use .before if it exists, otherwise use data_raw
+    if hasattr(data_raw, 'before') and data_raw.before:
+        data_raw = data_raw.before
+    if hasattr(data_raw, 'to_dict'):
+        data_raw = data_raw.to_dict()
+    data = data_raw.to_dict() if hasattr(data_raw, 'to_dict') else data_raw
     user_id = event.params["user_id"]
     event_start_time = data.get("event_start")
     recurrence_counter = event_start_time.date()
@@ -198,15 +208,17 @@ def firestore_event_trip_options_update(event: firestore_fn.Event[dict]) -> None
     changed = any(before.get(k) != after.get(k) for k in keys)
     if not changed:
         return
-    _delete_event_trip_options_logic(event.data.before)
+    _delete_event_trip_options_logic(event)
     user_id = event.params["user_id"]
     event_id = event.params["event_id"]
     db = firestore.client()
     try:
-        db.collection("users").document(user_id).collection("events").document(event_id).collection("routes").delete()
+        routes_ref = db.collection("users").document(user_id).collection("events").document(event_id).collection("routes")
+        for doc in routes_ref.stream():
+            doc.reference.delete()
     except Exception as e:
         logging.error(f"Error deleting routes for event {event_id}: {e}")
-    _create_event_trip_options_logic(event.data.after)
+    _create_event_trip_options_logic(event)
     
 
 @https_fn.on_request(secrets=[GOOGLE_MAPS_API_KEY])
