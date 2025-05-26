@@ -1,4 +1,4 @@
-from firebase_functions.params import SecretParam
+from requests import get, options
 from firebase_admin import firestore
 from zoneinfo import ZoneInfo
 import logging
@@ -14,6 +14,7 @@ jsonified_trenord_data_path = "maps/full_info_trips.json"
 full_legs_partial_path = "maps/results/full_info_legs"
 maps_response_partial_path = "maps/responses/maps_response"
 event_options_partial_path = "maps/events/event_options"
+
 
 def process_trip_options(origin, destination, event_start_time, event_end_time, event_id, key):
     id = event_id
@@ -37,7 +38,6 @@ def process_trip_options(origin, destination, event_start_time, event_end_time, 
         "event_options_path": event_options_full_path,
     }
     return build_event_options(params), event_options_full_path
-
 
 def event_options_save_to_db(params):
     user_id = params.get("user_id")
@@ -97,8 +97,6 @@ def event_options_save_to_db(params):
                 })
 
     return None
-
-
 
 def create_event_trip_options_logic(event, key):
     data_raw = event.data
@@ -199,3 +197,18 @@ def update_event_trip_options_logic(event, key):
     except Exception as e:
         logging.error(f"Error deleting routes for event {event_id}: {e}")
     create_event_trip_options_logic(event, key)
+
+
+def get_event_trip_options_logic(params):
+    return
+
+def get_event_trip_friends_logic(req):
+    return
+
+def get_event_full_trip_data_logic(req):
+    
+    # trip_options = get_event_trip_options_logic(options_params)
+    
+    # friends_data = get_event_trip_friends_logic(friends_params)
+
+    return
