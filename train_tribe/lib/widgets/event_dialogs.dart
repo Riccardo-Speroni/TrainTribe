@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/calendar_event.dart';
 import '../utils/calendar_functions.dart';
+import '../utils/station_names.dart';
 
 Future<void> showAddEventDialog({
   required BuildContext context,
@@ -19,6 +20,7 @@ Future<void> showAddEventDialog({
   String departureStation = '';
   String arrivalStation = '';
   bool isSaving = false;
+  String? stationError; // <-- aggiungi variabile errore
   int safeStart = startIndex.clamp(0, hours.length - 1);
   int startSlot = safeStart;
   int selectedEndSlot = endIndex ?? startSlot + 1;
@@ -37,20 +39,108 @@ Future<void> showAddEventDialog({
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                decoration: InputDecoration(
-                    hintText: localizations.translate('departure_station')),
-                onChanged: (value) {
-                  departureStation = value;
-                },
+              Container(
+                width: 300,
+                child: Autocomplete<String>(
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text == '') {
+                      return const Iterable<String>.empty();
+                    }
+                    return stationNames.where((String option) {
+                      return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                    });
+                  },
+                  onSelected: (String selection) {
+                    departureStation = selection;
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                    controller.text = departureStation;
+                    controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        hintText: localizations.translate('departure_station'),
+                      ),
+                      onChanged: (value) {
+                        departureStation = value;
+                      },
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4.0,
+                        child: Container(
+                          width: 300,
+                          child: ListView(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            children: options.map((option) {
+                              return ListTile(
+                                title: Text(option),
+                                onTap: () => onSelected(option),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: 10),
-              TextField(
-                decoration: InputDecoration(
-                    hintText: localizations.translate('arrival_station')),
-                onChanged: (value) {
-                  arrivalStation = value;
-                },
+              Container(
+                width: 300,
+                child: Autocomplete<String>(
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text == '') {
+                      return const Iterable<String>.empty();
+                    }
+                    return stationNames.where((String option) {
+                      return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                    });
+                  },
+                  onSelected: (String selection) {
+                    arrivalStation = selection;
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                    controller.text = arrivalStation;
+                    controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        hintText: localizations.translate('arrival_station'),
+                      ),
+                      onChanged: (value) {
+                        arrivalStation = value;
+                      },
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4.0,
+                        child: Container(
+                          width: 300,
+                          child: ListView(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            children: options.map((option) {
+                              return ListTile(
+                                title: Text(option),
+                                onTap: () => onSelected(option),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: 10),
               Row(
@@ -168,16 +258,32 @@ Future<void> showAddEventDialog({
                 ),
               if (isSaving)
                 const CircularProgressIndicator(),
+              if (stationError != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Text(
+                    stationError!,
+                    style: TextStyle(color: Colors.red, fontSize: 13),
+                  ),
+                ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () async {
+                if (!stationNames.contains(departureStation) ||
+                    !stationNames.contains(arrivalStation)) {
+                  setStateDialog(() {
+                    stationError = localizations.translate('invalid_station_name');
+                  });
+                  return;
+                }
                 if (departureStation.isEmpty || arrivalStation.isEmpty) {
                   return;
                 }
                 setStateDialog(() {
                   isSaving = true;
+                  stationError = null;
                 });
 
                 final user = FirebaseAuth.instance.currentUser;
@@ -257,6 +363,8 @@ Future<void> showEditEventDialog({
       ? events.firstWhere((e) => e.id == event.generatedBy, orElse: () => event)
       : event;
 
+  String? stationError; // <-- aggiungi variabile errore
+
   await showDialog(
     context: context,
     builder: (context) {
@@ -266,22 +374,110 @@ Future<void> showEditEventDialog({
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: TextEditingController(text: departureStation),
-                decoration: InputDecoration(
-                    hintText: localizations.translate('departure_station')),
-                onChanged: (value) {
-                  departureStation = value;
-                },
+              Container(
+                width: 300,
+                child: Autocomplete<String>(
+                  initialValue: TextEditingValue(text: departureStation),
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text == '') {
+                      return const Iterable<String>.empty();
+                    }
+                    return stationNames.where((String option) {
+                      return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                    });
+                  },
+                  onSelected: (String selection) {
+                    departureStation = selection;
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                    controller.text = departureStation;
+                    controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        hintText: localizations.translate('departure_station'),
+                      ),
+                      onChanged: (value) {
+                        departureStation = value;
+                      },
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4.0,
+                        child: Container(
+                          width: 300,
+                          child: ListView(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            children: options.map((option) {
+                              return ListTile(
+                                title: Text(option),
+                                onTap: () => onSelected(option),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: 10),
-              TextField(
-                controller: TextEditingController(text: arrivalStation),
-                decoration: InputDecoration(
-                    hintText: localizations.translate('arrival_station')),
-                onChanged: (value) {
-                  arrivalStation = value;
-                },
+              Container(
+                width: 300,
+                child: Autocomplete<String>(
+                  initialValue: TextEditingValue(text: arrivalStation),
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text == '') {
+                      return const Iterable<String>.empty();
+                    }
+                    return stationNames.where((String option) {
+                      return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                    });
+                  },
+                  onSelected: (String selection) {
+                    arrivalStation = selection;
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                    controller.text = arrivalStation;
+                    controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        hintText: localizations.translate('arrival_station'),
+                      ),
+                      onChanged: (value) {
+                        arrivalStation = value;
+                      },
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4.0,
+                        child: Container(
+                          width: 300,
+                          child: ListView(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            children: options.map((option) {
+                              return ListTile(
+                                title: Text(option),
+                                onTap: () => onSelected(option),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: 10),
               Row(
@@ -396,14 +592,31 @@ Future<void> showEditEventDialog({
                     ),
                   ],
                 ),
+              if (stationError != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Text(
+                    stationError!,
+                    style: TextStyle(color: Colors.red, fontSize: 13),
+                  ),
+                ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () async {
+                if (!stationNames.contains(departureStation) ||
+                    !stationNames.contains(arrivalStation)) {
+                  setStateDialog(() {
+                    stationError = localizations.translate('invalid_station_name');
+                  });
+                  return;
+                }
                 if (departureStation.isEmpty || arrivalStation.isEmpty) {
                   return;
                 }
+                stationError = null;
+
                 if (isRecurrent) {
                   generatorEvent.isRecurrent = true;
                   generatorEvent.recurrenceEndDate = recurrenceEndDate;
