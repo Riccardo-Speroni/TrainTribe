@@ -446,6 +446,7 @@ class _CalendarPageState extends State<CalendarPage> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: visibleDays.map((day) {
+                              bool isPastDay = day.isBefore(DateTime.now()) && !isSameDay(day, DateTime.now());
                               return Expanded(
                                 child: CalendarDayColumn(
                                   day: day,
@@ -464,6 +465,7 @@ class _CalendarPageState extends State<CalendarPage> {
                                   onLongPressEnd: _handleLongPressEnd,
                                   scrollController: _dayColumnsController,
                                   pageIndex: pageIndex,
+                                  isPastDay: isPastDay, // <--- AGGIUNGI QUESTA RIGA
                                 ),
                               );
                             }).toList(),
