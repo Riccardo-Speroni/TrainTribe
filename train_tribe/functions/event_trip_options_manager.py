@@ -10,14 +10,13 @@ from event_options_builder import build_event_options
 from day_event_options_merger import get_day_event_trip_options_logic
 from event_friends_finder import get_event_trip_friends_logic
 
-bucket_name = "traintribe-f2c7b.firebasestorage.app"
 jsonified_trenord_data_path = "maps/full_info_trips.json"
 full_legs_partial_path = "maps/results/full_info_legs"
 maps_response_partial_path = "maps/responses/maps_response"
 event_options_partial_path = "maps/events/event_options"
 
 
-def process_trip_options(origin, destination, event_start_time, event_end_time, event_id, key):
+def process_trip_options(origin, destination, event_start_time, event_end_time, event_id, key, bucket_name):
     id = event_id
     maps_response_full_path = maps_response_partial_path + str(id) + ".json"
     full_legs_full_path = full_legs_partial_path + str(id) + ".json"
@@ -99,7 +98,7 @@ def event_options_save_to_db(params):
 
     return None
 
-def create_event_trip_options_logic(event, key):
+def create_event_trip_options_logic(event, key, bucket_name):
     data_raw = event.data
     if not data_raw:
         return
@@ -113,7 +112,7 @@ def create_event_trip_options_logic(event, key):
     event_end_time = data.get("event_end")
     if not (origin and destination and event_start_time and event_end_time):
         return
-    result, event_options_full_path = process_trip_options(origin, destination, event_start_time, event_end_time, f"_{event.params['user_id']}_{event.params['event_id']}", key)
+    result, event_options_full_path = process_trip_options(origin, destination, event_start_time, event_end_time, f"_{event.params['user_id']}_{event.params['event_id']}", key, bucket_name)
     if result["success"]:
         params = {
             "user_id": event.params["user_id"],
@@ -178,7 +177,7 @@ def delete_event_trip_options_logic(event):
                     except Exception as e:
                         logging.error(f"User {user_id} is not in trip {trip_id} of date {event_start_time}: {e}")
 
-def update_event_trip_options_logic(event, key):
+def update_event_trip_options_logic(event, key, bucket_name):
     before = event.data.before
     after = event.data.after
     if not before or not after:
@@ -197,9 +196,9 @@ def update_event_trip_options_logic(event, key):
             doc.reference.delete()
     except Exception as e:
         logging.error(f"Error deleting routes for event {event_id}: {e}")
-    create_event_trip_options_logic(event, key)
+    create_event_trip_options_logic(event, key, bucket_name)
 
-def get_event_full_trip_data_logic(req):
+def get_event_full_trip_data_logic(req, bucket_name):
     
     user_id = req.args.get("user_id")
     date = req.args.get("date")
@@ -214,14 +213,26 @@ def get_event_full_trip_data_logic(req):
     query = events_ref.where("event_start", ">=", date + "T00:00:00Z").where("event_start", "<", date + "T23:59:59Z")
     events_docs = query.stream()
     
-    event_options_with_friends = []
+    event_options_with_friends = {}
 
     #add friends info to event options
     for event in events_docs:
-        event_options_with_friends[event.id] = get_event_trip_friends_logic(event.to_dict().get("event_options_path"))
+        friends_finder_params = {
+            "event_options_path": event.to_dict().get("event_options_path"),
+            "user_id": user_id,
+            "bucket_name": bucket_name,
+            "date": date
+        }
+        event_options_with_friends[event.id] = get_event_trip_friends_logic(friends_finder_params)
 
     #merge all event options of the day into a single file
-    day_events_options = get_day_event_trip_options_logic(event_options_with_friends)
+    merger_params = {
+        "event_options_with_friends": event_options_with_friends,
+        "bucket_name": bucket_name,
+        "date": date,
+        "user_id": user_id
+    }
+    day_events_options = get_day_event_trip_options_logic(merger_params)
 
     return day_events_options
 

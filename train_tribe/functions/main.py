@@ -3,13 +3,19 @@ from firebase_functions import firestore_fn
 from firebase_admin import initialize_app
 from firebase_functions.params import SecretParam
 from firebase_functions import scheduler_fn
+import json
+import tempfile
+import os
 from jsonifier import jsonify
+from bucket_manager import download_from_bucket
 from event_trip_options_manager import (
     create_event_trip_options_logic, 
     delete_event_trip_options_logic, 
     update_event_trip_options_logic,
     get_event_full_trip_data_logic,
 )
+
+from event_friends_finder import get_event_trip_friends_logic
 
 GOOGLE_MAPS_API_KEY = SecretParam('GOOGLE_MAPS_API_KEY')
 
@@ -52,7 +58,7 @@ def call_jsonify_scheduled(req: https_fn.Request) -> https_fn.Response:
 
 @firestore_fn.on_document_created(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
 def firestore_event_trip_options_create(event: firestore_fn.Event[dict]) -> None:
-    create_event_trip_options_logic(event, GOOGLE_MAPS_API_KEY)
+    create_event_trip_options_logic(event, GOOGLE_MAPS_API_KEY, bucket_name)
 
 @firestore_fn.on_document_deleted(document="users/{user_id}/events/{event_id}")
 def firestore_event_trip_options_delete(event: firestore_fn.Event[dict]) -> None:
@@ -60,8 +66,33 @@ def firestore_event_trip_options_delete(event: firestore_fn.Event[dict]) -> None
 
 @firestore_fn.on_document_updated(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
 def firestore_event_trip_options_update(event: firestore_fn.Event[dict]) -> None:
-    update_event_trip_options_logic(event, GOOGLE_MAPS_API_KEY)
+    update_event_trip_options_logic(event, GOOGLE_MAPS_API_KEY, bucket_name)
 
 @https_fn.on_request()
 def get_event_full_trip_data(req: https_fn.Request) -> https_fn.Response:
-    get_event_full_trip_data_logic(req)
+    day_json_path = get_event_full_trip_data_logic(req, bucket_name)
+    if day_json_path is not None:
+        tmp_path = os.path.join(tempfile.gettempdir(), "day_event_options.json")
+        download_from_bucket(bucket_name, day_json_path, tmp_path)
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            day_options = json.load(f)
+        return https_fn.Response(json.dumps(day_options), mimetype="application/json")
+
+    else:
+        return https_fn.Response("No trips found or an error occurred.", status=500)
+
+# @https_fn.on_request()
+# def get_event_trip_friends(req: https_fn.Request) -> https_fn.Response:
+#     params = {
+#         "event_options_path": req.args.get("event_options_path"),
+#         "user_id": req.args.get("user_id"),
+#         "bucket_name": bucket_name,
+#         "date": req.args.get("date"),
+#     }
+    
+#     result = get_event_trip_friends_logic(params)
+
+#     if result is not None:
+#         return https_fn.Response(result)
+#     else:
+#         return https_fn.Response("No friends found or an error occurred.", status=500)

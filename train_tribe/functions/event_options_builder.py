@@ -1,5 +1,7 @@
 from maps_asker import ask_maps
 from datetime import datetime, timedelta
+import tempfile
+import os
 import pytz
 import json
 from bucket_manager import download_from_bucket, upload_to_bucket
@@ -31,7 +33,6 @@ def build_event_options(params):
     all_legs = []
     errors = []
     current_time = event_start
-    import tempfile, json, os
     while current_time <= event_end:
         arrival_time_str = current_time.strftime("%Y-%m-%d %H:%M")
         maps_asker_params = {
@@ -115,13 +116,10 @@ def build_event_options(params):
         return "99:99"
     filtered_legs.sort(key=lambda route: get_leg0_departure(route))
 
-    # Assign route ids
-    routes_dict = {f"route_{i}": route for i, route in enumerate(filtered_legs)}
-
     # Save merged file to a temp file and upload to bucket
     tmp_event_options_path = os.path.join(tempfile.gettempdir(), os.path.basename(params["event_options_path"]))
     with open(tmp_event_options_path, "w", encoding="utf-8") as f:
-        json.dump(routes_dict, f, ensure_ascii=False, indent=4)
+        json.dump(filtered_legs, f, ensure_ascii=False, indent=4)
     upload_to_bucket(tmp_event_options_path, params["event_options_path"], params["bucket_name"])
     success = len(errors) == 0
     return {"success": success, "message": "Event options built successfully", "errors": errors}
