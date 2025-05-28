@@ -198,7 +198,6 @@ def update_event_trip_options_logic(event, key):
         logging.error(f"Error deleting routes for event {event_id}: {e}")
     create_event_trip_options_logic(event, key)
 
-
 def get_event_trip_options_logic(params):
     return
 
@@ -212,3 +211,4 @@ def get_event_full_trip_data_logic(req):
     # friends_data = get_event_trip_friends_logic(friends_params)
 
     return
+

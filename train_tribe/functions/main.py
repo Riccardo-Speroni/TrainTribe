@@ -11,7 +11,6 @@ from event_trip_options_manager import (
     get_event_trip_friends_logic
 )
 
-
 GOOGLE_MAPS_API_KEY = SecretParam('GOOGLE_MAPS_API_KEY')
 
 bucket_name = "traintribe-f2c7b.firebasestorage.app"
@@ -52,7 +51,3 @@ def firestore_event_trip_options_update(event: firestore_fn.Event[dict]) -> None
 @https_fn.on_request()
 def get_event_full_trip_data(req: https_fn.Request) -> https_fn.Response:
     get_event_full_trip_data_logic(req)
-
-@https_fn.on_request()
-def get_event_trip_friends(req: https_fn.Request) -> https_fn.Response:
-    get_event_trip_friends_logic(req)
