@@ -2,6 +2,7 @@ from firebase_functions import https_fn
 from firebase_functions import firestore_fn
 from firebase_admin import initialize_app
 from firebase_functions.params import SecretParam
+from firebase_functions import scheduler_fn
 from jsonifier import jsonify
 from event_trip_options_manager import (
     create_event_trip_options_logic, 
@@ -24,6 +25,20 @@ initialize_app()
 @https_fn.on_request()
 def call_jsonify(req: https_fn.Request) -> https_fn.Response:
     
+    params = {
+        "result_output_path": jsonified_trenord_data_path,
+        "bucket_name": bucket_name,
+    }
+
+    result = jsonify(params)
+
+    if result["success"]:
+        return https_fn.Response(result["message"])
+    else:
+        return https_fn.Response(f"Error: {result['message']}", status=500)
+    
+@scheduler_fn.on_schedule(schedule="0 0 * * 1")
+def call_jsonify_scheduled(req: https_fn.Request) -> https_fn.Response:
     params = {
         "result_output_path": jsonified_trenord_data_path,
         "bucket_name": bucket_name,
