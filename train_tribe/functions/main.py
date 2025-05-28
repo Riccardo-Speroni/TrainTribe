@@ -9,7 +9,6 @@ from event_trip_options_manager import (
     delete_event_trip_options_logic, 
     update_event_trip_options_logic,
     get_event_full_trip_data_logic,
-    get_event_trip_friends_logic
 )
 
 GOOGLE_MAPS_API_KEY = SecretParam('GOOGLE_MAPS_API_KEY')

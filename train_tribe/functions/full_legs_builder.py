@@ -1,7 +1,6 @@
 import json
 import os
 import logging
-import re
 from bucket_manager import upload_to_bucket, download_from_bucket
 import tempfile
 from difflib import SequenceMatcher

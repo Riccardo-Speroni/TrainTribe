@@ -1,5 +1,7 @@
 from maps_asker import ask_maps
 from datetime import datetime, timedelta
+import pytz
+import json
 from bucket_manager import download_from_bucket, upload_to_bucket
 
 """
@@ -65,16 +67,16 @@ def build_event_options(params):
     # Remove duplicate routes
     unique_legs = []
     seen = set()
-    import json as _json
     for leg in all_legs:
-        leg_str = _json.dumps(leg, sort_keys=True)
+        leg_str = json.dumps(leg, sort_keys=True)
         if leg_str not in seen:
             seen.add(leg_str)
             unique_legs.append(leg)
 
     # Remove routes with legs whose 'from' or 'to' stop arrival_time is outside event timeframe
-    event_start_time = params["event_start_time"].time()
-    event_end_time = params["event_end_time"].time()
+    rome_tz = pytz.timezone("Europe/Rome")
+    event_start_time = params["event_start_time"].astimezone(rome_tz).time()
+    event_end_time = params["event_end_time"].astimezone(rome_tz).time()
     filtered_legs = []
     for route in unique_legs:
         valid = True
@@ -113,11 +115,13 @@ def build_event_options(params):
         return "99:99"
     filtered_legs.sort(key=lambda route: get_leg0_departure(route))
 
+    # Assign route ids
+    routes_dict = {f"route_{i}": route for i, route in enumerate(filtered_legs)}
+
     # Save merged file to a temp file and upload to bucket
-    import tempfile
     tmp_event_options_path = os.path.join(tempfile.gettempdir(), os.path.basename(params["event_options_path"]))
     with open(tmp_event_options_path, "w", encoding="utf-8") as f:
-        json.dump(filtered_legs, f, ensure_ascii=False, indent=4)
+        json.dump(routes_dict, f, ensure_ascii=False, indent=4)
     upload_to_bucket(tmp_event_options_path, params["event_options_path"], params["bucket_name"])
     success = len(errors) == 0
     return {"success": success, "message": "Event options built successfully", "errors": errors}

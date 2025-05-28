@@ -1,4 +1,3 @@
-from requests import get, options
 from firebase_admin import firestore
 from zoneinfo import ZoneInfo
 import logging
@@ -8,6 +7,8 @@ import os
 import tempfile
 from bucket_manager import download_from_bucket
 from event_options_builder import build_event_options
+from day_event_options_merger import get_day_event_trip_options_logic
+from event_friends_finder import get_event_trip_friends_logic
 
 bucket_name = "traintribe-f2c7b.firebasestorage.app"
 jsonified_trenord_data_path = "maps/full_info_trips.json"
@@ -198,17 +199,29 @@ def update_event_trip_options_logic(event, key):
         logging.error(f"Error deleting routes for event {event_id}: {e}")
     create_event_trip_options_logic(event, key)
 
-def get_event_trip_options_logic(params):
-    return
-
-def get_event_trip_friends_logic(req):
-    return
-
 def get_event_full_trip_data_logic(req):
     
-    # trip_options = get_event_trip_options_logic(options_params)
-    
-    # friends_data = get_event_trip_friends_logic(friends_params)
+    user_id = req.args.get("user_id")
+    date = req.args.get("date")
 
-    return
+    if not user_id or not date:
+        return {"success": False, "message": "Missing user_id or date parameter"}, 400
+    
+    db = firestore.client()
+
+    # Fetch events for the user on the specified date
+    events_ref = db.collection("users").document(user_id).collection("events")
+    query = events_ref.where("event_start", ">=", date + "T00:00:00Z").where("event_start", "<", date + "T23:59:59Z")
+    events_docs = query.stream()
+    
+    event_options_with_friends = []
+
+    #add friends info to event options
+    for event in events_docs:
+        event_options_with_friends[event.id] = get_event_trip_friends_logic(event.to_dict().get("event_options_path"))
+
+    #merge all event options of the day into a single file
+    day_events_options = get_day_event_trip_options_logic(event_options_with_friends)
+
+    return day_events_options
 
