@@ -35,241 +35,286 @@ Future<void> showAddEventDialog({
     builder: (context) {
       return StatefulBuilder(builder: (context, setStateDialog) {
         return AlertDialog(
-          title: Text(localizations.translate('new_event')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 8,
+          backgroundColor: Theme.of(context).dialogBackgroundColor,
+          title: Row(
             children: [
-              Container(
-                width: 300,
-                child: Autocomplete<String>(
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    if (textEditingValue.text == '') {
-                      return const Iterable<String>.empty();
-                    }
-                    return stationNames.where((String option) {
-                      return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                    });
-                  },
-                  onSelected: (String selection) {
-                    departureStation = selection;
-                  },
-                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                    controller.text = departureStation;
-                    controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
-                    return TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                        hintText: localizations.translate('departure_station'),
-                      ),
-                      onChanged: (value) {
-                        departureStation = value;
-                      },
-                    );
-                  },
-                  optionsViewBuilder: (context, onSelected, options) {
-                    return Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 4.0,
-                        child: Container(
-                          width: 300,
-                          child: ListView(
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            children: options.map((option) {
-                              return ListTile(
-                                title: Text(option),
-                                onTap: () => onSelected(option),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                width: 300,
-                child: Autocomplete<String>(
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    if (textEditingValue.text == '') {
-                      return const Iterable<String>.empty();
-                    }
-                    return stationNames.where((String option) {
-                      return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                    });
-                  },
-                  onSelected: (String selection) {
-                    arrivalStation = selection;
-                  },
-                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                    controller.text = arrivalStation;
-                    controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
-                    return TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                        hintText: localizations.translate('arrival_station'),
-                      ),
-                      onChanged: (value) {
-                        arrivalStation = value;
-                      },
-                    );
-                  },
-                  optionsViewBuilder: (context, onSelected, options) {
-                    return Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 4.0,
-                        child: Container(
-                          width: 300,
-                          child: ListView(
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            children: options.map((option) {
-                              return ListTile(
-                                title: Text(option),
-                                onTap: () => onSelected(option),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text('${localizations.translate('day')}: '),
-                  TextButton(
-                    onPressed: () async {
-                      DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: day,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (pickedDate != null) {
-                        setStateDialog(() {
-                          day = pickedDate;
-                        });
-                      }
-                    },
-                    child: Text(
-                        DateFormat('EEE, MMM d', localizations.languageCode())
-                            .format(day)),
+              Icon(Icons.event, color: Theme.of(context).primaryColor),
+              const SizedBox(width: 8),
+              Text(localizations.translate('new_event')),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 300,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text('${localizations.translate('start_hour')}: '),
-                  DropdownButton<int>(
-                    value: startSlot,
-                    items: hours
-                        .map((slot) => DropdownMenuItem(
-                              value: slot,
-                              child: Text(formatTime(slot)),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setStateDialog(() {
-                          startSlot = value;
-                          availableEndHours = getAvailableEndHours(
-                              day, startSlot);
-                          if (!availableEndHours
-                              .contains(selectedEndSlot)) {
-                            selectedEndSlot = availableEndHours.isNotEmpty
-                                ? availableEndHours.first
-                                : 1;
-                          }
-                        });
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text == '') {
+                        return const Iterable<String>.empty();
                       }
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text('${localizations.translate('end_hour')}: '),
-                  DropdownButton<int>(
-                    value: selectedEndSlot,
-                    items: availableEndHours
-                        .map((slot) => DropdownMenuItem(
-                              value: slot,
-                              child: Text(formatTime(slot)),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setStateDialog(() {
-                          selectedEndSlot = value;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Checkbox(
-                    value: isRecurrent,
-                    onChanged: (value) {
-                      setStateDialog(() {
-                        isRecurrent = value ?? false;
+                      return stationNames.where((String option) {
+                        return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
                       });
                     },
+                    onSelected: (String selection) {
+                      departureStation = selection;
+                    },
+                    fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                      controller.text = departureStation;
+                      controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          hintText: localizations.translate('departure_station'),
+                        ),
+                        onChanged: (value) {
+                          departureStation = value;
+                        },
+                      );
+                    },
+                    optionsViewBuilder: (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 4.0,
+                          child: SizedBox(
+                            width: 285, // Assicura la stessa larghezza del campo input
+                            child: ListView(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              children: options.map((option) {
+                                return ListTile(
+                                  title: Text(option),
+                                  onTap: () => onSelected(option),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  Text(localizations.translate('recurrent')),
-                ],
-              ),
-              if (isRecurrent)
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  width: 300,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text == '') {
+                        return const Iterable<String>.empty();
+                      }
+                      return stationNames.where((String option) {
+                        return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                      });
+                    },
+                    onSelected: (String selection) {
+                      arrivalStation = selection;
+                    },
+                    fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                      controller.text = arrivalStation;
+                      controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          hintText: localizations.translate('arrival_station'),
+                        ),
+                        onChanged: (value) {
+                          arrivalStation = value;
+                        },
+                      );
+                    },
+                    optionsViewBuilder: (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 4.0,
+                          child: SizedBox(
+                            width: 300, // Assicura la stessa larghezza del campo input
+                            child: ListView(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              children: options.map((option) {
+                                return ListTile(
+                                  title: Text(option),
+                                  onTap: () => onSelected(option),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Row(
                   children: [
-                    Text('${localizations.translate('end_recurrence')}: '),
+                    Icon(Icons.calendar_today, size: 18, color: Theme.of(context).primaryColor),
+                    const SizedBox(width: 6),
+                    Text('${localizations.translate('day')}: '),
                     TextButton(
                       onPressed: () async {
                         DateTime? pickedDate = await showDatePicker(
                           context: context,
-                          initialDate: recurrenceEndDate ?? day,
-                          firstDate: day,
+                          initialDate: day,
+                          firstDate: DateTime.now(),
                           lastDate: DateTime.now().add(const Duration(days: 365)),
                         );
                         if (pickedDate != null) {
                           setStateDialog(() {
-                            recurrenceEndDate = pickedDate;
+                            day = pickedDate;
                           });
                         }
                       },
-                      child: Text(recurrenceEndDate != null
-                          ? DateFormat('EEE, MMM d', localizations.languageCode())
-                              .format(recurrenceEndDate!)
-                          : localizations.translate('select_date')),
+                      child: Text(
+                          DateFormat('EEE, MMM d', localizations.languageCode())
+                              .format(day)),
                     ),
                   ],
                 ),
-              if (isSaving)
-                const CircularProgressIndicator(),
-              if (stationError != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Text(
-                    stationError!,
-                    style: TextStyle(color: Colors.red, fontSize: 13),
-                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.access_time, size: 18, color: Theme.of(context).primaryColor),
+                    const SizedBox(width: 6),
+                    Text('${localizations.translate('start_hour')}: '),
+                    DropdownButton<int>(
+                      value: startSlot,
+                      items: hours
+                          .map((slot) => DropdownMenuItem(
+                                value: slot,
+                                child: Text(formatTime(slot)),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setStateDialog(() {
+                            startSlot = value;
+                            availableEndHours = getAvailableEndHours(
+                                day, startSlot);
+                            if (!availableEndHours
+                                .contains(selectedEndSlot)) {
+                              selectedEndSlot = availableEndHours.isNotEmpty
+                                  ? availableEndHours.first
+                                  : 1;
+                            }
+                          });
+                        }
+                      },
+                    ),
+                  ],
                 ),
-            ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.access_time_filled, size: 18, color: Theme.of(context).primaryColor),
+                    const SizedBox(width: 6),
+                    Text('${localizations.translate('end_hour')}: '),
+                    DropdownButton<int>(
+                      value: selectedEndSlot,
+                      items: availableEndHours
+                          .map((slot) => DropdownMenuItem(
+                                value: slot,
+                                child: Text(formatTime(slot)),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setStateDialog(() {
+                            selectedEndSlot = value;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: isRecurrent,
+                      onChanged: (value) {
+                        setStateDialog(() {
+                          isRecurrent = value ?? false;
+                        });
+                      },
+                    ),
+                    Icon(Icons.repeat, size: 18, color: Theme.of(context).primaryColor),
+                    const SizedBox(width: 4),
+                    Text(localizations.translate('recurrent')),
+                  ],
+                ),
+                if (isRecurrent)
+                  Row(
+                    children: [
+                      Icon(Icons.event_repeat, size: 18, color: Theme.of(context).primaryColor),
+                      const SizedBox(width: 6),
+                      Text('${localizations.translate('end_recurrence')}: '),
+                      TextButton(
+                        onPressed: () async {
+                          DateTime? pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: recurrenceEndDate ?? day,
+                            firstDate: day,
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                          );
+                          if (pickedDate != null) {
+                            setStateDialog(() {
+                              recurrenceEndDate = pickedDate;
+                            });
+                          }
+                        },
+                        child: Text(recurrenceEndDate != null
+                            ? DateFormat('EEE, MMM d', localizations.languageCode())
+                                .format(recurrenceEndDate!)
+                            : localizations.translate('select_date')),
+                      ),
+                    ],
+                  ),
+                if (isSaving)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                if (stationError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
+                    child: Text(
+                      stationError!,
+                      style: TextStyle(color: Colors.red, fontSize: 13),
+                    ),
+                  ),
+              ],
+            ),
           ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           actions: [
-            TextButton(
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
               onPressed: () async {
                 if (!stationNames.contains(departureStation) ||
                     !stationNames.contains(arrivalStation)) {
@@ -325,13 +370,17 @@ Future<void> showAddEventDialog({
 
                 Navigator.pop(context);
               },
-              child: Text(localizations.translate('save')),
+              label: Text(localizations.translate('save')),
             ),
-            TextButton(
+            TextButton.icon(
+              icon: const Icon(Icons.cancel),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.secondary,
+              ),
               onPressed: () {
                 Navigator.pop(context);
               },
-              child: Text(localizations.translate('cancel')),
+              label: Text(localizations.translate('cancel')),
             ),
           ],
         );
@@ -370,240 +419,282 @@ Future<void> showEditEventDialog({
     builder: (context) {
       return StatefulBuilder(builder: (context, setStateDialog) {
         return AlertDialog(
-          title: Text(localizations.translate('edit_event')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 8,
+          backgroundColor: Theme.of(context).dialogBackgroundColor,
+          title: Row(
             children: [
-              Container(
-                width: 300,
-                child: Autocomplete<String>(
-                  initialValue: TextEditingValue(text: departureStation),
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    if (textEditingValue.text == '') {
-                      return const Iterable<String>.empty();
-                    }
-                    return stationNames.where((String option) {
-                      return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                    });
-                  },
-                  onSelected: (String selection) {
-                    departureStation = selection;
-                  },
-                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                    controller.text = departureStation;
-                    controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
-                    return TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                        hintText: localizations.translate('departure_station'),
-                      ),
-                      onChanged: (value) {
-                        departureStation = value;
-                      },
-                    );
-                  },
-                  optionsViewBuilder: (context, onSelected, options) {
-                    return Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 4.0,
-                        child: Container(
-                          width: 300,
-                          child: ListView(
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            children: options.map((option) {
-                              return ListTile(
-                                title: Text(option),
-                                onTap: () => onSelected(option),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                width: 300,
-                child: Autocomplete<String>(
-                  initialValue: TextEditingValue(text: arrivalStation),
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    if (textEditingValue.text == '') {
-                      return const Iterable<String>.empty();
-                    }
-                    return stationNames.where((String option) {
-                      return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                    });
-                  },
-                  onSelected: (String selection) {
-                    arrivalStation = selection;
-                  },
-                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                    controller.text = arrivalStation;
-                    controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
-                    return TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                        hintText: localizations.translate('arrival_station'),
-                      ),
-                      onChanged: (value) {
-                        arrivalStation = value;
-                      },
-                    );
-                  },
-                  optionsViewBuilder: (context, onSelected, options) {
-                    return Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 4.0,
-                        child: Container(
-                          width: 300,
-                          child: ListView(
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            children: options.map((option) {
-                              return ListTile(
-                                title: Text(option),
-                                onTap: () => onSelected(option),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text('${localizations.translate('day')}: '),
-                  TextButton(
-                    onPressed: () async {
-                      DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: selectedDay,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (pickedDate != null) {
-                        setStateDialog(() {
-                          selectedDay = pickedDate;
-                        });
-                      }
-                    },
-                    child: Text(
-                        DateFormat('EEE, MMM d', localizations.languageCode())
-                            .format(selectedDay)),
+              Icon(Icons.edit, color: Theme.of(context).primaryColor),
+              const SizedBox(width: 8),
+              Text(localizations.translate('edit_event')),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 300,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text('${localizations.translate('start_hour')}: '),
-                  DropdownButton<int>(
-                    value: selectedStartSlot,
-                    items: hours
-                        .map((slot) => DropdownMenuItem(
-                              value: slot,
-                              child: Text(formatTime(slot)),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setStateDialog(() {
-                          selectedStartSlot = value;
-                          availableEndHours = getAvailableEndHours(
-                              selectedDay, selectedStartSlot, event);
-                          if (!availableEndHours.contains(selectedEndSlot)) {
-                            selectedEndSlot = availableEndHours.isNotEmpty
-                                ? availableEndHours.first
-                                : 1;
-                          }
-                        });
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Autocomplete<String>(
+                    initialValue: TextEditingValue(text: departureStation),
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text == '') {
+                        return const Iterable<String>.empty();
                       }
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text('${localizations.translate('end_hour')}: '),
-                  DropdownButton<int>(
-                    value: selectedEndSlot,
-                    items: availableEndHours
-                        .map((slot) => DropdownMenuItem(
-                              value: slot,
-                              child: Text(formatTime(slot)),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setStateDialog(() {
-                          selectedEndSlot = value;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Checkbox(
-                    value: isRecurrent,
-                    onChanged: (value) {
-                      setStateDialog(() {
-                        isRecurrent = value ?? false;
+                      return stationNames.where((String option) {
+                        return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
                       });
                     },
+                    onSelected: (String selection) {
+                      departureStation = selection;
+                    },
+                    fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                      controller.text = departureStation;
+                      controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          hintText: localizations.translate('departure_station'),
+                        ),
+                        onChanged: (value) {
+                          departureStation = value;
+                        },
+                      );
+                    },
+                    optionsViewBuilder: (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 4.0,
+                          child: SizedBox(
+                            width: 300, // Assicura la stessa larghezza del campo input
+                            child: ListView(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              children: options.map((option) {
+                                return ListTile(
+                                  title: Text(option),
+                                  onTap: () => onSelected(option),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  Text(localizations.translate('recurrent')),
-                ],
-              ),
-              if (isRecurrent)
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  width: 300,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Autocomplete<String>(
+                    initialValue: TextEditingValue(text: arrivalStation),
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text == '') {
+                        return const Iterable<String>.empty();
+                      }
+                      return stationNames.where((String option) {
+                        return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                      });
+                    },
+                    onSelected: (String selection) {
+                      arrivalStation = selection;
+                    },
+                    fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                      controller.text = arrivalStation;
+                      controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          hintText: localizations.translate('arrival_station'),
+                        ),
+                        onChanged: (value) {
+                          arrivalStation = value;
+                        },
+                      );
+                    },
+                    optionsViewBuilder: (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 4.0,
+                          child: SizedBox(
+                            width: 300, // Assicura la stessa larghezza del campo input
+                            child: ListView(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              children: options.map((option) {
+                                return ListTile(
+                                  title: Text(option),
+                                  onTap: () => onSelected(option),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Row(
                   children: [
-                    Text('${localizations.translate('end_recurrence')}: '),
+                    Icon(Icons.calendar_today, size: 18, color: Theme.of(context).primaryColor),
+                    const SizedBox(width: 6),
+                    Text('${localizations.translate('day')}: '),
                     TextButton(
                       onPressed: () async {
                         DateTime? pickedDate = await showDatePicker(
                           context: context,
-                          initialDate: recurrenceEndDate ?? selectedDay,
-                          firstDate: selectedDay,
+                          initialDate: selectedDay,
+                          firstDate: DateTime.now(),
                           lastDate: DateTime.now().add(const Duration(days: 365)),
                         );
                         if (pickedDate != null) {
                           setStateDialog(() {
-                            recurrenceEndDate = pickedDate;
+                            selectedDay = pickedDate;
                           });
                         }
                       },
-                      child: Text(recurrenceEndDate != null
-                          ? DateFormat('EEE, MMM d', localizations.languageCode())
-                              .format(recurrenceEndDate!)
-                          : localizations.translate('select_date')),
+                      child: Text(
+                          DateFormat('EEE, MMM d', localizations.languageCode())
+                              .format(selectedDay)),
                     ),
                   ],
                 ),
-              if (stationError != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Text(
-                    stationError!,
-                    style: TextStyle(color: Colors.red, fontSize: 13),
-                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.access_time, size: 18, color: Theme.of(context).primaryColor),
+                    const SizedBox(width: 6),
+                    Text('${localizations.translate('start_hour')}: '),
+                    DropdownButton<int>(
+                      value: selectedStartSlot,
+                      items: hours
+                          .map((slot) => DropdownMenuItem(
+                                value: slot,
+                                child: Text(formatTime(slot)),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setStateDialog(() {
+                            selectedStartSlot = value;
+                            availableEndHours = getAvailableEndHours(
+                                selectedDay, selectedStartSlot, event);
+                            if (!availableEndHours.contains(selectedEndSlot)) {
+                              selectedEndSlot = availableEndHours.isNotEmpty
+                                  ? availableEndHours.first
+                                  : 1;
+                            }
+                          });
+                        }
+                      },
+                    ),
+                  ],
                 ),
-            ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.access_time_filled, size: 18, color: Theme.of(context).primaryColor),
+                    const SizedBox(width: 6),
+                    Text('${localizations.translate('end_hour')}: '),
+                    DropdownButton<int>(
+                      value: selectedEndSlot,
+                      items: availableEndHours
+                          .map((slot) => DropdownMenuItem(
+                                value: slot,
+                                child: Text(formatTime(slot)),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setStateDialog(() {
+                            selectedEndSlot = value;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: isRecurrent,
+                      onChanged: (value) {
+                        setStateDialog(() {
+                          isRecurrent = value ?? false;
+                        });
+                      },
+                    ),
+                    Icon(Icons.repeat, size: 18, color: Theme.of(context).primaryColor),
+                    const SizedBox(width: 4),
+                    Text(localizations.translate('recurrent')),
+                  ],
+                ),
+                if (isRecurrent)
+                  Row(
+                    children: [
+                      Icon(Icons.event_repeat, size: 18, color: Theme.of(context).primaryColor),
+                      const SizedBox(width: 6),
+                      Text('${localizations.translate('end_recurrence')}: '),
+                      TextButton(
+                        onPressed: () async {
+                          DateTime? pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: recurrenceEndDate ?? selectedDay,
+                            firstDate: selectedDay,
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                          );
+                          if (pickedDate != null) {
+                            setStateDialog(() {
+                              recurrenceEndDate = pickedDate;
+                            });
+                          }
+                        },
+                        child: Text(recurrenceEndDate != null
+                            ? DateFormat('EEE, MMM d', localizations.languageCode())
+                                .format(recurrenceEndDate!)
+                            : localizations.translate('select_date')),
+                      ),
+                    ],
+                  ),
+                if (stationError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
+                    child: Text(
+                      stationError!,
+                      style: TextStyle(color: Colors.red, fontSize: 13),
+                    ),
+                  ),
+              ],
+            ),
           ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           actions: [
-            TextButton(
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
               onPressed: () async {
                 if (!stationNames.contains(departureStation) ||
                     !stationNames.contains(arrivalStation)) {
@@ -673,9 +764,16 @@ Future<void> showEditEventDialog({
 
                 Navigator.pop(context);
               },
-              child: Text(localizations.translate('save')),
+              label: Text(localizations.translate('save')),
             ),
-            TextButton(
+            ElevatedButton.icon(
+              icon: const Icon(Icons.delete),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[600],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
               onPressed: () async {
                 bool confirmDelete = await showDialog(
                   context: context,
@@ -709,11 +807,15 @@ Future<void> showEditEventDialog({
                   Navigator.pop(context);
                 }
               },
-              child: Text(localizations.translate('delete')),
+              label: Text(localizations.translate('delete')),
             ),
-            TextButton(
+            TextButton.icon(
+              icon: const Icon(Icons.cancel),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.secondary,
+              ),
               onPressed: () => Navigator.pop(context),
-              child: Text(localizations.translate('cancel')),
+              label: Text(localizations.translate('cancel')),
             ),
           ],
         );
