@@ -20,6 +20,7 @@ class CalendarDayColumn extends StatelessWidget {
   final void Function(DateTime) onLongPressEnd;
   final ScrollController scrollController;
   final int pageIndex;
+  final bool isPastDay; // <--- AGGIUNTO
 
   const CalendarDayColumn({
     super.key,
@@ -39,6 +40,7 @@ class CalendarDayColumn extends StatelessWidget {
     required this.onLongPressEnd,
     required this.scrollController,
     required this.pageIndex,
+    required this.isPastDay, // <--- AGGIUNTO
   });
 
   @override
@@ -73,20 +75,23 @@ class CalendarDayColumn extends StatelessWidget {
       // Se c'è un evento in questo slot, la cella vuota non deve ricevere gesture
       Widget emptyCell = IgnorePointer(
         ignoring: hasEvent,
-        child: CalendarEmptyCell(
-          cellIndex: index,
-          day: day,
-          cellHeight: cellHeight,
-          dragStartIndex: dragStartIndex,
-          dragEndIndex: dragEndIndex,
-          dragStartDay: dragStartDay,
-          draggedEvent: draggedEvent,
-          onAddEvent: onAddEvent,
-          onLongPressStart: onLongPressStart,
-          onLongPressMoveUpdate: onLongPressMoveUpdate,
-          onLongPressEnd: onLongPressEnd,
-          scrollController: scrollController,
-          pageIndex: pageIndex,
+        child: Container(
+          color: !hasEvent && isPastDay ? Colors.grey[200] : null, // <--- COLORE GRIGIO PER CELLE VUOTE PASSATE
+          child: CalendarEmptyCell(
+            cellIndex: index,
+            day: day,
+            cellHeight: cellHeight,
+            dragStartIndex: dragStartIndex,
+            dragEndIndex: dragEndIndex,
+            dragStartDay: dragStartDay,
+            draggedEvent: draggedEvent,
+            onAddEvent: onAddEvent,
+            onLongPressStart: onLongPressStart,
+            onLongPressMoveUpdate: onLongPressMoveUpdate,
+            onLongPressEnd: onLongPressEnd,
+            scrollController: scrollController,
+            pageIndex: pageIndex,
+          ),
         ),
       );
       cells.add(emptyCell);
@@ -114,22 +119,24 @@ class CalendarDayColumn extends StatelessWidget {
               width: widthFactor,
               height: cellHeight * (overlappingEvent.endHour - overlappingEvent.hour),
               child: GestureDetector(
-                onTap: () => onEditEvent(overlappingEvent),
-                onLongPressStart: (_) => onLongPressStart(eventStartIndex, day),
-                onLongPressMoveUpdate: (details) => onLongPressMoveUpdate(
+                onTap: isPastDay ? null : () => onEditEvent(overlappingEvent),
+                onLongPressStart: isPastDay ? null : (_) => onLongPressStart(eventStartIndex, day),
+                onLongPressMoveUpdate: isPastDay ? null : (details) => onLongPressMoveUpdate(
                     details, context, scrollController, pageIndex),
-                onLongPressEnd: (_) => onLongPressEnd(day),
+                onLongPressEnd: isPastDay ? null : (_) => onLongPressEnd(day),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 50),
                   margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
                   decoration: BoxDecoration(
-                    color: isBeingDragged
-                        ? overlappingEvent.isRecurrent
-                            ? Colors.purpleAccent.withOpacity(0.7)
-                            : Colors.blueAccent.withOpacity(0.7)
-                        : overlappingEvent.isRecurrent
-                            ? Colors.purpleAccent
-                            : Colors.lightBlueAccent,
+                    color: isPastDay
+                        ? Colors.grey
+                        : isBeingDragged
+                            ? overlappingEvent.isRecurrent
+                                ? Colors.purpleAccent.withOpacity(0.7)
+                                : Colors.blueAccent.withOpacity(0.7)
+                            : overlappingEvent.isRecurrent
+                                ? Colors.purpleAccent
+                                : Colors.lightBlueAccent,
                     borderRadius: BorderRadius.circular(8.0),
                     boxShadow: [
                       BoxShadow(
@@ -208,14 +215,6 @@ class CalendarTimeColumn extends StatelessWidget {
           topLeft: Radius.circular(10.0),
           bottomLeft: Radius.circular(10.0),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.5),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Column(
         children: List.generate(19, (index) {

@@ -364,10 +364,6 @@ class _CalendarPageState extends State<CalendarPage> {
     final PageController pageController = PageController(initialPage: 0);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(localizations.translate('calendar')),
-        backgroundColor: Colors.blueAccent,
-      ),
       body: Row(
         children: [
           // Fixed time column with synchronized vertical scrolling
@@ -412,15 +408,18 @@ class _CalendarPageState extends State<CalendarPage> {
                         )!;
                         bool isPastDay = day.isBefore(DateTime.now()) &&
                             !isSameDay(day, DateTime.now());
+                        bool isToday = isSameDay(day, DateTime.now());
                         return Expanded(
                           child: Container(
                             height: 40,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.grey[300]!),
-                              color: isPastDay
-                                  ? Colors.grey[300]
-                                  : Colors.blue[100],
+                              color: isToday
+                                  ? Colors.orangeAccent[400]
+                                  : (isPastDay
+                                      ? Colors.grey[300]
+                                      : Colors.blue[100]),
                               borderRadius: BorderRadius.circular(8.0),
                             ),
                             child: Text(
@@ -429,8 +428,9 @@ class _CalendarPageState extends State<CalendarPage> {
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
-                                color:
-                                    isPastDay ? Colors.grey[600] : Colors.black,
+                                color: isToday
+                                    ? Colors.white
+                                    : (isPastDay ? Colors.grey[600] : Colors.black),
                               ),
                             ),
                           ),
@@ -446,6 +446,7 @@ class _CalendarPageState extends State<CalendarPage> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: visibleDays.map((day) {
+                              bool isPastDay = day.isBefore(DateTime.now()) && !isSameDay(day, DateTime.now());
                               return Expanded(
                                 child: CalendarDayColumn(
                                   day: day,
@@ -464,6 +465,7 @@ class _CalendarPageState extends State<CalendarPage> {
                                   onLongPressEnd: _handleLongPressEnd,
                                   scrollController: _dayColumnsController,
                                   pageIndex: pageIndex,
+                                  isPastDay: isPastDay, // <--- AGGIUNGI QUESTA RIGA
                                 ),
                               );
                             }).toList(),

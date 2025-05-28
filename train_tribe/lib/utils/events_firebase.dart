@@ -23,6 +23,5 @@ Future<List<CalendarEvent>> fetchEventsFromFirebase(String userId) async {
       result.add(CalendarEvent.fromFirestore(eventDoc.id, eventDoc.data()!));
     }
   }
-  print('Loaded ${result.length} events from Firebase for user $userId');
   return result;
 }
