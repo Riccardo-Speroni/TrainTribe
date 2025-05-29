@@ -16,14 +16,13 @@ def get_day_event_trip_options_logic(params):
         print("No event options to merge.")
         return None
 
-    merged_routes = []
+    merged_routes = {}
     for event_id, json_path in event_options_with_friends.items():
         tmp_path = os.path.join(tempfile.gettempdir(), os.path.basename(json_path))
         download_from_bucket(bucket_name, json_path, tmp_path)
         with open(tmp_path, "r", encoding="utf-8") as f:
-            event_routes = json.load(f)
-            for route in event_routes.values():
-                merged_routes.append(route)
+            day_options = json.load(f)
+            merged_routes[event_id] = day_options
 
     merged_filename = f"merged_day_event_options_{user_id}.json"
     merged_tmp_path = os.path.join(tempfile.gettempdir(), merged_filename)

@@ -9,6 +9,7 @@ from bucket_manager import download_from_bucket
 from event_options_builder import build_event_options
 from day_event_options_merger import get_day_event_trip_options_logic
 from event_friends_finder import get_event_trip_friends_logic
+from datetime import datetime, timezone, timedelta
 
 jsonified_trenord_data_path = "maps/full_info_trips.json"
 full_legs_partial_path = "maps/results/full_info_legs"
@@ -198,10 +199,9 @@ def update_event_trip_options_logic(event, key, bucket_name):
         logging.error(f"Error deleting routes for event {event_id}: {e}")
     create_event_trip_options_logic(event, key, bucket_name)
 
-def get_event_full_trip_data_logic(req, bucket_name):
-    
-    user_id = req.args.get("user_id")
-    date = req.args.get("date")
+def get_event_full_trip_data_logic(user_id, date, bucket_name):
+
+    logging.error(f"get_event_full_trip_data_logic called with user_id: {user_id}, date: {date}")
 
     if not user_id or not date:
         return {"success": False, "message": "Missing user_id or date parameter"}, 400
@@ -210,12 +210,22 @@ def get_event_full_trip_data_logic(req, bucket_name):
 
     # Fetch events for the user on the specified date
     events_ref = db.collection("users").document(user_id).collection("events")
-    query = events_ref.where("event_start", ">=", date + "T00:00:00Z").where("event_start", "<", date + "T23:59:59Z")
-    events_docs = query.stream()
-    
+    # Convert the date string to a datetime object for querying
+
+    # Parse the input date (expected format: 'YYYY-MM-DD')
+    start_dt = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    end_dt = start_dt + timedelta(days=1)
+
+    query = events_ref.where("event_start", ">=", start_dt).where("event_start", "<", end_dt)
+    events_docs = list(query.stream())
+
+    logging.error(f"Found {len(events_docs)} events for user {user_id} on date {date}")
+    for event in events_docs:
+        logging.error(f"Event ID: {event.id}, Data: {event.to_dict()}")
+
     event_options_with_friends = {}
 
-    #add friends info to event options
+    # add friends info to event options
     for event in events_docs:
         friends_finder_params = {
             "event_options_path": event.to_dict().get("event_options_path"),
@@ -225,6 +235,8 @@ def get_event_full_trip_data_logic(req, bucket_name):
         }
         event_options_with_friends[event.id] = get_event_trip_friends_logic(friends_finder_params)
 
+    logging.error(f"event_options_with_friends: {event_options_with_friends}")
+
     #merge all event options of the day into a single file
     merger_params = {
         "event_options_with_friends": event_options_with_friends,
@@ -232,7 +244,9 @@ def get_event_full_trip_data_logic(req, bucket_name):
         "date": date,
         "user_id": user_id
     }
+
     day_events_options = get_day_event_trip_options_logic(merger_params)
 
     return day_events_options
 
+    # return None

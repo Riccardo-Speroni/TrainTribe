@@ -6,6 +6,7 @@ from firebase_functions import scheduler_fn
 import json
 import tempfile
 import os
+import logging
 from jsonifier import jsonify
 from bucket_manager import download_from_bucket
 from event_trip_options_manager import (
@@ -14,9 +15,6 @@ from event_trip_options_manager import (
     update_event_trip_options_logic,
     get_event_full_trip_data_logic,
 )
-
-from event_friends_finder import get_event_trip_friends_logic
-
 GOOGLE_MAPS_API_KEY = SecretParam('GOOGLE_MAPS_API_KEY')
 
 bucket_name = "traintribe-f2c7b.firebasestorage.app"
@@ -70,11 +68,14 @@ def firestore_event_trip_options_update(event: firestore_fn.Event[dict]) -> None
 
 @https_fn.on_request()
 def get_event_full_trip_data(req: https_fn.Request) -> https_fn.Response:
-    day_json_path = get_event_full_trip_data_logic(req, bucket_name)
+    #TODO: Use user_id and date from request parameters
+    user_id = "pwgIShdGUgRhsyi0ss5wtRWaKQ7P"
+    date = "2025-05-29"
+    day_json_path = get_event_full_trip_data_logic(user_id, date, bucket_name)
     if day_json_path is not None:
         tmp_path = os.path.join(tempfile.gettempdir(), "day_event_options.json")
         download_from_bucket(bucket_name, day_json_path, tmp_path)
-        with open(tmp_path, "w", encoding="utf-8") as f:
+        with open(tmp_path, "r", encoding="utf-8") as f:
             day_options = json.load(f)
         return https_fn.Response(json.dumps(day_options), mimetype="application/json")
 

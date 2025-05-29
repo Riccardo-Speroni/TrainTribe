@@ -20,8 +20,6 @@ def ask_maps(params):
         dt = datetime.strptime(params["arrival_time"], "%Y-%m-%d %H:%M")
         dt_utc = dt.replace(tzinfo=ZoneInfo("UTC"))
         new_arrival_time = int(dt_utc.timestamp())
-        print(f"Original arrival time: {params['arrival_time']}")
-        print(f"Converted arrival time to UTC timestamp: {new_arrival_time}")
         maps_params = {
             "mode": params["mode"],
             "transit_mode": params["transit_mode"],
