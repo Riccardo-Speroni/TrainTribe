@@ -20,6 +20,7 @@ def jsonify(params):
         trips_output_path = os.path.join(tmp_dir, 'full_info_trips.json')
 
         result_output_path = params["result_output_path"]
+        stops_output_path = params["stops_output_path"]
         bucket_name = params["bucket_name"]
 
         zip_url = "https://www.dati.lombardia.it/download/3z4k-mxz9/application%2Fzip"
@@ -69,7 +70,6 @@ def jsonify(params):
             json.dump(stops, f, ensure_ascii=False, indent=2)
 
         trips_dict = {}
-        all_stop_names = set()
         for stop in stops:
             trip_id = stop['trip_id']
             stop_info = {
@@ -80,8 +80,7 @@ def jsonify(params):
                 "departure_time": stop['departure_time']
             }
             trips_dict.setdefault(trip_id, []).append(stop_info)
-            if stop.get('stop_name'):
-                all_stop_names.add(stop['stop_name'])
+
 
         trip_id_to_short_name = {trip['trip_id']: trip.get('trip_short_name', None) for trip in trips_info}
         trips_json = [
@@ -92,17 +91,12 @@ def jsonify(params):
         with open(trips_output_path, 'w', encoding='utf-8') as f:
             json.dump(trips_json, f, ensure_ascii=False, indent=2)
 
-        # Save all stop names to a JSON file
-        all_stop_names_path = os.path.join(tmp_dir, 'all_stop_names.json')
-        with open(all_stop_names_path, 'w', encoding='utf-8') as f:
-            json.dump(sorted(list(all_stop_names)), f, ensure_ascii=False, indent=2)
     except Exception as e:
         return {"success": False, "message": f"Errore durante la creazione dei file JSON completi: {str(e)}"}
 
     try:
         upload_to_bucket(trips_output_path, result_output_path, bucket_name)
-        # Upload all_stop_names.json to the bucket as well
-        upload_to_bucket(all_stop_names_path, os.path.join(os.path.dirname(result_output_path), 'all_stop_names.json'), bucket_name)
+        upload_to_bucket(stops_json, stops_output_path, bucket_name)
     except Exception as e:
         return {"success": False, "message": f"Errore durante il caricamento su bucket: {str(e)}, temp_path: {trips_output_path}"}
 
