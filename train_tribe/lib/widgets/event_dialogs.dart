@@ -7,6 +7,8 @@ import '../models/calendar_event.dart';
 import '../utils/calendar_functions.dart';
 import '../utils/station_names.dart';
 
+const double stationListMaxHeight = 290;
+
 Future<void> showAddEventDialog({
   required BuildContext context,
   required DateTime day,
@@ -90,16 +92,19 @@ Future<void> showAddEventDialog({
                         child: Material(
                           elevation: 4.0,
                           child: SizedBox(
-                            width: 285, // Assicura la stessa larghezza del campo input
-                            child: ListView(
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              children: options.map((option) {
-                                return ListTile(
-                                  title: Text(option),
-                                  onTap: () => onSelected(option),
-                                );
-                              }).toList(),
+                            width: 285,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(maxHeight: stationListMaxHeight),
+                              child: ListView(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                children: options.map((option) {
+                                  return ListTile(
+                                    title: Text(option),
+                                    onTap: () => onSelected(option),
+                                  );
+                                }).toList(),
+                              ),
                             ),
                           ),
                         ),
@@ -147,16 +152,19 @@ Future<void> showAddEventDialog({
                         child: Material(
                           elevation: 4.0,
                           child: SizedBox(
-                            width: 300, // Assicura la stessa larghezza del campo input
-                            child: ListView(
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              children: options.map((option) {
-                                return ListTile(
-                                  title: Text(option),
-                                  onTap: () => onSelected(option),
-                                );
-                              }).toList(),
+                            width: 300,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(maxHeight: stationListMaxHeight),
+                              child: ListView(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                children: options.map((option) {
+                                  return ListTile(
+                                    title: Text(option),
+                                    onTap: () => onSelected(option),
+                                  );
+                                }).toList(),
+                              ),
                             ),
                           ),
                         ),
@@ -476,15 +484,19 @@ Future<void> showEditEventDialog({
                           elevation: 4.0,
                           child: SizedBox(
                             width: 300, // Assicura la stessa larghezza del campo input
-                            child: ListView(
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              children: options.map((option) {
-                                return ListTile(
-                                  title: Text(option),
-                                  onTap: () => onSelected(option),
-                                );
-                              }).toList(),
+                            // Imposta altezza massima per la lista suggerimenti
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(maxHeight: stationListMaxHeight),
+                              child: ListView(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                children: options.map((option) {
+                                  return ListTile(
+                                    title: Text(option),
+                                    onTap: () => onSelected(option),
+                                  );
+                                }).toList(),
+                              ),
                             ),
                           ),
                         ),
@@ -534,15 +546,19 @@ Future<void> showEditEventDialog({
                           elevation: 4.0,
                           child: SizedBox(
                             width: 300, // Assicura la stessa larghezza del campo input
-                            child: ListView(
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              children: options.map((option) {
-                                return ListTile(
-                                  title: Text(option),
-                                  onTap: () => onSelected(option),
-                                );
-                              }).toList(),
+                            // Imposta altezza massima per la lista suggerimenti
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(maxHeight: stationListMaxHeight),
+                              child: ListView(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                children: options.map((option) {
+                                  return ListTile(
+                                    title: Text(option),
+                                    onTap: () => onSelected(option),
+                                  );
+                                }).toList(),
+                              ),
                             ),
                           ),
                         ),

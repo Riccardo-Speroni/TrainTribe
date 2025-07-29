@@ -18,7 +18,8 @@ from event_trip_options_manager import (
 GOOGLE_MAPS_API_KEY = SecretParam('GOOGLE_MAPS_API_KEY')
 
 bucket_name = "traintribe-f2c7b.firebasestorage.app"
-jsonified_trenord_data_path = "maps/full_info_trips.json"
+jsonified_trenord_trips_data_path = "maps/full_info_trips.json"
+jsonified_trenord_stops_data_path = "maps/stops.json"
 full_legs_partial_path = "maps/results/full_info_legs"
 maps_response_partial_path = "maps/responses/maps_response"
 event_options_partial_path = "maps/events/event_options"
@@ -29,7 +30,8 @@ initialize_app()
 def call_jsonify(req: https_fn.Request) -> https_fn.Response:
     
     params = {
-        "result_output_path": jsonified_trenord_data_path,
+        "result_output_path": jsonified_trenord_trips_data_path,
+        "stops_output_path": jsonified_trenord_stops_data_path,
         "bucket_name": bucket_name,
     }
 
