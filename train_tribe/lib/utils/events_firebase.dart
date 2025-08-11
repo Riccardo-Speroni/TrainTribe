@@ -1,6 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../calendar_page.dart';
 import '../models/calendar_event.dart';
 
 Future<List<CalendarEvent>> fetchEventsFromFirebase(String userId) async {

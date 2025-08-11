@@ -29,6 +29,8 @@ def ask_maps(params):
             "destination": params["destination"],
             "arrival_time": new_arrival_time,
             "key": params["key"],
+            "language": "it",
+            "region": "it",
         }
     except ValueError:
         return {"success": False, "message": "Formato orario non valido. Usa YYYY-MM-DD HH:MM."}

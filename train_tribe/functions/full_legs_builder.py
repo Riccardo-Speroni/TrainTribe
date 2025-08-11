@@ -99,7 +99,7 @@ def build_full_info_maps_legs(params):
                 if trip['trip_short_name'] not in trips_by_short_name:
                     trips_by_short_name[trip['trip_short_name']] = []
                 trips_by_short_name[trip['trip_short_name']].append(trip)
-        
+
         logging.info("Trips grouped by short name")
 
         all_routes = []
@@ -128,7 +128,7 @@ def build_full_info_maps_legs(params):
                         trip_short_name = td['trip_short_name']
                         
                         # Find possible trips with this short name
-                        possible_trips = trips_by_short_name.get(trip_short_name, [])
+                        possible_trips = next((v for k, v in trips_by_short_name.items() if trip_short_name in k), [])
                         
                         # Find the exact matching trip
                         trip = find_matching_trip(

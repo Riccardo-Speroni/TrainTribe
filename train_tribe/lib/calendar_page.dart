@@ -119,12 +119,8 @@ class _CalendarPageState extends State<CalendarPage> {
 
         if (_draggedEvent != null) {
           // Drag evento esistente: calcola nuovo giorno e ora
-          if (_dragStartLocalY == null) {
-            _dragStartLocalY = absoluteY;
-          }
-          if (_dragStartPageIndex == null) {
-            _dragStartPageIndex = pageIndex;
-          }
+          _dragStartLocalY ??= absoluteY;
+          _dragStartPageIndex ??= pageIndex;
 
           // Calcola lo shift verticale (slot) e orizzontale (giorno)
           int deltaCells = ((absoluteY - _dragStartLocalY!) / cellHeight).round();
@@ -178,9 +174,7 @@ class _CalendarPageState extends State<CalendarPage> {
         } else {
           // Caso: selezione multipla per creazione evento
           // Salva la posizione iniziale del drag la prima volta che si entra qui
-          if (_dragStartLocalY == null) {
-            _dragStartLocalY = absoluteY;
-          }
+          _dragStartLocalY ??= absoluteY;
           // Calcola la differenza in celle tra la posizione iniziale e quella attuale
           int deltaCells = ((absoluteY - _dragStartLocalY!) / cellHeight).round();
           int newEndIndex = (_dragStartIndex! + deltaCells).clamp(0, hours.length - 1);

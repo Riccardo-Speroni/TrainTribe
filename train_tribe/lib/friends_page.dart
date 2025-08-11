@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'l10n/app_localizations.dart';
-import 'widgets/responsive_card_list.dart';
-import 'widgets/friend_card.dart';
 import 'dart:io' show Platform;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -69,7 +67,7 @@ class _FriendsPageState extends State<FriendsPage> {
     });
     await _db.collection('users').doc(requesterUid).update({
       'sentRequests': FieldValue.arrayRemove([_uid]),
-      'friends.${_uid}': {'ghosted': false}
+      'friends.$_uid': {'ghosted': false}
     });
   }
 
@@ -93,7 +91,7 @@ class _FriendsPageState extends State<FriendsPage> {
       'friends.$friendUid': FieldValue.delete()
     });
     await _db.collection('users').doc(friendUid).update({
-      'friends.${_uid}': FieldValue.delete()
+      'friends.$_uid': FieldValue.delete()
     });
   }
 
@@ -231,7 +229,7 @@ class FriendRequestsContainer extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
