@@ -21,6 +21,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,18 +55,40 @@ void main() async {
     print('Failed to initialize Firebase: $e');
   }
 
-  // // Uncomment the following lines to use app linked to Firebase emulators
-  // // Firestore
-  // FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+  // Inizializza notifiche locali
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
-  // // Auth
-  // FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const DarwinInitializationSettings initializationSettingsDarwin =
+      DarwinInitializationSettings();
 
-  // // Storage
-  // FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
+  final InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+    iOS: initializationSettingsDarwin,
+    macOS: initializationSettingsDarwin,
+    // Altre piattaforme se necessario
+  );
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-  // // Functions
-  // FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
+  // Mostra una notifica di test
+  // await flutterLocalNotificationsPlugin.show(
+  //   0,
+  //   'Test Notifica',
+  //   'Questa è una notifica di test!',
+  //   const NotificationDetails(
+  //     android: AndroidNotificationDetails(
+  //       'test_channel',
+  //       'Test Channel',
+  //       channelDescription: 'Canale per notifiche di test',
+  //       importance: Importance.max,
+  //       priority: Priority.high,
+  //     ),
+  //     iOS: DarwinNotificationDetails(),
+  //     macOS: DarwinNotificationDetails(),
+  //   ),
+  // );
 
   runApp(MyApp());
 }
