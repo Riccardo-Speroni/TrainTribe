@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'home_page.dart';
@@ -21,6 +20,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,18 +54,18 @@ void main() async {
     print('Failed to initialize Firebase: $e');
   }
 
-  // // Uncomment the following lines to use app linked to Firebase emulators
-  // // Firestore
-  // FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+  // Uncomment the following lines to use app linked to Firebase emulators
+  // Firestore
+  FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
 
-  // // Auth
-  // FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+  // Auth
+  FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
 
-  // // Storage
-  // FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
+  // Storage
+  FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
 
-  // // Functions
-  // FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
+  // Functions
+  FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
 
   runApp(MyApp());
 }
