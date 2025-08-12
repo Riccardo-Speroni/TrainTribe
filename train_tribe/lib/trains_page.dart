@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import 'l10n/app_localizations.dart';
-import 'widgets/train_card.dart'; // Importa il widget TrainCard
-import 'widgets/responsive_card_list.dart'; // Importa il widget ResponsiveCardList
+import 'widgets/train_card.dart';
+import 'widgets/responsive_card_list.dart';
 
 class TrainsPage extends StatefulWidget {
   const TrainsPage({super.key});
@@ -15,13 +19,16 @@ class _TrainsPageState extends State<TrainsPage> {
   late List<String> daysOfWeekFull;
   late List<String> daysOfWeekShort;
   int selectedDayIndex = 0;
-  int? expandedCardIndex; // Indice della card attualmente espansa
+  int? expandedCardIndex;
+  Map<String, List<dynamic>>? eventsData;
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
     daysOfWeekFull = [];
     daysOfWeekShort = [];
+    _loadData();
   }
 
   @override
@@ -45,126 +52,45 @@ class _TrainsPageState extends State<TrainsPage> {
     });
   }
 
+  Future<void> _loadData() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    // Get current user ID
+    final user = FirebaseAuth.instance.currentUser;
+    final userId = user?.uid ?? '';
+
+    // Get selected date
+    final now = DateTime.now().add(Duration(days: selectedDayIndex));
+    final dateStr = DateFormat('yyyy-MM-dd').format(now);
+
+    // --- Actual HTTP call ---
+    final url = Uri.parse('https://get-event-full-trip-data-v75np53hva-uc.a.run.app?date=$dateStr&userId=$userId');
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      eventsData = (json.decode(response.body) as Map<String, dynamic>).map(
+        (key, value) => MapEntry(key, value as List<dynamic>),
+      );
+    }
+    
+    // --- Fake hardcoded json file ---
+    /* final jsonString = await rootBundle.loadString('images/json_example.json');
+    eventsData = (json.decode(jsonString) as Map<String, dynamic>).map(
+      (key, value) => MapEntry(key, value as List<dynamic>),
+    );*/
+
+    setState(() {
+      isLoading = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
-
     final bool showFullDays = screenWidth > 600;
     final daysOfWeek = showFullDays ? daysOfWeekFull : daysOfWeekShort;
-
-    // Dati fittizi per le card (in futuro possono essere caricati da un database)
-    final trainData = List.generate(10, (index) {
-      return {
-        'title': '${localizations.translate('solution')} $index',
-      };
-    });
-
-    // Genera le card
-    final trainCards = trainData.asMap().entries.map((entry) {
-      final index = entry.key;
-      final solution = entry.value;
-
-      return TrainCard(
-        title: solution['title']!,
-        isExpanded: expandedCardIndex == index,
-        onTap: () {
-          setState(() {
-            expandedCardIndex = expandedCardIndex == index ? null : index;
-          });
-        },
-        departureTime: DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index))), // Example departure time as String
-        arrivalTime: DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 2))), // Example arrival time as String
-        isDirect: index % 2 == 0, // Example: even index trains are direct
-        userAvatars: [
-          {'image': 'images/avatar1.png', 'name': 'Alice', 'from': '1', 'to': '2'},
-          {'image': 'images/avatar2.png', 'name': 'Bob', 'from': '2', 'to': '7'},
-          {'image': 'images/avatar3.png', 'name': 'Carla', 'from': '3', 'to': '9'},
-          {'image': 'images/avatar4.png', 'name': 'David', 'from': '2', 'to': '3'},
-          {'image': 'images/avatar5.png', 'name': 'Elena', 'from': '1', 'to': '9'},
-        ], // Example list of user avatar objects
-        legs: [
-          {
-            'stops': [
-              {
-                'name': 'Station A',
-                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index))),
-                'departureTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index, minutes: 10))),
-                'platform': '1',
-                'track': 'A',
-                'id': '1',
-              },
-              {
-                'name': 'Station B',
-                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 1))),
-                'departureTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 1, minutes: 5))),
-                'platform': '2',
-                'track': 'B',
-                'id': '2',
-              },
-              {
-                'name': 'Station C',
-                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 2))),
-                'departureTime': null,
-                'platform': '3',
-                'track': 'C',
-                'id': '3',
-              },
-              {
-                'name': 'Station D',
-                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 2))),
-                'departureTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 2, minutes: 8))),
-                'platform': '3',
-                'track': 'C',
-                'id': '4',
-              },
-              {
-                'name': 'Station E',
-                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 2))),
-                'departureTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 2, minutes: 8))),
-                'platform': '3',
-                'track': 'C',
-                'id': '5',
-              }
-            ],
-            'trainNumber': 'T${index + 100}',
-            'operator': 'TrainCo',
-            'isDirect': index % 2 == 0,
-          },
-          {
-            'stops': [
-              {
-                'name': 'Station X',
-                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 3))),
-                'departureTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 3, minutes: 8))),
-                'platform': '4',
-                'track': 'D',
-                'id': '7',
-              },
-              {
-                'name': 'Station Y',
-                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 4))),
-                'departureTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 4, minutes: 6))),
-                'platform': '5',
-                'track': 'E',
-                'id': '8',
-              },
-              {
-                'name': 'Station Z',
-                'arrivalTime': DateFormat('HH:mm').format(DateTime.now().add(Duration(hours: index + 5))),
-                'departureTime': null,
-                'platform': '6',
-                'track': 'F',
-                'id': '9',
-              },
-            ],
-            'trainNumber': 'T${index + 200}',
-            'operator': 'Railways',
-            'isDirect': index % 2 != 0,
-          }
-        ],
-      );
-    }).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -179,6 +105,7 @@ class _TrainsPageState extends State<TrainsPage> {
                     setState(() {
                       selectedDayIndex = index;
                     });
+                    _loadData();
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -202,20 +129,160 @@ class _TrainsPageState extends State<TrainsPage> {
           ),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0), // Add padding to the page
-        child: Column(
-          children: [
-            // Add any other widgets above the list if needed
-            Expanded(
-              child: ResponsiveCardList(
-                cards: trainCards,
-                expandedCardIndex: expandedCardIndex, // Pass the expanded card index
-              ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: eventsData == null
+                  ? Center(child: Text(localizations.translate('no_trains_found')))
+                  : ListView(
+                      children: [
+                        ...eventsData!.entries.map((eventEntry) {
+                          final eventId = eventEntry.key;
+                          final routes = eventEntry.value;
+                          // Build the list of TrainCards for this event
+                          final trainCards = routes.asMap().entries.map((routeEntry) {
+                            final routeIndex = routeEntry.key;
+                            final route = routeEntry.value as Map<String, dynamic>;
+                            // Collect all legs (leg0, leg1, ...)
+                            final legs = <Map<String, dynamic>>[];
+                            for (var k in route.keys) {
+                              if (k.startsWith('leg')) {
+                                legs.add(route[k]);
+                              }
+                            }
+                            // For userAvatars: collect all friends from all legs, and merge by user_id (or image+name)
+                            final Map<String, Map<String, String>> userAvatarsMap = {};
+                            for (final leg in legs) {
+                              if (leg['friends'] != null) {
+                                for (final friend in (leg['friends'] as List)) {
+                                  final userId = (friend['user_id'] ?? '') as String;
+                                  final image = (friend['picture'] ?? '').toString();
+                                  final name = (friend['username'] ?? '').toString();
+                                  final from = (friend['from'] ?? '').toString();
+                                  final to = (friend['to'] ?? '').toString();
+                                  // Use userId if present, otherwise fallback to image+name
+                                  final key = userId.isNotEmpty ? userId : '$image|$name';
+                                  if (!userAvatarsMap.containsKey(key)) {
+                                    userAvatarsMap[key] = {
+                                      'image': image,
+                                      'name': name,
+                                      'from': from,
+                                      'to': to,
+                                    };
+                                  } else {
+                                    // Merge: set from=min(from), to=max(to)
+                                    final prevFrom = userAvatarsMap[key]!['from'] ?? from;
+                                    final prevTo = userAvatarsMap[key]!['to'] ?? to;
+                                    // Use string comparison for stop_id, or if numeric, use int
+                                    userAvatarsMap[key]!['from'] =
+                                        (from.compareTo(prevFrom) < 0) ? from : prevFrom;
+                                    userAvatarsMap[key]!['to'] =
+                                        (to.compareTo(prevTo) > 0) ? to : prevTo;
+                                  }
+                                }
+                              }
+                            }
+                            final userAvatars = userAvatarsMap.values.toList();
+                            // Departure/arrival time: from first/last stop of first/last leg
+                            String departureTime = '';
+                            String arrivalTime = '';
+                            if (legs.isNotEmpty) {
+                              final firstLeg = legs.first;
+                              final lastLeg = legs.last;
+                              final firstStops = firstLeg['stops'] as List<dynamic>;
+                              final lastStops = lastLeg['stops'] as List<dynamic>;
+                              if (firstStops.isNotEmpty) {
+                                departureTime = (firstStops.first['departure_time'] ?? firstStops.first['arrival_time'] ?? '').toString().substring(0,5);
+                              }
+                              if (lastStops.isNotEmpty) {
+                                arrivalTime = (lastStops.last['arrival_time'] ?? lastStops.last['departure_time'] ?? '').toString().substring(0,5);
+                              }
+                            }
+                            // isDirect: only one leg
+                            final isDirect = legs.length == 1;
+                            // legs for TrainCard: stops, trainNumber, operator, isDirect
+                            final legsForCard = legs.map((leg) {
+                              final stops = (leg['stops'] as List<dynamic>).map((stop) {
+                                return {
+                                  'name': stop['stop_name'] ?? '',
+                                  'arrivalTime': stop['arrival_time']?.toString().substring(0,5) ?? '',
+                                  'departureTime': stop['departure_time']?.toString().substring(0,5) ?? '',
+                                  'platform': stop['platform'] ?? '',
+                                  'track': stop['track'] ?? '',
+                                  'id': stop['stop_id'] ?? '',
+                                };
+                              }).toList();
+                              return {
+                                'stops': stops,
+                                'trainNumber': leg['trip_id'] ?? '',
+                                'operator': '', // Not present in json
+                                'isDirect': isDirect,
+                                'userFrom': leg['from'] ?? '',
+                                'userTo': leg['to'] ?? '',
+                                'originalFriends': leg['friends'] ?? [],
+                              };
+                            }).toList();
+                            // Title: Solution N
+                            final title = '${localizations.translate('solution')} $routeIndex';
+                            // Use a unique index for expandedCardIndex per event
+                            final cardIndex = routeIndex;
+                            return TrainCard(
+                              title: title,
+                              isExpanded: expandedCardIndex == (eventId.hashCode ^ cardIndex),
+                              onTap: () {
+                                setState(() {
+                                  expandedCardIndex = expandedCardIndex == (eventId.hashCode ^ cardIndex)
+                                      ? null
+                                      : (eventId.hashCode ^ cardIndex);
+                                });
+                              },
+                              departureTime: departureTime,
+                              arrivalTime: arrivalTime,
+                              isDirect: isDirect,
+                              userAvatars: userAvatars,
+                              legs: legsForCard,
+                            );
+                          }).toList();
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Divider(thickness: 2, color: Colors.blueGrey),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                                      child: Text(
+                                        'Event: $eventId',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blueGrey,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Divider(thickness: 2, color: Colors.blueGrey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              ResponsiveCardList(
+                                cards: trainCards,
+                                expandedCardIndex: trainCards.indexWhere((card) =>
+                                  (expandedCardIndex == (eventId.hashCode ^ trainCards.indexOf(card)))
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                      ],
+                    ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }
