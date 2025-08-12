@@ -134,6 +134,7 @@ class AppLocalizations {
       'add_new_friends': 'Add new friends',
       'add_friend': 'Add friend',
       'request_sent': 'Request sent',
+      'no_trains_found': 'No trains have been found',
     },
     'it': {
       // General
@@ -256,6 +257,7 @@ class AppLocalizations {
       'add_new_friends': 'Aggiungi nuovi amici',
       'add_friend': 'Aggiungi amico',
       'request_sent': 'Richiesta inviata',
+      'no_trains_found': 'Non è stato trovato nessun treno'
     },
   };
 

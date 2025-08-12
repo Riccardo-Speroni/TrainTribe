@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import 'l10n/app_localizations.dart';
 import 'widgets/train_card.dart';
 import 'widgets/responsive_card_list.dart';
@@ -64,19 +65,20 @@ class _TrainsPageState extends State<TrainsPage> {
     final now = DateTime.now().add(Duration(days: selectedDayIndex));
     final dateStr = DateFormat('yyyy-MM-dd').format(now);
 
-    // --- Actual HTTP call (commented out for now) ---
-    /*
+    // --- Actual HTTP call ---
     final url = Uri.parse('https://get-event-full-trip-data-v75np53hva-uc.a.run.app?date=$dateStr&userId=$userId');
     final response = await http.get(url);
     if (response.statusCode == 200) {
-      eventsData = json.decode(response.body) as Map<String, dynamic>;
+      eventsData = (json.decode(response.body) as Map<String, dynamic>).map(
+        (key, value) => MapEntry(key, value as List<dynamic>),
+      );
     }
-    */
     
-    final jsonString = await rootBundle.loadString('images/json_example.json');
+    // --- Fake hardcoded json file ---
+    /* final jsonString = await rootBundle.loadString('images/json_example.json');
     eventsData = (json.decode(jsonString) as Map<String, dynamic>).map(
       (key, value) => MapEntry(key, value as List<dynamic>),
-    );
+    );*/
 
     setState(() {
       isLoading = false;
@@ -132,7 +134,7 @@ class _TrainsPageState extends State<TrainsPage> {
           : Padding(
               padding: const EdgeInsets.all(16.0),
               child: eventsData == null
-                  ? const Center(child: Text('No data'))
+                  ? Center(child: Text(localizations.translate('no_trains_found')))
                   : ListView(
                       children: [
                         ...eventsData!.entries.map((eventEntry) {
