@@ -22,6 +22,7 @@ import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:async';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,41 +56,6 @@ void main() async {
     print('Failed to initialize Firebase: $e');
   }
 
-  // Inizializza notifiche locali
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-  const DarwinInitializationSettings initializationSettingsDarwin =
-      DarwinInitializationSettings();
-
-  final InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-    iOS: initializationSettingsDarwin,
-    macOS: initializationSettingsDarwin,
-    // Altre piattaforme se necessario
-  );
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-
-  // Mostra una notifica di test
-  // await flutterLocalNotificationsPlugin.show(
-  //   0,
-  //   'Test Notifica',
-  //   'Questa è una notifica di test!',
-  //   const NotificationDetails(
-  //     android: AndroidNotificationDetails(
-  //       'test_channel',
-  //       'Test Channel',
-  //       channelDescription: 'Canale per notifiche di test',
-  //       importance: Importance.max,
-  //       priority: Priority.high,
-  //     ),
-  //     iOS: DarwinNotificationDetails(),
-  //     macOS: DarwinNotificationDetails(),
-  //   ),
-  // );
-
   runApp(MyApp());
 }
 
@@ -105,9 +71,74 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  // Local Notifications
+  late FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin;
+  Timer? _friendRequestTimer;
+  Set<String> _alreadyNotifiedRequests = {};
+
   @override
   void initState() {
     super.initState();
+    _initNotifications();
+    _startFriendRequestPolling();
+  }
+
+  @override
+  void dispose() {
+    _friendRequestTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initNotifications() async {
+    _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const DarwinInitializationSettings initializationSettingsDarwin =
+        DarwinInitializationSettings();
+
+    final InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsDarwin,
+      macOS: initializationSettingsDarwin,
+    );
+    await _flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  }
+
+  void _startFriendRequestPolling() {
+    _friendRequestTimer?.cancel();
+    _friendRequestTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final List<dynamic> requests = doc.data()?['receivedRequests'] ?? [];
+      for (final req in requests) {
+        if (!_alreadyNotifiedRequests.contains(req)) {
+          // Recupera username dell'utente che ha inviato la richiesta
+          final reqDoc = await FirebaseFirestore.instance.collection('users').doc(req).get();
+          final username = reqDoc.data()?['username'] ?? 'Unknown';
+          await _flutterLocalNotificationsPlugin.show(
+            req.hashCode, // id unico per richiesta
+            'Nuova richiesta di amicizia',
+            '$username ti ha inviato una richiesta di amicizia.',
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'friend_requests',
+                'Friend Requests',
+                channelDescription: 'Notifiche per richieste di amicizia',
+                importance: Importance.max,
+                priority: Priority.high,
+              ),
+              iOS: DarwinNotificationDetails(),
+              macOS: DarwinNotificationDetails(),
+            ),
+          );
+          _alreadyNotifiedRequests.add(req);
+        }
+      }
+      // Rimuovi richieste non più presenti
+      _alreadyNotifiedRequests.removeWhere((id) => !requests.contains(id));
+    });
   }
 
   final GoRouter _router = GoRouter(
