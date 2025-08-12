@@ -6,7 +6,6 @@ from firebase_functions import scheduler_fn
 import json
 import tempfile
 import os
-import logging
 from jsonifier import jsonify
 from bucket_manager import download_from_bucket
 from event_trip_options_manager import (
@@ -64,9 +63,9 @@ def firestore_event_trip_options_create(event: firestore_fn.Event[dict]) -> None
 def firestore_event_trip_options_delete(event: firestore_fn.Event[dict]) -> None:
     delete_event_trip_options_logic(event)
 
-@firestore_fn.on_document_updated(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
-def firestore_event_trip_options_update(event: firestore_fn.Event[dict]) -> None:
-    update_event_trip_options_logic(event, GOOGLE_MAPS_API_KEY, bucket_name)
+# @firestore_fn.on_document_updated(document="users/{user_id}/events/{event_id}", secrets=[GOOGLE_MAPS_API_KEY])
+# def firestore_event_trip_options_update(event: firestore_fn.Event[dict]) -> None:
+#     update_event_trip_options_logic(event, GOOGLE_MAPS_API_KEY, bucket_name)
 
 @https_fn.on_request()
 def get_event_full_trip_data(req: https_fn.Request) -> https_fn.Response:
