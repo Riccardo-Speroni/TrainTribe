@@ -32,15 +32,11 @@ void main() async {
   }
 
   final String? languageCode = prefs.getString('language_code');
-  appLocale.value = languageCode != null
-      ? Locale(languageCode)
-      : PlatformDispatcher.instance.locale;
+  appLocale.value = languageCode != null ? Locale(languageCode) : PlatformDispatcher.instance.locale;
 
   final int? themeModeIndex = prefs.getInt('theme_mode');
   appTheme.value = themeModeIndex != null
-      ? (themeModeIndex == 0
-          ? ThemeMode.light
-          : (themeModeIndex == 1 ? ThemeMode.dark : ThemeMode.system))
+      ? (themeModeIndex == 0 ? ThemeMode.light : (themeModeIndex == 1 ? ThemeMode.dark : ThemeMode.system))
       : ThemeMode.system;
 
   // Initialize Firebase
@@ -54,24 +50,24 @@ void main() async {
     print('Failed to initialize Firebase: $e');
   }
 
-  // // Uncomment the following lines to use app linked to Firebase emulators
-  // // Firestore
-  // FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+  const useEmulator = false; // Set to true to use Firebase emulators
 
-  // // Auth
-  // FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
-
-  // // Storage
-  // FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
-
-  // // Functions
-  // FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
+  // ignore: dead_code
+  if (useEmulator) {
+    // Firestore
+    FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+    // Auth
+    FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+    // Storage
+    FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
+    // Functions
+    FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
+  }
 
   runApp(MyApp());
 }
 
-ValueNotifier<Locale> appLocale =
-    ValueNotifier(PlatformDispatcher.instance.locale);
+ValueNotifier<Locale> appLocale = ValueNotifier(PlatformDispatcher.instance.locale);
 ValueNotifier<ThemeMode> appTheme = ValueNotifier(ThemeMode.system);
 
 class MyApp extends StatefulWidget {
@@ -88,6 +84,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   final GoRouter _router = GoRouter(
+    debugLogDiagnostics: true,
     initialLocation: '/root',
     redirect: (context, state) async {
       final prefs = await SharedPreferences.getInstance();
@@ -100,20 +97,19 @@ class _MyAppState extends State<MyApp> {
         return '/onboarding';
       }
 
-      // Rule 2: Redirect to login if not logged in and restrict access to login/signup pages
-      if (user == null &&
-          ((state.fullPath != '/login' && state.fullPath != '/signup') ||
-              (state.fullPath == '/'))) {
-        print('Redirecting to login page...');
-        return '/login';
+      // Rule 2: If not logged in, allow only onboarding/login/signup. Anything else -> login
+      if (user == null) {
+        final path = state.fullPath ?? '';
+        const allowedUnauthed = ['/onboarding', '/login', '/signup'];
+        if (!allowedUnauthed.contains(path)) {
+          print('Unauthenticated, redirecting to login page...');
+          return '/login';
+        }
       }
 
       // Rule 3: Check if the user's profile is complete
       if (user != null) {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
         if (!userDoc.exists || userDoc.data()?['username'] == null) {
           // Redirect to complete_signup if profile is incomplete
           print('Redirecting to complete_signup page...');
@@ -130,17 +126,14 @@ class _MyAppState extends State<MyApp> {
       return null;
     },
     routes: [
-      GoRoute(
-          path: '/onboarding',
-          builder: (context, state) => const OnboardingPage()),
+      GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingPage()),
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
       GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),
       GoRoute(path: '/root', builder: (context, state) => const RootPage()),
       GoRoute(
         path: '/complete_signup',
         builder: (context, state) {
-          final extra =
-              state.extra as Map<String, dynamic>?; // Retrieve extra data
+          final extra = state.extra as Map<String, dynamic>?; // Retrieve extra data
           return CompleteSignUpPage(
             email: extra?['email'],
             name: extra?['name'],
@@ -231,14 +224,10 @@ class _RootPageState extends State<RootPage> {
       bottomNavigationBar: NavigationBar(
         destinations: [
           NavigationDestination(icon: const Icon(Icons.home), label: titles[0]),
-          NavigationDestination(
-              icon: const Icon(Icons.people), label: titles[1]),
-          NavigationDestination(
-              icon: const Icon(Icons.train), label: titles[2]),
-          NavigationDestination(
-              icon: const Icon(Icons.calendar_today), label: titles[3]),
-          NavigationDestination(
-              icon: const Icon(Icons.person), label: titles[4]),
+          NavigationDestination(icon: const Icon(Icons.people), label: titles[1]),
+          NavigationDestination(icon: const Icon(Icons.train), label: titles[2]),
+          NavigationDestination(icon: const Icon(Icons.calendar_today), label: titles[3]),
+          NavigationDestination(icon: const Icon(Icons.person), label: titles[4]),
         ],
         onDestinationSelected: (int index) {
           setState(() {

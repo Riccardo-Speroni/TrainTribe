@@ -47,12 +47,12 @@ class ResponsiveCardList extends StatelessWidget {
             ),
           );
         } else {
-          return ListView.builder(
+          // On small screens, use a Column so the parent ListView handles scrolling
+          return Padding(
             padding: const EdgeInsets.all(10.0),
-            itemCount: cards.length,
-            itemBuilder: (context, index) {
-              return cards[index];
-            },
+            child: Column(
+              children: cards,
+            ),
           );
         }
       },
