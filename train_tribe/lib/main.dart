@@ -73,19 +73,18 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   // Local Notifications
   late FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin;
-  Timer? _friendRequestTimer;
-  Set<String> _alreadyNotifiedRequests = {};
+  Timer? _notificationTimer;
 
   @override
   void initState() {
     super.initState();
     _initNotifications();
-    _startFriendRequestPolling();
+    _startNotificationPolling();
   }
 
   @override
   void dispose() {
-    _friendRequestTimer?.cancel();
+    _notificationTimer?.cancel();
     super.dispose();
   }
 
@@ -105,39 +104,39 @@ class _MyAppState extends State<MyApp> {
     await _flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
-  void _startFriendRequestPolling() {
-    _friendRequestTimer?.cancel();
-    _friendRequestTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+  void _startNotificationPolling() {
+    _notificationTimer?.cancel();
+    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final List<dynamic> requests = doc.data()?['receivedRequests'] ?? [];
-      for (final req in requests) {
-        if (!_alreadyNotifiedRequests.contains(req)) {
-          // Recupera username dell'utente che ha inviato la richiesta
-          final reqDoc = await FirebaseFirestore.instance.collection('users').doc(req).get();
-          final username = reqDoc.data()?['username'] ?? 'Unknown';
-          await _flutterLocalNotificationsPlugin.show(
-            req.hashCode, // id unico per richiesta
-            'Nuova richiesta di amicizia',
-            '$username ti ha inviato una richiesta di amicizia.',
-            const NotificationDetails(
-              android: AndroidNotificationDetails(
-                'friend_requests',
-                'Friend Requests',
-                channelDescription: 'Notifiche per richieste di amicizia',
-                importance: Importance.max,
-                priority: Priority.high,
-              ),
-              iOS: DarwinNotificationDetails(),
-              macOS: DarwinNotificationDetails(),
+      final notificationsRef = FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: user.uid);
+
+      final querySnapshot = await notificationsRef.get();
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        final title = data['title'] ?? 'Notifica';
+        final description = data['description'] ?? '';
+        await _flutterLocalNotificationsPlugin.show(
+          doc.id.hashCode,
+          title,
+          description,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'custom_notifications',
+              'Custom Notifications',
+              channelDescription: 'Notifiche personalizzate',
+              importance: Importance.max,
+              priority: Priority.high,
             ),
-          );
-          _alreadyNotifiedRequests.add(req);
-        }
+            iOS: DarwinNotificationDetails(),
+            macOS: DarwinNotificationDetails(),
+          ),
+        );
+        // Elimina la notifica dopo averla mostrata
+        await doc.reference.delete();
       }
-      // Rimuovi richieste non più presenti
-      _alreadyNotifiedRequests.removeWhere((id) => !requests.contains(id));
     });
   }
 
@@ -304,3 +303,4 @@ class _RootPageState extends State<RootPage> {
     );
   }
 }
+
