@@ -57,6 +57,15 @@ class _FriendsPageState extends State<FriendsPage> {
     await _db.collection('users').doc(targetUid).update({
       'receivedRequests': FieldValue.arrayUnion([_uid])
     });
+
+    // Crea una notifica per il destinatario
+    final myUsername = myData.data()?['username'] ?? 'Unknown';
+    await _db.collection('notifications').add({
+      'userId': targetUid,
+      'title': 'Nuova richiesta di amicizia',
+      'description': '$myUsername ti ha inviato una richiesta di amicizia.',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> _acceptFriendRequest(String requesterUid) async {
