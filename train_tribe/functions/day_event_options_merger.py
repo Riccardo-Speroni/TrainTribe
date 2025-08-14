@@ -2,6 +2,7 @@ import json
 from bucket_manager import download_from_bucket, upload_to_bucket
 import tempfile
 import os
+import logging
 
 def get_day_event_trip_options_logic(params):
 
@@ -11,9 +12,9 @@ def get_day_event_trip_options_logic(params):
     date = params.get("date")
 
 
-    # This function merges all event options of the day into a single list (not dict)
+    # This function merges all event options of the day into a single list
     if not event_options_with_friends:
-        print("No event options to merge.")
+        logging.warning("No event options to merge.")
         return None
 
     merged_routes = {}

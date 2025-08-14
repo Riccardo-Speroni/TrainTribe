@@ -1,10 +1,11 @@
+from heapq import merge
 from firebase_admin import firestore
-from firebase_functions import logger
 from zoneinfo import ZoneInfo
 import datetime
 import json
 import os
 import tempfile
+import logging
 from bucket_manager import download_from_bucket
 from event_options_builder import build_event_options
 from day_event_options_merger import get_day_event_trip_options_logic
@@ -65,8 +66,8 @@ def event_options_save_to_db(params):
     db = firestore.client()
     # Update the event document with the event_options_path
     event_doc_ref = db.collection("users").document(user_id).collection("events").document(event_id)
-    event_doc_ref.update({"event_options_path": event_options_path})
-
+    event_doc_ref.set({"event_options_path": event_options_path}, merge=True)
+    
     # Add new routes
     for route in event_options:
         for leg_id in route:
@@ -130,11 +131,11 @@ def create_event_trip_options_logic(event, key, bucket_name):
         }
         event_options_save_to_db(params)
         if result["success"]:
-            logger.info(f"Event options saved to DB for event {event.params['event_id']}")
+            logging.info(f"Event options saved to DB for event {event.params['event_id']}")
         else:
-            logger.error(f"Error saving event options to DB: {result['message']}")
+            logging.error(f"Error saving event options to DB: {result['message']}")
     else:
-        logger.error(f"Error processing event options: {result['message']}")
+        logging.error(f"Error processing event options: {result['message']}")
 
 def delete_event_trip_options_logic(event):
     data_raw = event.data
@@ -166,7 +167,7 @@ def delete_event_trip_options_logic(event):
                         try:
                             db.collection("trains_match").document(recurrence_counter.strftime("%Y-%m-%d")).collection("trains").document(trip_id).collection("users").document(user_id).delete()
                         except Exception as e:
-                            logger.error(f"User {user_id} is not in trip {trip_id} of date {recurrence_counter}: {e}")
+                            logging.error(f"User {user_id} is not in trip {trip_id} of date {recurrence_counter}: {e}")
             recurrence_counter += datetime.timedelta(days=7)
     else:
         for route in routes:
@@ -176,20 +177,20 @@ def delete_event_trip_options_logic(event):
                     try:
                         db.collection("trains_match").document(event_start_time.date().strftime("%Y-%m-%d")).collection("trains").document(trip_id).collection("users").document(user_id).delete()
                     except Exception as e:
-                        logger.error(f"User {user_id} is not in trip {trip_id} of date {event_start_time}: {e}")
+                        logging.error(f"User {user_id} is not in trip {trip_id} of date {event_start_time}: {e}")
 
 def update_event_trip_options_logic(event, key, bucket_name):
 
     if event.data.before is None:
-        logger.error("No previous data found for event trip options update.")
+        logging.error("No previous data found for event trip options update.")
         return
     else:
-        logger.error("BEFORE DATA: " + event.data.before.to_dict())
+        logging.error("BEFORE DATA: " + event.data.before.to_dict())
     if event.data.after is None:
-        logger.error("No new data found for event trip options update.")
+        logging.error("No new data found for event trip options update.")
         return
     else:
-        logger.error("AFTER DATA: " + event.data.after.to_dict())
+        logging.error("AFTER DATA: " + event.data.after.to_dict())
 
     before = event.data.before.to_dict()
     after = event.data.after.to_dict()
@@ -198,7 +199,7 @@ def update_event_trip_options_logic(event, key, bucket_name):
     changed = any(before.get(k) != after.get(k) for k in keys)
 
     if not changed:
-        logger.error("No relevant changes detected in event trip options.")
+        logging.warn("No relevant changes detected in event trip options.")
         return
     
     delete_event_trip_options_logic(event)
@@ -210,16 +211,13 @@ def update_event_trip_options_logic(event, key, bucket_name):
         for doc in routes_ref.stream():
             doc.reference.delete()
     except Exception as e:
-        logger.error(f"Error deleting routes for event {event_id}: {e}")
+        logging.error(f"Error deleting routes for event {event_id}: {e}")
     create_event_trip_options_logic(event, key, bucket_name)
 
 def get_event_full_trip_data_logic(user_id, date, bucket_name):
 
-    logger.error(f"get_event_full_trip_data_logic called with user_id: {user_id}, date: {date}")
+    logging.info(f"get_event_full_trip_data_logic called with user_id: {user_id}, date: {date}")
 
-    if not user_id or not date:
-        return {"success": False, "message": "Missing user_id or date parameter"}, 400
-    
     db = firestore.client()
 
     # Fetch events for the user on the specified date
@@ -233,9 +231,9 @@ def get_event_full_trip_data_logic(user_id, date, bucket_name):
     query = events_ref.where("event_start", ">=", start_dt).where("event_start", "<", end_dt)
     events_docs = list(query.stream())
 
-    logger.error(f"Found {len(events_docs)} events for user {user_id} on date {date}")
+    logging.info(f"Found {len(events_docs)} events for user {user_id} on date {date}")
     for event in events_docs:
-        logger.error(f"Event ID: {event.id}, Data: {event.to_dict()}")
+        logging.info(f"Event ID: {event.id}, Data: {event.to_dict()}")
 
     event_options_with_friends = {}
 
@@ -249,7 +247,7 @@ def get_event_full_trip_data_logic(user_id, date, bucket_name):
         }
         event_options_with_friends[event.id] = get_event_trip_friends_logic(friends_finder_params)
 
-    logger.error(f"event_options_with_friends: {event_options_with_friends}")
+    logging.info(f"event_options_with_friends: {event_options_with_friends}")
 
     #merge all event options of the day into a single file
     merger_params = {
