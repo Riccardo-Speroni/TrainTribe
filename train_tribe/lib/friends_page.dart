@@ -378,15 +378,23 @@ class FriendsSearchContainer extends StatelessWidget {
             ...filteredFriends.map((entry) => FutureBuilder<DocumentSnapshot>(
                   future: FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
                   builder: (context, snapshot) {
+                    // Only render a friend if it matches the search query
+                    if (!snapshot.hasData) return const SizedBox.shrink();
+
                     final friendData = entry.value as Map<String, dynamic>;
                     final isGhosted = friendData['ghosted'] == true;
-                    final user = snapshot.data?.data() as Map<String, dynamic>? ?? {};
-                    final username = user['username'] ?? 'Unknown';
+                    final user = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+                    final username = (user['username'] ?? 'Unknown').toString();
                     final hasPhone = (user['phone'] ?? '').toString().isNotEmpty;
+
+                    final query = searchController.text.trim().toLowerCase();
+                    final matches = query.isEmpty || username.toLowerCase().startsWith(query);
+                    if (!matches) return const SizedBox.shrink();
+
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: ListTile(
-                        leading: CircleAvatar(
+                        leading: const CircleAvatar(
                           backgroundImage: AssetImage('images/djungelskog.jpg'),
                         ),
                         title: Text(username),
