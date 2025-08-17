@@ -1,3 +1,5 @@
+from math import e
+import re
 from firebase_functions import https_fn
 from firebase_functions import firestore_fn
 from firebase_admin import initialize_app
@@ -45,8 +47,9 @@ def call_jsonify(req: https_fn.Request) -> https_fn.Response:
 @scheduler_fn.on_schedule(schedule="0 0 * * 1")
 def call_jsonify_scheduled(req: https_fn.Request) -> https_fn.Response:
     params = {
-        "result_output_path": jsonified_trenord_data_path,
-        "bucket_name": bucket_name,
+    "result_output_path": jsonified_trenord_trips_data_path,
+    "stops_output_path": jsonified_trenord_stops_data_path,
+    "bucket_name": bucket_name,
     }
 
     result = jsonify(params)
@@ -70,9 +73,30 @@ def firestore_event_trip_options_update(event: firestore_fn.Event[dict]) -> None
 
 @https_fn.on_request()
 def get_event_full_trip_data(req: https_fn.Request) -> https_fn.Response:
-    #TODO: Use user_id and date from request parameters
-    user_id = "pwgIShdGUgRhsyi0ss5wtRWaKQ7P"
-    date = "2025-05-29"
+    req_params = req.args
+    if not req_params:
+        logging.error("No parameters provided in request.")
+        return https_fn.Response("No parameters provided.", status=400)
+    else:
+        # Log parameters in a readable way (avoid extra escaping in message by logging fields)
+        try:
+            _user = req_params.get("userId")
+            _date = req_params.get("date")
+            logging.info("Request parameters: date=%s, userId=%s", _date, _user)
+        except Exception:
+            logging.info("Request parameters present but could not be read.")
+
+    # Accept both camelCase and snake_case for compatibility
+    user_id = req_params.get("userId")
+    if not user_id:
+        logging.error("User ID not provided in request parameters.")
+        return https_fn.Response("User ID parameter is required.", status=400)
+
+    date = req_params.get("date")
+    if not date:
+        logging.error("Date not provided in request parameters.")
+        return https_fn.Response("Date parameter is required.", status=400)
+    logging.info("Using user_id: %s, date: %s", user_id, date)
     day_json_path = get_event_full_trip_data_logic(user_id, date, bucket_name)
     if day_json_path is not None:
         tmp_path = os.path.join(tempfile.gettempdir(), "day_event_options.json")
@@ -80,22 +104,5 @@ def get_event_full_trip_data(req: https_fn.Request) -> https_fn.Response:
         with open(tmp_path, "r", encoding="utf-8") as f:
             day_options = json.load(f)
         return https_fn.Response(json.dumps(day_options), mimetype="application/json")
-
     else:
-        return https_fn.Response("No trips found or an error occurred.", status=500)
-
-# @https_fn.on_request()
-# def get_event_trip_friends(req: https_fn.Request) -> https_fn.Response:
-#     params = {
-#         "event_options_path": req.args.get("event_options_path"),
-#         "user_id": req.args.get("user_id"),
-#         "bucket_name": bucket_name,
-#         "date": req.args.get("date"),
-#     }
-    
-#     result = get_event_trip_friends_logic(params)
-
-#     if result is not None:
-#         return https_fn.Response(result)
-#     else:
-#         return https_fn.Response("No friends found or an error occurred.", status=500)
+        return https_fn.Response("No trips found.", status=404)

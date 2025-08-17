@@ -21,6 +21,8 @@ import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:async';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,9 +80,73 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  // Local Notifications
+  late FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin;
+  Timer? _notificationTimer;
+
   @override
   void initState() {
     super.initState();
+    _initNotifications();
+    _startNotificationPolling();
+  }
+
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initNotifications() async {
+    _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const DarwinInitializationSettings initializationSettingsDarwin =
+        DarwinInitializationSettings();
+
+    final InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsDarwin,
+      macOS: initializationSettingsDarwin,
+    );
+    await _flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  }
+
+  void _startNotificationPolling() {
+    _notificationTimer?.cancel();
+    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final notificationsRef = FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: user.uid);
+
+      final querySnapshot = await notificationsRef.get();
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        final title = data['title'] ?? 'Notifica';
+        final description = data['description'] ?? '';
+        await _flutterLocalNotificationsPlugin.show(
+          doc.id.hashCode,
+          title,
+          description,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'custom_notifications',
+              'Custom Notifications',
+              channelDescription: 'Notifiche personalizzate',
+              importance: Importance.max,
+              priority: Priority.high,
+            ),
+            iOS: DarwinNotificationDetails(),
+            macOS: DarwinNotificationDetails(),
+          ),
+        );
+        // Elimina la notifica dopo averla mostrata
+        await doc.reference.delete();
+      }
+    });
   }
 
   final GoRouter _router = GoRouter(
@@ -239,3 +305,4 @@ class _RootPageState extends State<RootPage> {
     );
   }
 }
+

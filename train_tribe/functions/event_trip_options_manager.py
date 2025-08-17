@@ -1,10 +1,11 @@
+from heapq import merge
 from firebase_admin import firestore
 from zoneinfo import ZoneInfo
-import logging
 import datetime
 import json
 import os
 import tempfile
+import logging
 from bucket_manager import download_from_bucket
 from event_options_builder import build_event_options
 from day_event_options_merger import get_day_event_trip_options_logic
@@ -65,8 +66,8 @@ def event_options_save_to_db(params):
     db = firestore.client()
     # Update the event document with the event_options_path
     event_doc_ref = db.collection("users").document(user_id).collection("events").document(event_id)
-    event_doc_ref.update({"event_options_path": event_options_path})
-
+    event_doc_ref.set({"event_options_path": event_options_path}, merge=True)
+    
     # Add new routes
     for route in event_options:
         for leg_id in route:
@@ -179,14 +180,28 @@ def delete_event_trip_options_logic(event):
                         logging.error(f"User {user_id} is not in trip {trip_id} of date {event_start_time}: {e}")
 
 def update_event_trip_options_logic(event, key, bucket_name):
-    before = event.data.before
-    after = event.data.after
-    if not before or not after:
+
+    if event.data.before is None:
+        logging.error("No previous data found for event trip options update.")
         return
+    else:
+        logging.error("BEFORE DATA: " + event.data.before.to_dict())
+    if event.data.after is None:
+        logging.error("No new data found for event trip options update.")
+        return
+    else:
+        logging.error("AFTER DATA: " + event.data.after.to_dict())
+
+    before = event.data.before.to_dict()
+    after = event.data.after.to_dict()
+
     keys = ["origin", "destination", "event_start", "event_end"]
     changed = any(before.get(k) != after.get(k) for k in keys)
+
     if not changed:
+        logging.warn("No relevant changes detected in event trip options.")
         return
+    
     delete_event_trip_options_logic(event)
     user_id = event.params["user_id"]
     event_id = event.params["event_id"]
@@ -201,11 +216,8 @@ def update_event_trip_options_logic(event, key, bucket_name):
 
 def get_event_full_trip_data_logic(user_id, date, bucket_name):
 
-    logging.error(f"get_event_full_trip_data_logic called with user_id: {user_id}, date: {date}")
+    logging.info(f"get_event_full_trip_data_logic called with user_id: {user_id}, date: {date}")
 
-    if not user_id or not date:
-        return {"success": False, "message": "Missing user_id or date parameter"}, 400
-    
     db = firestore.client()
 
     # Fetch events for the user on the specified date
@@ -219,9 +231,9 @@ def get_event_full_trip_data_logic(user_id, date, bucket_name):
     query = events_ref.where("event_start", ">=", start_dt).where("event_start", "<", end_dt)
     events_docs = list(query.stream())
 
-    logging.error(f"Found {len(events_docs)} events for user {user_id} on date {date}")
+    logging.info(f"Found {len(events_docs)} events for user {user_id} on date {date}")
     for event in events_docs:
-        logging.error(f"Event ID: {event.id}, Data: {event.to_dict()}")
+        logging.info(f"Event ID: {event.id}, Data: {event.to_dict()}")
 
     event_options_with_friends = {}
 
@@ -235,7 +247,7 @@ def get_event_full_trip_data_logic(user_id, date, bucket_name):
         }
         event_options_with_friends[event.id] = get_event_trip_friends_logic(friends_finder_params)
 
-    logging.error(f"event_options_with_friends: {event_options_with_friends}")
+    logging.info(f"event_options_with_friends: {event_options_with_friends}")
 
     #merge all event options of the day into a single file
     merger_params = {

@@ -57,9 +57,22 @@ class _FriendsPageState extends State<FriendsPage> {
     await _db.collection('users').doc(targetUid).update({
       'receivedRequests': FieldValue.arrayUnion([_uid])
     });
+
+    // Crea una notifica per il destinatario
+    final myUsername = myData.data()?['username'] ?? 'Unknown';
+    await _db.collection('notifications').add({
+      'userId': targetUid,
+      'title': 'Nuova richiesta di amicizia',
+      'description': '$myUsername ti ha inviato una richiesta di amicizia.',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> _acceptFriendRequest(String requesterUid) async {
+    final myData = await _db.collection('users').doc(_uid).get();
+    final targetData = await _db.collection('users').doc(requesterUid).get();
+    if (!targetData.exists) return;
+
     // Remove from requests
     await _db.collection('users').doc(_uid).update({
       'receivedRequests': FieldValue.arrayRemove([requesterUid]),
@@ -68,6 +81,15 @@ class _FriendsPageState extends State<FriendsPage> {
     await _db.collection('users').doc(requesterUid).update({
       'sentRequests': FieldValue.arrayRemove([_uid]),
       'friends.$_uid': {'ghosted': false}
+    });
+
+    // Crea una notifica per il destinatario
+    final myUsername = myData.data()?['username'] ?? 'Unknown';
+    await _db.collection('notifications').add({
+      'userId': requesterUid,
+      'title': 'Nuovo Amico',
+      'description': '$myUsername ha accettato la tua richiesta di amicizia.',
+      'timestamp': FieldValue.serverTimestamp(),
     });
   }
 

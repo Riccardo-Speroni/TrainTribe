@@ -35,6 +35,8 @@ dependencies:
   http: ^1.5.0
   flutter_contacts: ^1.1.9+2
   phone_number: ^2.1.0
+  flutter_local_notifications: ^17.1.2
+
 
 dev_dependencies:
   flutter_test:
