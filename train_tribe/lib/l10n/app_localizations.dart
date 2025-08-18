@@ -92,6 +92,7 @@ class AppLocalizations {
       'save': 'Save',
       'cancel': 'Cancel',
       'delete': 'Delete',
+      'saved': 'Saved',
 
       // Miscellaneous
       'contacts_access': 'Contacts Access',
@@ -116,6 +117,7 @@ class AppLocalizations {
       'find_from_contacts': 'Find from contacts',
       'suggested_from_contacts': 'Suggested from contacts',
       'no_contact_suggestions': 'No suggestions from your contacts',
+  'phone_required_for_suggestions': 'Add your phone number in your profile to get suggestions from contacts.',
 
       // Error Messages
       'error': 'Error',
@@ -223,6 +225,7 @@ class AppLocalizations {
       'save': 'Salva',
       'cancel': 'Annulla',
       'delete': 'Elimina',
+      'saved': 'Salvato',
 
       // Miscellaneous
       'contacts_access': 'Accesso ai contatti',
@@ -247,6 +250,7 @@ class AppLocalizations {
       'find_from_contacts': 'Trova dai contatti',
       'suggested_from_contacts': 'Suggeriti dai contatti',
       'no_contact_suggestions': 'Nessun suggerimento dai tuoi contatti',
+  'phone_required_for_suggestions': 'Aggiungi il tuo numero di telefono nel profilo per ottenere suggerimenti dai contatti.',
 
       // Error Messages
       'error': 'Errore',

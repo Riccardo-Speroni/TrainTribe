@@ -22,8 +22,7 @@ class _FriendsPageState extends State<FriendsPage> {
   String get _uid => _auth.currentUser?.uid ?? '';
 
   // Streams for friends, requests, and sent requests
-  Stream<DocumentSnapshot<Map<String, dynamic>>> get _userDocStream =>
-      _db.collection('users').doc(_uid).snapshots();
+  Stream<DocumentSnapshot<Map<String, dynamic>>> get _userDocStream => _db.collection('users').doc(_uid).snapshots();
 
   // Search results for new users
   List<Map<String, dynamic>> _usersToAdd = [];
@@ -31,6 +30,9 @@ class _FriendsPageState extends State<FriendsPage> {
   // Suggested users from contacts (mobile only)
   List<Map<String, dynamic>> _contactSuggestions = [];
   bool _loadingContacts = false;
+  bool _contactsRequested = false;
+  // Phone(E.164) -> Contact Display Name (from device)
+  final Map<String, String> _contactNameByE164 = {};
 
   // Add the missing search controller
   late final TextEditingController _searchController;
@@ -108,18 +110,12 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   Future<void> _toggleVisibility(String friendUid, bool currentGhosted) async {
-    await _db.collection('users').doc(_uid).update({
-      'friends.$friendUid.ghosted': !currentGhosted
-    });
+    await _db.collection('users').doc(_uid).update({'friends.$friendUid.ghosted': !currentGhosted});
   }
 
   Future<void> _deleteFriend(String friendUid) async {
-    await _db.collection('users').doc(_uid).update({
-      'friends.$friendUid': FieldValue.delete()
-    });
-    await _db.collection('users').doc(friendUid).update({
-      'friends.$_uid': FieldValue.delete()
-    });
+    await _db.collection('users').doc(_uid).update({'friends.$friendUid': FieldValue.delete()});
+    await _db.collection('users').doc(friendUid).update({'friends.$_uid': FieldValue.delete()});
   }
 
   Future<void> _searchUsers(String query) async {
@@ -165,9 +161,21 @@ class _FriendsPageState extends State<FriendsPage> {
     if (!(Platform.isAndroid || Platform.isIOS)) {
       return;
     }
+    // Require user to have a phone in DB first; otherwise notify and return.
+    final myDocPre = await _db.collection('users').doc(_uid).get();
+    final myPhone = (myDocPre.data()?['phone'] ?? '').toString();
+    if (myPhone.isEmpty) {
+      final l = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.translate('phone_required_for_suggestions'))),
+      );
+      return;
+    }
     setState(() {
       _loadingContacts = true;
       _contactSuggestions = [];
+      _contactsRequested = true;
+      _contactNameByE164.clear();
     });
     final localizations = AppLocalizations.of(context);
     try {
@@ -185,7 +193,11 @@ class _FriendsPageState extends State<FriendsPage> {
       for (final c in contacts) {
         for (final p in c.phones) {
           final e164 = normalizeRawToE164(p.number, defaultPrefix: kItalyPrefix);
-          if (e164 != null) numbers.add(e164);
+          if (e164 != null) {
+            numbers.add(e164);
+            // Save first seen display name for this number
+            _contactNameByE164.putIfAbsent(e164, () => c.displayName);
+          }
         }
       }
       if (numbers.isEmpty) {
@@ -205,18 +217,16 @@ class _FriendsPageState extends State<FriendsPage> {
       final List<Map<String, dynamic>> matches = [];
       for (var i = 0; i < all.length; i += chunk) {
         final slice = all.sublist(i, (i + chunk).clamp(0, all.length));
-        final snap = await _db
-            .collection('users')
-            .where('phone', whereIn: slice)
-            .limit(30)
-            .get();
+        final snap = await _db.collection('users').where('phone', whereIn: slice).limit(30).get();
         for (final doc in snap.docs) {
           if (doc.id == _uid) continue;
           if (myFriends.contains(doc.id)) continue;
           if (sentReqs.contains(doc.id)) continue;
           if (receivedReqs.contains(doc.id)) continue;
           final data = doc.data();
-          matches.add({'uid': doc.id, ...data});
+          final phone = (data['phone'] ?? '').toString();
+          final contactName = _contactNameByE164[phone];
+          matches.add({'uid': doc.id, 'contactName': contactName, ...data});
         }
       }
 
@@ -305,61 +315,20 @@ class _FriendsPageState extends State<FriendsPage> {
                   ),
                   const SizedBox(height: 16),
                   if (Platform.isAndroid || Platform.isIOS)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            children: [
-                              ElevatedButton.icon(
-                                onPressed: _loadingContacts ? null : _findFriendsFromContacts,
-                                icon: const Icon(Icons.contacts),
-                                label: Text(localizations.translate('find_from_contacts')),
-                              ),
-                              if (_loadingContacts) ...[
-                                const SizedBox(width: 12),
-                                const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          if (_contactSuggestions.isNotEmpty) ...[
-                            Text(localizations.translate('suggested_from_contacts'), style: Theme.of(context).textTheme.titleSmall),
-                            const SizedBox(height: 8),
-                            ..._contactSuggestions.map((user) => Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6),
-                                  child: ListTile(
-                                    leading: const CircleAvatar(
-                                      backgroundImage: AssetImage('images/djungelskog.jpg'),
-                                    ),
-                                    title: Text(user['username'] ?? ''),
-                                    trailing: IconButton(
-                                      icon: const Icon(Icons.add, color: Colors.blue),
-                                      tooltip: localizations.translate('add_friend'),
-                                      onPressed: () => _sendFriendRequest(user['uid']),
-                                    ),
-                                  ),
-                                )),
-                          ] else if (!_loadingContacts) ...[
-                            Text(
-                              localizations.translate('no_contact_suggestions'),
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
-                            ),
-                          ],
-                        ],
-                      ),
+                    _SuggestionsSection(
+                      title: localizations.translate('find_from_contacts'),
+                      subtitle: _contactSuggestions.isNotEmpty ? localizations.translate('suggested_from_contacts') : null,
+                      loading: _loadingContacts,
+                      contactsRequested: _contactsRequested,
+                      suggestions: _contactSuggestions,
+                      onRefresh: _findFriendsFromContacts,
+                      onAdd: (uid) async {
+                        await _sendFriendRequest(uid);
+                        // remove from UI after sending
+                        setState(() {
+                          _contactSuggestions.removeWhere((e) => e['uid'] == uid);
+                        });
+                      },
                     ),
                 ],
               ),
@@ -507,8 +476,7 @@ class FriendsSearchContainer extends StatelessWidget {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      contentPadding:
-                          const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
                     ),
                     onChanged: onSearchChanged,
                     onSubmitted: onSearchSubmitted,
@@ -565,9 +533,7 @@ class FriendsSearchContainer extends StatelessWidget {
                             isGhosted ? Icons.visibility_off : Icons.visibility,
                             color: isGhosted ? Colors.redAccent : Colors.green,
                           ),
-                          tooltip: isGhosted
-                              ? localizations.translate('unghost')
-                              : localizations.translate('ghost'),
+                          tooltip: isGhosted ? localizations.translate('unghost') : localizations.translate('ghost'),
                           onPressed: () => onToggleVisibility(entry.key, isGhosted),
                         ),
                         onTap: () => onShowFriendDialog(context, entry.key, username, isGhosted, hasPhone),
@@ -672,9 +638,7 @@ class FriendPopupDialog extends StatelessWidget {
       SizedBox(
         height: 44,
         child: CustomTextButton(
-          text: isGhosted
-              ? localizations.translate('unghost')
-              : localizations.translate('ghost'),
+          text: isGhosted ? localizations.translate('unghost') : localizations.translate('ghost'),
           icon: isGhosted ? Icons.visibility : Icons.visibility_off,
           color: isGhosted ? Colors.green : Colors.redAccent,
           onPressed: onToggleGhost,
@@ -753,6 +717,242 @@ class CustomTextButton extends StatelessWidget {
         style: const TextStyle(color: Colors.white),
         overflow: TextOverflow.ellipsis,
         maxLines: 1,
+      ),
+    );
+  }
+}
+
+class _SuggestionsSection extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final bool loading;
+  final bool contactsRequested;
+  final List<Map<String, dynamic>> suggestions;
+  final VoidCallback onRefresh;
+  final void Function(String uid) onAdd;
+
+  const _SuggestionsSection({
+    required this.title,
+    required this.subtitle,
+    required this.loading,
+    required this.contactsRequested,
+    required this.suggestions,
+    required this.onRefresh,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.tertiaryContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.contacts,
+                        color: Theme.of(context).colorScheme.onTertiaryContainer,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: Theme.of(context).textTheme.titleMedium),
+                          if (subtitle != null && suggestions.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                subtitle!,
+                                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                      color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                                    ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                onPressed: loading ? null : onRefresh,
+                icon: loading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.sync),
+                label: Text(loading ? 'Scanning' : 'Scan'),
+                style: FilledButton.styleFrom(
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  minimumSize: const Size(0, 36),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (loading && suggestions.isEmpty)
+            Column(
+              children: List.generate(3, (i) => i).map((_) => _loadingTile(context)).toList(),
+            )
+          else if (suggestions.isNotEmpty)
+            Column(
+              children: [
+                ...suggestions.map((user) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: _SuggestionCard(
+                        username: (user['username'] ?? '').toString(),
+                        contactName: (user['contactName'] ?? '').toString().isNotEmpty ? (user['contactName'] ?? '').toString() : null,
+                        onAdd: () => onAdd((user['uid'] ?? '').toString()),
+                      ),
+                    )),
+              ],
+            )
+          else if (!loading && contactsRequested)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  l.translate('no_contact_suggestions'),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loadingTile(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Container(
+        height: 64,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: 12),
+            _skeletonCircle(36),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _skeletonBar(width: 120, height: 12),
+                  const SizedBox(height: 8),
+                  _skeletonBar(width: 180, height: 10),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _skeletonCircle(double size) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade300,
+          shape: BoxShape.circle,
+        ),
+      );
+
+  Widget _skeletonBar({required double width, required double height}) => Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(height / 2),
+        ),
+      );
+}
+
+class _SuggestionCard extends StatelessWidget {
+  final String username;
+  final String? contactName;
+  final VoidCallback onAdd;
+
+  const _SuggestionCard({
+    required this.username,
+    required this.contactName,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        leading: const CircleAvatar(
+          backgroundImage: AssetImage('images/djungelskog.jpg'),
+          radius: 20,
+        ),
+        title: Text(
+          username,
+          style: Theme.of(context).textTheme.titleMedium,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: contactName != null
+            ? Row(
+                children: [
+                  const Icon(Icons.contact_page, size: 14, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      contactName!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              )
+            : null,
+        trailing: FilledButton.icon(
+          onPressed: onAdd,
+          icon: const Icon(Icons.person_add_alt_1),
+          label: const Text('Add'),
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 36), padding: const EdgeInsets.symmetric(horizontal: 12)),
+        ),
       ),
     );
   }
