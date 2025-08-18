@@ -26,8 +26,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController =
-      TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
@@ -64,8 +63,7 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Future<void> _pickImage() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() => _profileImage = File(pickedFile.path));
     }
@@ -93,9 +91,7 @@ class _SignUpPageState extends State<SignUpPage> {
       await tempFile.writeAsBytes(resizedImageBytes);
 
       // Upload the resized image to Firebase Storage
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('profile_pictures/${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final storageRef = FirebaseStorage.instance.ref().child('profile_pictures/${DateTime.now().millisecondsSinceEpoch}.jpg');
       final uploadTask = await storageRef.putFile(tempFile);
       return await uploadTask.ref.getDownloadURL();
     } catch (e) {
@@ -134,6 +130,14 @@ class _SignUpPageState extends State<SignUpPage> {
       final lastName = lastNameController.text.trim();
       final phone = phoneController.text.trim();
 
+      // Final safety check: accept only valid E.164-like strings if provided
+      final e164Regex = RegExp(r'^\+[1-9]\d{7,14}$');
+      if (phone.isNotEmpty && !e164Regex.hasMatch(phone)) {
+        _showErrorDialog(AppLocalizations.of(context).translate('invalid_phone'));
+        setState(() => _isLoading = false);
+        return;
+      }
+
       final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -157,6 +161,7 @@ class _SignUpPageState extends State<SignUpPage> {
         'surname': lastName,
         'username': username,
         'email': email,
+        // Store normalized E.164 into the single 'phone' field when available
         'phone': phone.isNotEmpty ? phone : null,
         'picture': profilePictureUrl,
       });
@@ -264,18 +269,14 @@ class _SignUpPageState extends State<SignUpPage> {
           children: [
             Image.asset('images/djungelskog.jpg', height: 100),
             const SizedBox(height: 20),
-            Text(localizations.translate('enter_email'),
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(localizations.translate('enter_email'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             TextField(
               controller: emailController,
               onChanged: (_) => _validateEmail(),
               decoration: InputDecoration(
                 labelText: localizations.translate('email'),
                 border: const OutlineInputBorder(),
-                errorText: isEmailValid
-                    ? null
-                    : localizations.translate('invalid_email'),
+                errorText: isEmailValid ? null : localizations.translate('invalid_email'),
               ),
             ),
             const SizedBox(height: 20),
@@ -428,8 +429,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final availableHeight = constraints.maxHeight;
-
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
           child: Column(

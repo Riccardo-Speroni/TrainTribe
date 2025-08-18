@@ -41,15 +41,13 @@ class _TrainsPageState extends State<TrainsPage> {
       daysOfWeekFull = List.generate(7, (index) {
         final now = DateTime.now();
         final day = now.add(Duration(days: index));
-        return toBeginningOfSentenceCase(
-            DateFormat.EEEE(localizations.languageCode()).format(day))!;
+        return toBeginningOfSentenceCase(DateFormat.EEEE(localizations.languageCode()).format(day))!;
       });
 
       daysOfWeekShort = List.generate(7, (index) {
         final now = DateTime.now();
         final day = now.add(Duration(days: index));
-        return toBeginningOfSentenceCase(
-            DateFormat.E(localizations.languageCode()).format(day))!;
+        return toBeginningOfSentenceCase(DateFormat.E(localizations.languageCode()).format(day))!;
       });
     });
   }
@@ -85,13 +83,12 @@ class _TrainsPageState extends State<TrainsPage> {
       throw Exception('Failed to load trips data');
     }
 
-    // save json to file for debugging
+   /*  // save json to file for debugging
     final file = File('debug_trips_data.json');
     await file.writeAsString(json.encode(eventsData));
     // print full file path
-    String path = file.path; 
-    print('Debug trips data saved to: $path');
-
+    String path = file.path;
+    print('Debug trips data saved to: $path'); */
 
     setState(() {
       isLoading = false;
@@ -188,10 +185,8 @@ class _TrainsPageState extends State<TrainsPage> {
                                     final prevFrom = userAvatarsMap[key]!['from'] ?? from;
                                     final prevTo = userAvatarsMap[key]!['to'] ?? to;
                                     // Use string comparison for stop_id, or if numeric, use int
-                                    userAvatarsMap[key]!['from'] =
-                                        (from.compareTo(prevFrom) < 0) ? from : prevFrom;
-                                    userAvatarsMap[key]!['to'] =
-                                        (to.compareTo(prevTo) > 0) ? to : prevTo;
+                                    userAvatarsMap[key]!['from'] = (from.compareTo(prevFrom) < 0) ? from : prevFrom;
+                                    userAvatarsMap[key]!['to'] = (to.compareTo(prevTo) > 0) ? to : prevTo;
                                   }
                                 }
                               }
@@ -206,10 +201,13 @@ class _TrainsPageState extends State<TrainsPage> {
                               final firstStops = firstLeg['stops'] as List<dynamic>;
                               final lastStops = lastLeg['stops'] as List<dynamic>;
                               if (firstStops.isNotEmpty) {
-                                departureTime = (firstStops.first['departure_time'] ?? firstStops.first['arrival_time'] ?? '').toString().substring(0,5);
+                                departureTime = (firstStops.first['departure_time'] ?? firstStops.first['arrival_time'] ?? '')
+                                    .toString()
+                                    .substring(0, 5);
                               }
                               if (lastStops.isNotEmpty) {
-                                arrivalTime = (lastStops.last['arrival_time'] ?? lastStops.last['departure_time'] ?? '').toString().substring(0,5);
+                                arrivalTime =
+                                    (lastStops.last['arrival_time'] ?? lastStops.last['departure_time'] ?? '').toString().substring(0, 5);
                               }
                             }
                             // isDirect: only one leg
@@ -219,8 +217,8 @@ class _TrainsPageState extends State<TrainsPage> {
                               final stops = (leg['stops'] as List<dynamic>).map((stop) {
                                 return {
                                   'name': stop['stop_name'] ?? '',
-                                  'arrivalTime': stop['arrival_time']?.toString().substring(0,5) ?? '',
-                                  'departureTime': stop['departure_time']?.toString().substring(0,5) ?? '',
+                                  'arrivalTime': stop['arrival_time']?.toString().substring(0, 5) ?? '',
+                                  'departureTime': stop['departure_time']?.toString().substring(0, 5) ?? '',
                                   'platform': stop['platform'] ?? '',
                                   'track': stop['track'] ?? '',
                                   'id': stop['stop_id'] ?? '',
@@ -245,9 +243,8 @@ class _TrainsPageState extends State<TrainsPage> {
                               isExpanded: expandedCardIndex == (eventId.hashCode ^ cardIndex),
                               onTap: () {
                                 setState(() {
-                                  expandedCardIndex = expandedCardIndex == (eventId.hashCode ^ cardIndex)
-                                      ? null
-                                      : (eventId.hashCode ^ cardIndex);
+                                  expandedCardIndex =
+                                      expandedCardIndex == (eventId.hashCode ^ cardIndex) ? null : (eventId.hashCode ^ cardIndex);
                                 });
                               },
                               departureTime: departureTime,
@@ -286,9 +283,8 @@ class _TrainsPageState extends State<TrainsPage> {
                               ),
                               ResponsiveCardList(
                                 cards: trainCards,
-                                expandedCardIndex: trainCards.indexWhere((card) =>
-                                  (expandedCardIndex == (eventId.hashCode ^ trainCards.indexOf(card)))
-                                ),
+                                expandedCardIndex:
+                                    trainCards.indexWhere((card) => (expandedCardIndex == (eventId.hashCode ^ trainCards.indexOf(card)))),
                               ),
                             ],
                           );

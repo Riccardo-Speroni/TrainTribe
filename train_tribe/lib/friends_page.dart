@@ -4,6 +4,8 @@ import 'dart:io' show Platform;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'utils/phone_number_helper.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -26,6 +28,9 @@ class _FriendsPageState extends State<FriendsPage> {
   // Search results for new users
   List<Map<String, dynamic>> _usersToAdd = [];
   bool _searching = false;
+  // Suggested users from contacts (mobile only)
+  List<Map<String, dynamic>> _contactSuggestions = [];
+  bool _loadingContacts = false;
 
   // Add the missing search controller
   late final TextEditingController _searchController;
@@ -156,6 +161,83 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
+  Future<void> _findFriendsFromContacts() async {
+    if (!(Platform.isAndroid || Platform.isIOS)) {
+      return;
+    }
+    setState(() {
+      _loadingContacts = true;
+      _contactSuggestions = [];
+    });
+    final localizations = AppLocalizations.of(context);
+    try {
+      final granted = await FlutterContacts.requestPermission(readonly: true);
+      if (!granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(localizations.translate('contacts_permission_denied'))),
+        );
+        setState(() => _loadingContacts = false);
+        return;
+      }
+
+      final contacts = await FlutterContacts.getContacts(withProperties: true);
+      final numbers = <String>{};
+      for (final c in contacts) {
+        for (final p in c.phones) {
+          final e164 = normalizeRawToE164(p.number, defaultPrefix: kItalyPrefix);
+          if (e164 != null) numbers.add(e164);
+        }
+      }
+      if (numbers.isEmpty) {
+        setState(() => _loadingContacts = false);
+        return;
+      }
+
+      // Fetch my doc to filter out existing relationships
+      final myDoc = await _db.collection('users').doc(_uid).get();
+      final myFriends = (myDoc.data()?['friends'] ?? {}).keys.toSet();
+      final sentReqs = Set<String>.from(myDoc.data()?['sentRequests'] ?? []);
+      final receivedReqs = Set<String>.from(myDoc.data()?['receivedRequests'] ?? []);
+
+      // Chunked Firestore queries (whereIn limit conservative 10)
+      final all = numbers.toList();
+      const chunk = 10;
+      final List<Map<String, dynamic>> matches = [];
+      for (var i = 0; i < all.length; i += chunk) {
+        final slice = all.sublist(i, (i + chunk).clamp(0, all.length));
+        final snap = await _db
+            .collection('users')
+            .where('phone', whereIn: slice)
+            .limit(30)
+            .get();
+        for (final doc in snap.docs) {
+          if (doc.id == _uid) continue;
+          if (myFriends.contains(doc.id)) continue;
+          if (sentReqs.contains(doc.id)) continue;
+          if (receivedReqs.contains(doc.id)) continue;
+          final data = doc.data();
+          matches.add({'uid': doc.id, ...data});
+        }
+      }
+
+      // Deduplicate by uid
+      final seen = <String>{};
+      final unique = <Map<String, dynamic>>[];
+      for (final m in matches) {
+        final uid = (m['uid'] ?? '') as String;
+        if (uid.isEmpty || seen.contains(uid)) continue;
+        seen.add(uid);
+        unique.add(m);
+      }
+      setState(() {
+        _contactSuggestions = unique;
+        _loadingContacts = false;
+      });
+    } catch (e) {
+      setState(() => _loadingContacts = false);
+    }
+  }
+
   void _showFriendDialog(BuildContext context, String friendUid, String friendName, bool isGhosted, bool hasPhone) {
     showDialog(
       context: context,
@@ -221,6 +303,64 @@ class _FriendsPageState extends State<FriendsPage> {
                     onSendFriendRequest: _sendFriendRequest,
                     searching: _searching,
                   ),
+                  const SizedBox(height: 16),
+                  if (Platform.isAndroid || Platform.isIOS)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: _loadingContacts ? null : _findFriendsFromContacts,
+                                icon: const Icon(Icons.contacts),
+                                label: Text(localizations.translate('find_from_contacts')),
+                              ),
+                              if (_loadingContacts) ...[
+                                const SizedBox(width: 12),
+                                const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (_contactSuggestions.isNotEmpty) ...[
+                            Text(localizations.translate('suggested_from_contacts'), style: Theme.of(context).textTheme.titleSmall),
+                            const SizedBox(height: 8),
+                            ..._contactSuggestions.map((user) => Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 6),
+                                  child: ListTile(
+                                    leading: const CircleAvatar(
+                                      backgroundImage: AssetImage('images/djungelskog.jpg'),
+                                    ),
+                                    title: Text(user['username'] ?? ''),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.add, color: Colors.blue),
+                                      tooltip: localizations.translate('add_friend'),
+                                      onPressed: () => _sendFriendRequest(user['uid']),
+                                    ),
+                                  ),
+                                )),
+                          ] else if (!_loadingContacts) ...[
+                            Text(
+                              localizations.translate('no_contact_suggestions'),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
