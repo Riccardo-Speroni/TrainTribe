@@ -740,6 +740,11 @@ Future<void> showEditEventDialog({
                       e.recurrenceEndDate = recurrenceEndDate;
                     }
                   }
+
+                  if(selectedDay == event.date){
+                    selectedDay = generatorEvent.date;
+                  }
+                  
                 } else {
                   generatorEvent.departureStation = departureStation;
                   generatorEvent.arrivalStation = arrivalStation;
