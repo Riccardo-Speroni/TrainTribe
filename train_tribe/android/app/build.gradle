@@ -7,16 +7,19 @@ plugins {
 
 android {
     namespace = "com.example.train_tribe"
-    compileSdk = flutter.compileSdkVersion
+    // Use API 35 as recommended by flutter_local_notifications
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        // Enable core library desugaring and Java 11
+        coreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = "11"
     }
 
     defaultConfig {
@@ -41,6 +44,11 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Required for core library desugaring
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }
 
 apply plugin: 'com.google.gms.google-services' // Applica il plugin Google Services

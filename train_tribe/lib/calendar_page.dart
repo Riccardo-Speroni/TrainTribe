@@ -9,6 +9,12 @@ import 'utils/calendar_functions.dart';
 import 'models/calendar_event.dart';
 import 'widgets/event_dialogs.dart';
 import 'widgets/calendar_columns.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'dart:convert';
+import 'utils/station_names.dart' as default_data;
 
 class CalendarPage extends StatefulWidget {
   const CalendarPage({super.key});
@@ -23,6 +29,7 @@ class _CalendarPageState extends State<CalendarPage> {
   late final List<int> hours =
       List.generate(19 * 4, (index) => index); // 76 slots (19 hours * 4)
   final List<CalendarEvent> events = []; // List of created events
+  List<String> _stationNames = [];
 
   final LinkedScrollControllerGroup _scrollControllerGroup =
       LinkedScrollControllerGroup(); // Group for synchronized scrolling
@@ -37,6 +44,33 @@ class _CalendarPageState extends State<CalendarPage> {
   CalendarEvent? _draggedEvent; // Event being dragged
   double? _dragStartLocalY; // Y position where drag started (for cell selection)
   int? _dragStartPageIndex; // Salva la pagina/giorno di partenza per drag evento
+
+  // Returns a directory matching where SharedPreferences stores data per platform.
+  // Android: <app>/shared_prefs
+  // iOS/macOS: <app>/Library/Preferences
+  // Linux/Windows/Fallback: Application Support directory
+  Future<Directory> _getPrefsDirectory() async {
+    if (Platform.isAndroid) {
+      final supportDir = await getApplicationSupportDirectory();
+      final appRoot = supportDir.parent; // go up from files/ to app root
+      final prefsDir = Directory('${appRoot.path}${Platform.pathSeparator}shared_prefs');
+      if (!await prefsDir.exists()) {
+        await prefsDir.create(recursive: true);
+      }
+      return prefsDir;
+    } else if (Platform.isIOS || Platform.isMacOS) {
+      final libDir = await getLibraryDirectory();
+      final prefsDir = Directory('${libDir.path}${Platform.pathSeparator}Preferences');
+      if (!await prefsDir.exists()) {
+        await prefsDir.create(recursive: true);
+      }
+      return prefsDir;
+    } else {
+      // On Linux/Windows, SharedPreferences may use non-file storage (registry) or XDG config.
+      // Use Application Support as a stable per-app location.
+      return await getApplicationSupportDirectory();
+    }
+  }
 
   // Returns the event that starts in the slot for the specified day and time, if it exists.
   CalendarEvent? _getEventForCell(DateTime day, int hour) {
@@ -55,6 +89,7 @@ class _CalendarPageState extends State<CalendarPage> {
       day: day,
       startIndex: startIndex,
       endIndex: endIndex,
+      stationNames: _stationNames,
       hours: hours,
       events: events,
       onEventAdded: (CalendarEvent newEvent) {
@@ -72,6 +107,7 @@ class _CalendarPageState extends State<CalendarPage> {
       event: event,
       hours: hours,
       events: events,
+      stationNames: _stationNames,
       onEventUpdated: () {
         setState(() {});
       },
@@ -335,6 +371,37 @@ class _CalendarPageState extends State<CalendarPage> {
   void initState() {
     super.initState();
     _loadUserEvents();
+    _initPrefs();
+  }
+
+  Future<void> _initPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? lastSyncDateStr = prefs.getString('last_sync_date');
+    final DateTime? lastSyncDate = lastSyncDateStr != null
+        ? DateTime.parse(lastSyncDateStr)
+        : null;
+    if (lastSyncDate == null || DateTime.now().difference(lastSyncDate).inDays > 7) {
+      try {
+        await _loadStationNames(true);
+        prefs.setString('Station_names_last_sync', DateTime.now().toIso8601String());
+      } catch (e) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error'),
+            content: Text('Error loading station names: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } else {
+      await _loadStationNames(false);
+    }
   }
 
   Future<void> _loadUserEvents() async {
@@ -345,6 +412,55 @@ class _CalendarPageState extends State<CalendarPage> {
       events.clear();
       events.addAll(loadedEvents);
     });
+  }
+
+  Future<void> _loadStationNames(bool download) async {
+    try {
+      if (download) {
+        final storage = FirebaseStorage.instance;
+        final ref = storage.refFromURL('gs://traintribe-f2c7b.firebasestorage.app/maps/all_stop_names.json');
+        final data = await ref.getData();
+        if (data != null) {
+          // Write raw bytes to local file
+      final Directory prefsDir = await _getPrefsDirectory();
+      final File outFile = File('${prefsDir.path}${Platform.pathSeparator}stationNames.json');
+          await outFile.writeAsBytes(data, flush: true);
+          // Parse JSON and update state
+          final decoded = jsonDecode(utf8.decode(data));
+          if (decoded is List) {
+            setState(() {
+              _stationNames = decoded.map((e) => e.toString()).toList();
+            });
+            return;
+          }
+        }
+      }
+
+      // If not downloading or parsing failed, try to read from local file
+    final Directory prefsDir = await _getPrefsDirectory();
+    final File outFile = File('${prefsDir.path}${Platform.pathSeparator}stationNames.json');
+      if (await outFile.exists()) {
+        final String content = await outFile.readAsString();
+        final decoded = jsonDecode(content);
+        if (decoded is List) {
+          setState(() {
+            _stationNames = decoded.map((e) => e.toString()).toList();
+          });
+          return;
+        }
+      }
+
+      // Fallback to bundled default list if everything else fails
+      setState(() {
+        _stationNames = List<String>.from(default_data.stationNames);
+      });
+    } catch (e) {
+      // On error, fallback to bundled list and propagate exception for UI
+      setState(() {
+        _stationNames = List<String>.from(default_data.stationNames);
+      });
+      throw Exception('Error loading station names: $e');
+    }
   }
 
   @override
