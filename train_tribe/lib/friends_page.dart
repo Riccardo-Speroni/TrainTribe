@@ -248,7 +248,10 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
-  void _showFriendDialog(BuildContext context, String friendUid, String friendName, bool isGhosted, bool hasPhone) {
+  // Modifica: recupera anche la foto profilo dell'amico e passala al dialog
+  void _showFriendDialog(BuildContext context, String friendUid, String friendName, bool isGhosted, bool hasPhone) async {
+    final doc = await FirebaseFirestore.instance.collection('users').doc(friendUid).get();
+    final picture = (doc.data()?['picture'] ?? '').toString();
     showDialog(
       context: context,
       builder: (context) => FriendPopupDialog(
@@ -263,6 +266,7 @@ class _FriendsPageState extends State<FriendsPage> {
           Navigator.pop(context);
         },
         hasPhone: hasPhone,
+        picture: picture, // passa la foto profilo
       ),
     );
   }
@@ -383,12 +387,15 @@ class FriendRequestsContainer extends StatelessWidget {
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) return const SizedBox(height: 48);
                   final user = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+                  final picture = (user['picture'] ?? '').toString();
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
                       children: [
                         CircleAvatar(
-                          backgroundImage: AssetImage('images/djungelskog.jpg'),
+                          backgroundImage: picture.isNotEmpty
+                              ? NetworkImage(picture)
+                              : const AssetImage('images/djungelskog.jpg') as ImageProvider,
                           radius: 22,
                         ),
                         const SizedBox(width: 12),
@@ -516,6 +523,7 @@ class FriendsSearchContainer extends StatelessWidget {
                     final user = snapshot.data!.data() as Map<String, dynamic>? ?? {};
                     final username = (user['username'] ?? 'Unknown').toString();
                     final hasPhone = (user['phone'] ?? '').toString().isNotEmpty;
+                    final picture = (user['picture'] ?? '').toString();
 
                     final query = searchController.text.trim().toLowerCase();
                     final matches = query.isEmpty || username.toLowerCase().startsWith(query);
@@ -524,8 +532,10 @@ class FriendsSearchContainer extends StatelessWidget {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundImage: AssetImage('images/djungelskog.jpg'),
+                        leading: CircleAvatar(
+                          backgroundImage: picture.isNotEmpty
+                              ? NetworkImage(picture)
+                              : const AssetImage('images/djungelskog.jpg') as ImageProvider,
                         ),
                         title: Text(username),
                         trailing: IconButton(
@@ -578,7 +588,9 @@ class FriendsSearchContainer extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundImage: AssetImage('images/djungelskog.jpg'),
+                      backgroundImage: (user['picture'] ?? '').toString().isNotEmpty
+                          ? NetworkImage((user['picture'] ?? '').toString())
+                          : const AssetImage('images/djungelskog.jpg') as ImageProvider,
                     ),
                     title: Text(
                       user['username'] ?? '',
@@ -606,6 +618,7 @@ class FriendPopupDialog extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onToggleGhost;
   final bool hasPhone;
+  final String? picture; // aggiungi il campo picture
 
   const FriendPopupDialog({
     super.key,
@@ -614,6 +627,7 @@ class FriendPopupDialog extends StatelessWidget {
     required this.onDelete,
     required this.onToggleGhost,
     required this.hasPhone,
+    this.picture,
   });
 
   @override
@@ -670,7 +684,9 @@ class FriendPopupDialog extends StatelessWidget {
           const SizedBox(height: 16),
           CircleAvatar(
             radius: 50,
-            backgroundImage: AssetImage('images/djungelskog.jpg'),
+            backgroundImage: (picture != null && picture!.isNotEmpty)
+                ? NetworkImage(picture!)
+                : const AssetImage('images/djungelskog.jpg') as ImageProvider,
           ),
           const SizedBox(height: 24),
           Column(
@@ -832,6 +848,7 @@ class _SuggestionsSection extends StatelessWidget {
                       child: _SuggestionCard(
                         username: (user['username'] ?? '').toString(),
                         contactName: (user['contactName'] ?? '').toString().isNotEmpty ? (user['contactName'] ?? '').toString() : null,
+                        picture: (user['picture'] ?? '').toString(),
                         onAdd: () => onAdd((user['uid'] ?? '').toString()),
                       ),
                     )),
@@ -907,11 +924,13 @@ class _SuggestionCard extends StatelessWidget {
   final String username;
   final String? contactName;
   final VoidCallback onAdd;
+  final String? picture;
 
   const _SuggestionCard({
     required this.username,
     required this.contactName,
     required this.onAdd,
+    this.picture,
   });
 
   @override
@@ -923,8 +942,10 @@ class _SuggestionCard extends StatelessWidget {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: const CircleAvatar(
-          backgroundImage: AssetImage('images/djungelskog.jpg'),
+        leading: CircleAvatar(
+          backgroundImage: (picture != null && picture!.isNotEmpty)
+              ? NetworkImage(picture!)
+              : const AssetImage('images/djungelskog.jpg') as ImageProvider,
           radius: 20,
         ),
         title: Text(
@@ -957,3 +978,4 @@ class _SuggestionCard extends StatelessWidget {
     );
   }
 }
+

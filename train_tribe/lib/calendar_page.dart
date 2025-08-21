@@ -385,19 +385,21 @@ class _CalendarPageState extends State<CalendarPage> {
         await _loadStationNames(true);
         prefs.setString('Station_names_last_sync', DateTime.now().toIso8601String());
       } catch (e) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Error'),
-            content: Text('Error loading station names: $e'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Error'),
+              content: Text('Error loading station names: $e'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
       }
     } else {
       await _loadStationNames(false);
@@ -422,43 +424,51 @@ class _CalendarPageState extends State<CalendarPage> {
         final data = await ref.getData();
         if (data != null) {
           // Write raw bytes to local file
-      final Directory prefsDir = await _getPrefsDirectory();
-      final File outFile = File('${prefsDir.path}${Platform.pathSeparator}stationNames.json');
+          final Directory prefsDir = await _getPrefsDirectory();
+          final File outFile = File('${prefsDir.path}${Platform.pathSeparator}stationNames.json');
           await outFile.writeAsBytes(data, flush: true);
           // Parse JSON and update state
           final decoded = jsonDecode(utf8.decode(data));
           if (decoded is List) {
-            setState(() {
-              _stationNames = decoded.map((e) => e.toString()).toList();
-            });
+            if (mounted) {
+              setState(() {
+                _stationNames = decoded.map((e) => e.toString()).toList();
+              });
+            }
             return;
           }
         }
       }
 
       // If not downloading or parsing failed, try to read from local file
-    final Directory prefsDir = await _getPrefsDirectory();
-    final File outFile = File('${prefsDir.path}${Platform.pathSeparator}stationNames.json');
+      final Directory prefsDir = await _getPrefsDirectory();
+      final File outFile = File('${prefsDir.path}${Platform.pathSeparator}stationNames.json');
       if (await outFile.exists()) {
         final String content = await outFile.readAsString();
         final decoded = jsonDecode(content);
         if (decoded is List) {
-          setState(() {
-            _stationNames = decoded.map((e) => e.toString()).toList();
-          });
+          if (mounted) {
+            setState(() {
+              _stationNames = decoded.map((e) => e.toString()).toList();
+            });
+          }
           return;
         }
       }
 
       // Fallback to bundled default list if everything else fails
-      setState(() {
-        _stationNames = List<String>.from(default_data.stationNames);
-      });
+      if (mounted) {
+        setState(() {
+          _stationNames = List<String>.from(default_data.stationNames);
+        });
+      }
     } catch (e) {
       // On error, fallback to bundled list and propagate exception for UI
-      setState(() {
-        _stationNames = List<String>.from(default_data.stationNames);
-      });
+      if (mounted) {
+        setState(() {
+          _stationNames = List<String>.from(default_data.stationNames);
+        });
+      }
       throw Exception('Error loading station names: $e');
     }
   }

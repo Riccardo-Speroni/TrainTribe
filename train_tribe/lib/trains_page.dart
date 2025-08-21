@@ -37,25 +37,29 @@ class _TrainsPageState extends State<TrainsPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final localizations = AppLocalizations.of(context);
-    setState(() {
-      daysOfWeekFull = List.generate(7, (index) {
-        final now = DateTime.now();
-        final day = now.add(Duration(days: index));
-        return toBeginningOfSentenceCase(DateFormat.EEEE(localizations.languageCode()).format(day))!;
-      });
+    if (mounted) {
+      setState(() {
+        daysOfWeekFull = List.generate(7, (index) {
+          final now = DateTime.now();
+          final day = now.add(Duration(days: index));
+          return toBeginningOfSentenceCase(DateFormat.EEEE(localizations.languageCode()).format(day))!;
+        });
 
-      daysOfWeekShort = List.generate(7, (index) {
-        final now = DateTime.now();
-        final day = now.add(Duration(days: index));
-        return toBeginningOfSentenceCase(DateFormat.E(localizations.languageCode()).format(day))!;
+        daysOfWeekShort = List.generate(7, (index) {
+          final now = DateTime.now();
+          final day = now.add(Duration(days: index));
+          return toBeginningOfSentenceCase(DateFormat.E(localizations.languageCode()).format(day))!;
+        });
       });
-    });
+    }
   }
 
   Future<void> _loadData() async {
-    setState(() {
-      isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+      });
+    }
 
     // Get current user ID
     final user = FirebaseAuth.instance.currentUser;
@@ -78,9 +82,11 @@ class _TrainsPageState extends State<TrainsPage> {
       throw Exception('Failed to load trips data');
     }
     
-    setState(() {
-      isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   @override
