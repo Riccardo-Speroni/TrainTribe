@@ -474,118 +474,125 @@ class _CalendarPageState extends State<CalendarPage> {
     final PageController pageController = PageController(initialPage: 0);
 
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          // Fixed time column with synchronized vertical scrolling
-          ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false), // Disable scrollbar
-            child: SingleChildScrollView(
-              controller: _timeColumnController, // Use the linked controller
-              child: Column(
-                children: [
-                  SizedBox(height: 40), // Align with the day headers
-                  // _buildTimeColumn(),
-                  CalendarTimeColumn(cellHeight: cellHeight),
-                ],
-              ),
-            ),
-          ),
-          // Scrollable day columns
+          SizedBox(height: MediaQuery.of(context).padding.top), // Spazio per status bar
           Expanded(
-            child: PageView.builder(
-              controller: pageController,
-              itemBuilder: (context, pageIndex) {
-                final DateTime startDay =
-                    DateTime.now().add(Duration(days: pageIndex * daysToShow));
-                final List<DateTime> visibleDays = screenWidth > 600
-                    ? getWeekDays(startDay, daysToShow)
-                    : getDays(startDay, daysToShow);
-
-                // Generate recurrent events for the visible days
-                List<CalendarEvent> recurrentEvents =
-                    generateRecurrentEvents(visibleDays,events);
-
-                return Column(
-                  children: [
-                    // Header: day headers
-                    Row(
-                      children: visibleDays.map((day) {
-                        final String dayFormat =
-                            screenWidth > 600 ? 'EEEE, d MMM' : 'EEE, d MMM';
-                        final String formattedDay = toBeginningOfSentenceCase(
-                          DateFormat(dayFormat, localizations.languageCode())
-                              .format(day),
-                        )!;
-                        bool isPastDay = day.isBefore(DateTime.now()) &&
-                            !isSameDay(day, DateTime.now());
-                        bool isToday = isSameDay(day, DateTime.now());
-                        return Expanded(
-                          child: Container(
-                            height: 40,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey[300]!),
-                              color: isToday
-                                  ? Colors.orangeAccent[400]
-                                  : (isPastDay
-                                      ? Colors.grey[300]
-                                      : Colors.blue[100]),
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            child: Text(
-                              formattedDay,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: isToday
-                                    ? Colors.white
-                                    : (isPastDay ? Colors.grey[600] : Colors.black),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+            child: Row(
+              children: [
+                // Fixed time column with synchronized vertical scrolling
+                ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false), // Disable scrollbar
+                  child: SingleChildScrollView(
+                    controller: _timeColumnController, // Use the linked controller
+                    child: Column(
+                      children: [
+                        SizedBox(height: 40), // Align with the day headers
+                        // _buildTimeColumn(),
+                        CalendarTimeColumn(cellHeight: cellHeight),
+                      ],
                     ),
-                    // Body: days grid in vertical scroll
-                    Expanded(
-                      child: ScrollConfiguration(
-                        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false), // Disable scrollbar
-                        child: SingleChildScrollView(
-                          controller: _dayColumnsController, // Use the linked controller
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                ),
+                // Scrollable day columns
+                Expanded(
+                  child: PageView.builder(
+                    controller: pageController,
+                    itemBuilder: (context, pageIndex) {
+                      final DateTime startDay =
+                          DateTime.now().add(Duration(days: pageIndex * daysToShow));
+                      final List<DateTime> visibleDays = screenWidth > 600
+                          ? getWeekDays(startDay, daysToShow)
+                          : getDays(startDay, daysToShow);
+
+                      // Generate recurrent events for the visible days
+                      List<CalendarEvent> recurrentEvents =
+                          generateRecurrentEvents(visibleDays,events);
+
+                      return Column(
+                        children: [
+                          // Header: day headers
+                          Row(
                             children: visibleDays.map((day) {
-                              bool isPastDay = day.isBefore(DateTime.now()) && !isSameDay(day, DateTime.now());
+                              final String dayFormat =
+                                  screenWidth > 600 ? 'EEEE, d MMM' : 'EEE, d MMM';
+                              final String formattedDay = toBeginningOfSentenceCase(
+                                DateFormat(dayFormat, localizations.languageCode())
+                                    .format(day),
+                              )!;
+                              bool isPastDay = day.isBefore(DateTime.now()) &&
+                                  !isSameDay(day, DateTime.now());
+                              bool isToday = isSameDay(day, DateTime.now());
                               return Expanded(
-                                child: CalendarDayColumn(
-                                  day: day,
-                                  hours: hours,
-                                  events: events,
-                                  additionalEvents: recurrentEvents,
-                                  cellHeight: cellHeight,
-                                  draggedEvent: _draggedEvent,
-                                  dragStartIndex: _dragStartIndex,
-                                  dragEndIndex: _dragEndIndex,
-                                  dragStartDay: _dragStartDay,
-                                  onEditEvent: _onEditEvent,
-                                  onAddEvent: _onAddEvent,
-                                  onLongPressStart: _handleLongPressStart,
-                                  onLongPressMoveUpdate: _handleLongPressMoveUpdate,
-                                  onLongPressEnd: _handleLongPressEnd,
-                                  scrollController: _dayColumnsController,
-                                  pageIndex: pageIndex,
-                                  isPastDay: isPastDay, // <--- AGGIUNGI QUESTA RIGA
+                                child: Container(
+                                  height: 40,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey[300]!),
+                                    color: isToday
+                                        ? Colors.orangeAccent[400]
+                                        : (isPastDay
+                                            ? Colors.grey[300]
+                                            : Colors.blue[100]),
+                                    borderRadius: BorderRadius.circular(8.0),
+                                  ),
+                                  child: Text(
+                                    formattedDay,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: isToday
+                                          ? Colors.white
+                                          : (isPastDay ? Colors.grey[600] : Colors.black),
+                                    ),
+                                  ),
                                 ),
                               );
                             }).toList(),
                           ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
+                          // Body: days grid in vertical scroll
+                          Expanded(
+                            child: ScrollConfiguration(
+                              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false), // Disable scrollbar
+                              child: SingleChildScrollView(
+                                controller: _dayColumnsController, // Use the linked controller
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: visibleDays.map((day) {
+                                    bool isPastDay = day.isBefore(DateTime.now()) && !isSameDay(day, DateTime.now());
+                                    return Expanded(
+                                      child: CalendarDayColumn(
+                                        day: day,
+                                        hours: hours,
+                                        events: events,
+                                        additionalEvents: recurrentEvents,
+                                        cellHeight: cellHeight,
+                                        draggedEvent: _draggedEvent,
+                                        dragStartIndex: _dragStartIndex,
+                                        dragEndIndex: _dragEndIndex,
+                                        dragStartDay: _dragStartDay,
+                                        onEditEvent: _onEditEvent,
+                                        onAddEvent: _onAddEvent,
+                                        onLongPressStart: _handleLongPressStart,
+                                        onLongPressMoveUpdate: _handleLongPressMoveUpdate,
+                                        onLongPressEnd: _handleLongPressEnd,
+                                        scrollController: _dayColumnsController,
+                                        pageIndex: pageIndex,
+                                        isPastDay: isPastDay, // <--- AGGIUNGI QUESTA RIGA
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ],

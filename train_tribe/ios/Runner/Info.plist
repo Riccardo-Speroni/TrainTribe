@@ -100,5 +100,7 @@
 		<string>fbauth2</string>
 		<string>fbshareextension</string>
 	</array>
+	<key>NSContactsUsageDescription</key>
+	<string>This app uses your contacts to suggest friends.</string>
 </dict>
 </plist>
