@@ -72,24 +72,12 @@ class _TrainsPageState extends State<TrainsPage> {
       eventsData = (json.decode(response.body) as Map<String, dynamic>).map(
         (key, value) => MapEntry(key, value as List<dynamic>),
       );
-      // --- Fake hardcoded json file ---
-      // final jsonString = await rootBundle.loadString('images/json_example.json');
-      // eventsData = (json.decode(jsonString) as Map<String, dynamic>).map(
-      //   (key, value) => MapEntry(key, value as List<dynamic>),
-      // );
     } else if (response.statusCode == 404) {
       eventsData = null; // No trips found
     } else {
       throw Exception('Failed to load trips data');
     }
-
-   /*  // save json to file for debugging
-    final file = File('debug_trips_data.json');
-    await file.writeAsString(json.encode(eventsData));
-    // print full file path
-    String path = file.path;
-    print('Debug trips data saved to: $path'); */
-
+    
     setState(() {
       isLoading = false;
     });

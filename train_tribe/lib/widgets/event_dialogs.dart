@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/calendar_event.dart';
 import '../utils/calendar_functions.dart';
-import '../utils/station_names.dart';
 
 const double stationListMaxHeight = 290;
 
@@ -14,6 +13,7 @@ Future<void> showAddEventDialog({
   required DateTime day,
   required int startIndex,
   int? endIndex,
+  required List<String> stationNames,
   required List<int> hours,
   required List<CalendarEvent> events,
   required Function(CalendarEvent) onEventAdded,
@@ -404,6 +404,7 @@ Future<void> showEditEventDialog({
   required List<CalendarEvent> events,
   required VoidCallback onEventUpdated,
   required Function(String) onEventDeleted,
+  required List<String> stationNames,
 }) async {
   final localizations = AppLocalizations.of(context);
   String departureStation = event.departureStation;
@@ -740,6 +741,11 @@ Future<void> showEditEventDialog({
                       e.recurrenceEndDate = recurrenceEndDate;
                     }
                   }
+
+                  if(selectedDay == event.date){
+                    selectedDay = generatorEvent.date;
+                  }
+                  
                 } else {
                   generatorEvent.departureStation = departureStation;
                   generatorEvent.arrivalStation = arrivalStation;

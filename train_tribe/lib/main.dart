@@ -87,8 +87,13 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _initNotifications();
-    _startNotificationPolling();
+
+    // Note: Since Windows is not supported by flutter_local_notifications, we don't use them on Windows.
+    if(!Platform.isWindows)
+    {
+      _initNotifications();
+      _startNotificationPolling();
+    }
   }
 
   @override
