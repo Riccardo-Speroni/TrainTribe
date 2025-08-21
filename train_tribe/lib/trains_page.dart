@@ -1,11 +1,10 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'l10n/app_localizations.dart';
 import 'widgets/train_card.dart';
 import 'widgets/responsive_card_list.dart';
@@ -24,6 +23,8 @@ class _TrainsPageState extends State<TrainsPage> {
   int? expandedCardIndex;
   Map<String, List<dynamic>>? eventsData;
   bool isLoading = true;
+  // Cached details for events: origin, destination, event_start, event_end
+  Map<String, Map<String, dynamic>> eventDetails = {};
 
   @override
   void initState() {
@@ -79,8 +80,42 @@ class _TrainsPageState extends State<TrainsPage> {
     } else {
       throw Exception('Failed to load trips data');
     }
-    
+    // Fetch event details from Firestore for each eventId if available
+    final Map<String, Map<String, dynamic>> details = {};
+    if (eventsData != null && eventsData!.isNotEmpty && userId.isNotEmpty) {
+      final firestore = FirebaseFirestore.instance;
+      final eventIds = eventsData!.keys.toList();
+      try {
+        await Future.wait(eventIds.map((eventId) async {
+          try {
+            final doc = await firestore
+                .collection('users')
+                .doc(userId)
+                .collection('events')
+                .doc(eventId)
+                .get();
+            if (doc.exists) {
+              final data = doc.data();
+              if (data != null) {
+                details[eventId] = {
+                  'origin': data['origin'],
+                  'destination': data['destination'],
+                  'event_start': data['event_start'],
+                  'event_end': data['event_end'],
+                };
+              }
+            }
+          } catch (_) {
+            // Ignore individual fetch errors, keep rendering others
+          }
+        }));
+      } catch (_) {
+        // Ignore batch errors
+      }
+    }
+
     setState(() {
+      eventDetails = details;
       isLoading = false;
     });
   }
@@ -144,12 +179,18 @@ class _TrainsPageState extends State<TrainsPage> {
                           final trainCards = routes.asMap().entries.map((routeEntry) {
                             final routeIndex = routeEntry.key;
                             final route = routeEntry.value as Map<String, dynamic>;
-                            // Collect all legs (leg0, leg1, ...)
+                            // Collect all legs (leg0, leg1, ...) sorted by index to ensure correct order
                             final legs = <Map<String, dynamic>>[];
-                            for (var k in route.keys) {
-                              if (k.startsWith('leg')) {
-                                legs.add(route[k]);
-                              }
+                            final legKeys = route.keys
+                                .where((k) => k.startsWith('leg'))
+                                .toList()
+                              ..sort((a, b) {
+                                int ai = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                                int bi = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                                return ai.compareTo(bi);
+                              });
+                            for (final k in legKeys) {
+                              legs.add(Map<String, dynamic>.from(route[k] as Map));
                             }
                             // For userAvatars: collect all friends from all legs, and merge by user_id (or image+name)
                             final Map<String, Map<String, String>> userAvatarsMap = {};
@@ -184,19 +225,36 @@ class _TrainsPageState extends State<TrainsPage> {
                               }
                             }
                             final userAvatars = userAvatarsMap.values.toList();
-                            // Departure/arrival time: from first/last stop of first/last leg
+                            // Departure/arrival time: time the user boards/alights (match stop_id with 'from'/'to')
                             String departureTime = '';
                             String arrivalTime = '';
+                            String _toHHmm(dynamic t) {
+                              final s = (t ?? '').toString();
+                              return s.length >= 5 ? s.substring(0, 5) : s;
+                            }
                             if (legs.isNotEmpty) {
                               final firstLeg = legs.first;
                               final lastLeg = legs.last;
-                              final firstStops = firstLeg['stops'] as List<dynamic>;
-                              final lastStops = lastLeg['stops'] as List<dynamic>;
+
+                              final firstFromId = (firstLeg['from'] ?? '').toString();
+                              final lastToId = (lastLeg['to'] ?? '').toString();
+
+                              final firstStops = (firstLeg['stops'] as List<dynamic>? ?? []);
+                              final lastStops = (lastLeg['stops'] as List<dynamic>? ?? []);
+
                               if (firstStops.isNotEmpty) {
-                                departureTime = (firstStops.first['departure_time'] ?? firstStops.first['arrival_time'] ?? '').toString().substring(0,5);
+                                final Map<String, dynamic> boardStop = (firstStops.firstWhere(
+                                  (s) => ((s as Map)['stop_id'] ?? '').toString() == firstFromId,
+                                  orElse: () => firstStops.first,
+                                )) as Map<String, dynamic>;
+                                departureTime = _toHHmm(boardStop['departure_time'] ?? boardStop['arrival_time']);
                               }
                               if (lastStops.isNotEmpty) {
-                                arrivalTime = (lastStops.last['arrival_time'] ?? lastStops.last['departure_time'] ?? '').toString().substring(0,5);
+                                final Map<String, dynamic> alightStop = (lastStops.firstWhere(
+                                  (s) => ((s as Map)['stop_id'] ?? '').toString() == lastToId,
+                                  orElse: () => lastStops.last,
+                                )) as Map<String, dynamic>;
+                                arrivalTime = _toHHmm(alightStop['arrival_time'] ?? alightStop['departure_time']);
                               }
                             }
                             // isDirect: only one leg
@@ -257,13 +315,53 @@ class _TrainsPageState extends State<TrainsPage> {
                                     ),
                                     Padding(
                                       padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                                      child: Text(
-                                        'Event: $eventId', //TODO: use start and end time and location
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.blueGrey,
-                                        ),
-                                      ),
+                                      child: Builder(builder: (_) {
+                                        final details = eventDetails[eventId];
+                                        String stationsText = 'Event';
+                                        String timesText = '';
+                                        if (details != null) {
+                                          final origin = (details['origin'] ?? '').toString();
+                                          final destination = (details['destination'] ?? '').toString();
+                                          final startStr = DateFormat.Hm(localizations.languageCode()).format(details['event_start'].toDate());
+                                          final endStr = DateFormat.Hm(localizations.languageCode()).format(details['event_end'].toDate());
+
+                                          if (origin.isNotEmpty || destination.isNotEmpty) {
+                                            stationsText = [origin, destination]
+                                                .where((s) => s.isNotEmpty)
+                                                .join(' → ');
+                                          }
+                                          if (startStr.isNotEmpty || endStr.isNotEmpty) {
+                                            timesText = [startStr, endStr]
+                                                .where((s) => s.isNotEmpty)
+                                                .join(' - ');
+                                          }
+                                        }
+
+                                        return Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              stationsText,
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.blueGrey,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            if (timesText.isNotEmpty)
+                                              Text(
+                                                timesText,
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.blueGrey,
+                                                ),
+                                              ),
+                                          ],
+                                        );
+                                      }),
                                     ),
                                     Expanded(
                                       child: Divider(thickness: 2, color: Colors.blueGrey),
