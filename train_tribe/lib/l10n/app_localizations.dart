@@ -42,7 +42,7 @@ class AppLocalizations {
       'login_error_generic': 'An unexpected error occurred. Please try again later.',
       'login_error_user_disabled': 'User account has been disabled.',
       'firebase_windows_error': 'Something went wrong. Please check the credentials and your internet connection.',
-      'logout' : 'Logout',
+      'logout': 'Logout',
       'complete_profile': 'Complete your profile',
 
       // User Information
@@ -92,6 +92,7 @@ class AppLocalizations {
       'save': 'Save',
       'cancel': 'Cancel',
       'delete': 'Delete',
+      'saved': 'Saved',
 
       // Miscellaneous
       'contacts_access': 'Contacts Access',
@@ -108,9 +109,15 @@ class AppLocalizations {
       'ghost': 'Ghost',
       'whatsapp': 'Whatsapp',
       'phone_number_note': 'Optional. Used only for retrieving contacts as friends.',
+      'example': 'Example',
       'generate_avatars': 'Generate Avatars',
       'search_and_add_friends_hint': 'Type to filter your friends. Press enter or the button to search and add new friends.',
       'search_and_add_friends_tooltip': 'Search and add new friends',
+      'prefix': 'Prefix',
+      'find_from_contacts': 'Find from contacts',
+      'suggested_from_contacts': 'Suggested from contacts',
+      'no_contact_suggestions': 'No suggestions from your contacts',
+  'phone_required_for_suggestions': 'Add your phone number in your profile to get suggestions from contacts.',
 
       // Error Messages
       'error': 'Error',
@@ -135,6 +142,9 @@ class AppLocalizations {
       'add_friend': 'Add friend',
       'request_sent': 'Request sent',
       'no_trains_found': 'No trains have been found',
+      'invalid_phone': 'Invalid phone. Use a prefix followed by 10 digits (e.g., +39 345 1234567).',
+      'invalid': 'Invalid',
+      'contacts_permission_denied': 'Contacts permission denied. Please enable it in settings.',
     },
     'it': {
       // General
@@ -165,7 +175,7 @@ class AppLocalizations {
       'login_error_generic': 'Si è verificato un errore inaspettato. Per favore riprova più tardi.',
       'login_error_user_disabled': 'L\'account è stato disabilitato.',
       'firebase_windows_error': 'Qualcosa è andato storto. Controlla le credenziali e la tua connessione a internet.',
-      'logout' : 'Disconnetti',
+      'logout': 'Disconnetti',
       'complete_profile': 'Completa il tuo profilo',
 
       // User Information
@@ -215,6 +225,7 @@ class AppLocalizations {
       'save': 'Salva',
       'cancel': 'Annulla',
       'delete': 'Elimina',
+      'saved': 'Salvato',
 
       // Miscellaneous
       'contacts_access': 'Accesso ai contatti',
@@ -231,9 +242,15 @@ class AppLocalizations {
       'ghost': 'Nascondi',
       'whatsapp': 'Whatsapp',
       'phone_number_note': 'Opzionale. Usato solo per recuperare i contatti come amici.',
+      'example': 'Esempio',
       'generate_avatars': 'Genera Avatar',
       'search_and_add_friends_hint': 'Scrivi per filtrare i tuoi amici. Premi invio o il pulsante per cercare e aggiungere nuovi amici.',
       'search_and_add_friends_tooltip': 'Cerca e aggiungi nuovi amici',
+      'prefix': 'Prefisso',
+      'find_from_contacts': 'Trova dai contatti',
+      'suggested_from_contacts': 'Suggeriti dai contatti',
+      'no_contact_suggestions': 'Nessun suggerimento dai tuoi contatti',
+  'phone_required_for_suggestions': 'Aggiungi il tuo numero di telefono nel profilo per ottenere suggerimenti dai contatti.',
 
       // Error Messages
       'error': 'Errore',
@@ -257,7 +274,10 @@ class AppLocalizations {
       'add_new_friends': 'Aggiungi nuovi amici',
       'add_friend': 'Aggiungi amico',
       'request_sent': 'Richiesta inviata',
-      'no_trains_found': 'Non è stato trovato nessun treno'
+      'no_trains_found': 'Non è stato trovato nessun treno',
+      'invalid_phone': 'Numero non valido. Scrivi un prefisso seguito da 10 cifre (es. +39 345 1234567).',
+      'invalid': 'Non valido',
+      'contacts_permission_denied': 'Permesso contatti negato. Abilitalo nelle impostazioni.',
     },
   };
 

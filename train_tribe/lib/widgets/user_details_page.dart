@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/phone_number_helper.dart';
 
 class UserDetailsPage extends StatefulWidget {
   final String? prefilledName;
@@ -39,18 +40,80 @@ class UserDetailsPage extends StatefulWidget {
 class _UserDetailsPageState extends State<UserDetailsPage> {
   bool isUsernameUnique = true;
   bool areMandatoryFieldsFilled = false;
+  // Editable prefix with +39 default
+  static const String _defaultDial = '+39';
+  final TextEditingController _dialController = TextEditingController(text: _defaultDial);
+  String? _prefixError;
+  String? _phoneError;
 
   @override
   void initState() {
     super.initState();
     _validateMandatoryFields();
+    final pre = widget.phoneController.text.trim();
+    final parts = splitE164(pre);
+    if (parts != null) {
+      _dialController.text = parts.prefix;
+      widget.phoneController.text = parts.number;
+    }
+  }
+
+  @override
+  void dispose() {
+    _dialController.dispose();
+    super.dispose();
+  }
+
+  void _validatePhoneInline(AppLocalizations localizations) {
+    final dialRaw = _dialController.text.trim();
+    final numRaw = widget.phoneController.text.trim();
+
+    // Optional: if number is empty, clear errors
+    if (numRaw.isEmpty) {
+      setState(() {
+        _prefixError = null;
+        _phoneError = null;
+      });
+      return;
+    }
+
+  final prefixOk = validatePrefix(dialRaw);
+  final numberDigitsOnly = validateNumberDigits(numRaw);
+  final lengthOk = validateNumberLength(numRaw, dialRaw, minLen: kGenericMinLen, maxLen: kGenericMaxLen);
+
+    setState(() {
+      _prefixError = prefixOk ? null : localizations.translate('invalid');
+      _phoneError = (numberDigitsOnly && lengthOk) ? null : localizations.translate('invalid_phone');
+    });
+  }
+
+  String? _composeAndValidateE164(AppLocalizations localizations) {
+    final dialRaw = _dialController.text.trim();
+    final numRaw = widget.phoneController.text.trim();
+
+    // Optional: empty number allowed
+    if (numRaw.isEmpty) {
+      _prefixError = null;
+      _phoneError = null;
+      return '';
+    }
+  final prefixOk = validatePrefix(dialRaw);
+  final numberDigitsOnly = validateNumberDigits(numRaw);
+  final lengthOk = validateNumberLength(numRaw, dialRaw, minLen: kGenericMinLen, maxLen: kGenericMaxLen);
+
+    if (!(prefixOk && numberDigitsOnly && lengthOk)) {
+      setState(() {
+        _prefixError = prefixOk ? null : localizations.translate('invalid');
+        _phoneError = (numberDigitsOnly && lengthOk) ? null : localizations.translate('invalid_phone');
+      });
+      return null;
+    }
+  final e164 = composeE164(dialRaw, numRaw, allowEmpty: false, minLen: kGenericMinLen, maxLen: kGenericMaxLen);
+  return e164;
   }
 
   Future<void> _checkUsernameUniqueness(String username) async {
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('username', isEqualTo: username)
-        .get();
+    final querySnapshot = await FirebaseFirestore.instance.collection('users').where('username', isEqualTo: username).get();
 
     setState(() {
       isUsernameUnique = querySnapshot.docs.isEmpty;
@@ -71,89 +134,141 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
 
     return Padding(
       padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (widget.onBack != null)
-            Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: widget.onBack,
-              ),
-            ),
-          Image.asset('images/djungelskog.jpg', height: 100),
-          const SizedBox(height: 20),
-          Text(
-            localizations.translate('choose_username'),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: widget.usernameController,
-            onChanged: (value) {
-              _validateMandatoryFields();
-              _checkUsernameUniqueness(value.trim());
-            },
-            decoration: InputDecoration(
-              labelText: localizations.translate('username'),
-              border: const OutlineInputBorder(),
-              errorText: isUsernameUnique
-                  ? null
-                  : localizations.translate('error_username_taken'),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            localizations.translate('name_surname'),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: widget.nameController,
-                  onChanged: (_) => _validateMandatoryFields(),
-                  decoration: InputDecoration(
-                    labelText: localizations.translate('first_name'),
-                    border: const OutlineInputBorder(),
-                  ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.onBack != null)
+              Align(
+                alignment: Alignment.topLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: widget.onBack,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: widget.surnameController,
-                  onChanged: (_) => _validateMandatoryFields(),
-                  decoration: InputDecoration(
-                    labelText: localizations.translate('last_name'),
-                    border: const OutlineInputBorder(),
+            Image.asset('images/djungelskog.jpg', height: 100),
+            const SizedBox(height: 20),
+            TextField(
+              controller: widget.usernameController,
+              onChanged: (value) {
+                _validateMandatoryFields();
+                _checkUsernameUniqueness(value.trim());
+              },
+              decoration: InputDecoration(
+                labelText: localizations.translate('username'),
+                border: const OutlineInputBorder(),
+                errorText: isUsernameUnique ? null : localizations.translate('error_username_taken'),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              localizations.translate('name_surname'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: widget.nameController,
+                    onChanged: (_) => _validateMandatoryFields(),
+                    decoration: InputDecoration(
+                      labelText: localizations.translate('first_name'),
+                      border: const OutlineInputBorder(),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            localizations.translate('add_phone_number'),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          TextField(
-            controller: widget.phoneController,
-            decoration: InputDecoration(
-              labelText: localizations.translate('phone_number'),
-              border: const OutlineInputBorder(),
-              helperText: localizations.translate('phone_number_note'),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: widget.surnameController,
+                    onChanged: (_) => _validateMandatoryFields(),
+                    decoration: InputDecoration(
+                      labelText: localizations.translate('last_name'),
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: areMandatoryFieldsFilled && isUsernameUnique
-                ? widget.onAction
-                : null,
-            child: Text(widget.actionButtonText),
-          ),
-        ],
+            const SizedBox(height: 20),
+            Text(
+              localizations.translate('add_phone_number'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 110,
+                  child: TextField(
+                    controller: _dialController,
+                    keyboardType: TextInputType.phone,
+                    onChanged: (val) {
+                      // Allow only '+' followed by digits; normalize live.
+                      final digits = val.replaceAll(RegExp(r'[^0-9]'), '');
+                      final fixed = '+$digits';
+                      if (fixed != _dialController.text) {
+                        _dialController.value = TextEditingValue(
+                          text: fixed,
+                          selection: TextSelection.collapsed(offset: fixed.length),
+                        );
+                      }
+                      _validatePhoneInline(localizations);
+                    },
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                      labelText: localizations.translate('prefix'),
+                      border: const OutlineInputBorder(),
+                      errorText: _prefixError,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: widget.phoneController,
+                    keyboardType: TextInputType.phone,
+                    onChanged: (value) {
+                      // Strict: allow digits only; no spaces
+                      final filtered = value.replaceAll(RegExp(r'[^0-9]'), '');
+                      if (filtered != value) {
+                        widget.phoneController.value = TextEditingValue(
+                          text: filtered,
+                          selection: TextSelection.collapsed(offset: filtered.length),
+                        );
+                      }
+                      _validatePhoneInline(localizations);
+                    },
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                      labelText: localizations.translate('phone_number'),
+                      border: const OutlineInputBorder(),
+                      helperText: localizations.translate('phone_number_note'),
+                      errorText: _phoneError,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: areMandatoryFieldsFilled && isUsernameUnique
+                  ? () {
+                      final e164 = _composeAndValidateE164(localizations);
+                      if (e164 == null) return;
+                      widget.phoneController.text = e164;
+                      widget.onAction();
+                    }
+                  : null,
+              child: Text(widget.actionButtonText),
+            ),
+          ],
+        ),
       ),
     );
   }
