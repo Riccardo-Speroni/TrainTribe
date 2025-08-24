@@ -69,8 +69,8 @@ class _FriendsPageState extends State<FriendsPage> {
     final myUsername = myData.data()?['username'] ?? 'Unknown';
     await _db.collection('notifications').add({
       'userId': targetUid,
-      'title': 'Nuova richiesta di amicizia',
-      'description': '$myUsername ti ha inviato una richiesta di amicizia.',
+      'title': AppLocalizations.of(context).translate('new_friend_request'),
+      'description': '$myUsername ${AppLocalizations.of(context).translate('new_friend_request_body')}',
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
@@ -78,6 +78,7 @@ class _FriendsPageState extends State<FriendsPage> {
   Future<void> _acceptFriendRequest(String requesterUid) async {
     final myData = await _db.collection('users').doc(_uid).get();
     final targetData = await _db.collection('users').doc(requesterUid).get();
+
     if (!targetData.exists) return;
 
     // Remove from requests
@@ -94,8 +95,8 @@ class _FriendsPageState extends State<FriendsPage> {
     final myUsername = myData.data()?['username'] ?? 'Unknown';
     await _db.collection('notifications').add({
       'userId': requesterUid,
-      'title': 'Nuovo Amico',
-      'description': '$myUsername ha accettato la tua richiesta di amicizia.',
+      'title': AppLocalizations.of(context).translate('new_friend'),
+      'description': '$myUsername ${AppLocalizations.of(context).translate('request_accepted')}',
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
