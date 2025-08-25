@@ -102,7 +102,7 @@ class AppLocalizations {
       'end_recurrence': 'End Recurrence',
       'invalid_station_name': 'Invalid station name',
       'confirm_delete': 'Confirm Delete',
-      'delete_event_confirmation':'Are you sure you want to delete this event?',
+      'delete_event_confirmation': 'Are you sure you want to delete this event?',
       'yes': 'Yes',
       'no': 'No',
 
@@ -135,7 +135,19 @@ class AppLocalizations {
       'find_from_contacts': 'Find from contacts',
       'suggested_from_contacts': 'Suggested from contacts',
       'no_contact_suggestions': 'No suggestions from your contacts',
-  'phone_required_for_suggestions': 'Add your phone number in your profile to get suggestions from contacts.',
+      'phone_required_for_suggestions': 'Add your phone number in your profile to get suggestions from contacts.',
+      'confirm': 'Confirm',
+      'confirmed': 'Confirmed',
+      // Train confirmations tooltips
+      'you_confirmed_train': 'You confirmed this train',
+      'you_not_confirmed_train': 'You have not confirmed a train yet',
+      'friend_confirmed_train': 'Confirmed this train',
+      'friend_not_confirmed_train': 'Has not confirmed a train yet',
+  'train_confirm_legend_title': 'Train confirmation legend',
+  'train_confirm_legend_you': 'Green ring: train you confirmed',
+  'train_confirm_legend_friend': 'Amber ring + check: friend confirmed',
+  'train_confirm_legend_unconfirmed': 'Plain avatar: not confirmed',
+  'train_confirm_info': 'You can confirm only one train per event. Re-confirming moves your selection.',
 
       // Error Messages
       'error': 'Error',
@@ -253,10 +265,9 @@ class AppLocalizations {
       'end_recurrence': 'Fine Ricorrenza',
       'invalid_station_name': 'Nome stazione non valido',
       'confirm_delete': 'Conferma Eliminazione',
-      'delete_event_confirmation':'Sei sicuro di voler eliminare questo evento?',
+      'delete_event_confirmation': 'Sei sicuro di voler eliminare questo evento?',
       'yes': 'Sì',
       'no': 'No',
-
 
       // Notifications
       'new_friend_request': 'Nuova richiesta di amicizia',
@@ -287,7 +298,19 @@ class AppLocalizations {
       'find_from_contacts': 'Trova dai contatti',
       'suggested_from_contacts': 'Suggeriti dai contatti',
       'no_contact_suggestions': 'Nessun suggerimento dai tuoi contatti',
-  'phone_required_for_suggestions': 'Aggiungi il tuo numero di telefono nel profilo per ottenere suggerimenti dai contatti.',
+      'phone_required_for_suggestions': 'Aggiungi il tuo numero di telefono nel profilo per ottenere suggerimenti dai contatti.',
+      'confirm': 'Conferma',
+      'confirmed': 'Confermato',
+      // Train confirmations tooltips
+      'you_confirmed_train': 'Hai confermato questo treno',
+      'you_not_confirmed_train': 'Non hai ancora confermato un treno',
+      'friend_confirmed_train': 'Ha confermato questo treno',
+      'friend_not_confirmed_train': 'Non ha ancora confermato un treno',
+  'train_confirm_legend_title': 'Legenda conferma treno',
+  'train_confirm_legend_you': 'Bordo verde: treno che hai confermato',
+  'train_confirm_legend_friend': 'Bordo ambra + check: amico che ha confermato',
+  'train_confirm_legend_unconfirmed': 'Avatar semplice: non confermato',
+  'train_confirm_info': 'Puoi confermare solo un treno per evento. Riconfermare sposta la tua selezione.',
 
       // Error Messages
       'error': 'Errore',

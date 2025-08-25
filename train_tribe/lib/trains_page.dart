@@ -1,6 +1,6 @@
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'l10n/app_localizations.dart';
 import 'widgets/train_card.dart';
 import 'widgets/responsive_card_list.dart';
+import 'utils/train_confirmation.dart';
 
 class TrainsPage extends StatefulWidget {
   const TrainsPage({super.key});
@@ -25,6 +26,8 @@ class _TrainsPageState extends State<TrainsPage> {
   bool isLoading = true;
   // Cached details for events: origin, destination, event_start, event_end
   Map<String, Map<String, dynamic>> eventDetails = {};
+  final Map<String, String?> confirmedTrainPerEvent = {}; // eventId -> trainId
+  final TrainConfirmationService _confirmationService = TrainConfirmationService();
 
   @override
   void initState() {
@@ -90,12 +93,7 @@ class _TrainsPageState extends State<TrainsPage> {
       try {
         await Future.wait(eventIds.map((eventId) async {
           try {
-            final doc = await firestore
-                .collection('users')
-                .doc(userId)
-                .collection('events')
-                .doc(eventId)
-                .get();
+            final doc = await firestore.collection('users').doc(userId).collection('events').doc(eventId).get();
             if (doc.exists) {
               final data = doc.data();
               if (data != null) {
@@ -119,8 +117,45 @@ class _TrainsPageState extends State<TrainsPage> {
     if (mounted) {
       setState(() {
         eventDetails = details;
-      isLoading = false;
+        isLoading = false;
       });
+    }
+
+    // Preload confirmed train per event (so returning to page keeps highlight)
+    if (eventsData != null && userId.isNotEmpty) {
+      final Map<String, String?> preloadMap = {};
+      try {
+        for (final entry in eventsData!.entries) {
+          final eventId = entry.key;
+          final routes = entry.value;
+          final List<String> trainIds = [];
+          for (final r in routes) {
+            if (r is Map<String, dynamic>) {
+              final leg0 = r['leg0'];
+              if (leg0 is Map && leg0['trip_id'] != null) {
+                final tid = leg0['trip_id'].toString();
+                if (!trainIds.contains(tid)) trainIds.add(tid);
+              }
+            }
+          }
+          if (trainIds.isNotEmpty) {
+            final confirmed = await _confirmationService.fetchConfirmedTrain(
+              dateStr: dateStr,
+              userId: userId,
+              eventTrainIds: trainIds,
+            );
+            preloadMap[eventId] = confirmed;
+          }
+        }
+        if (mounted) {
+          setState(() {
+            confirmedTrainPerEvent.addAll(preloadMap);
+          });
+        }
+      } catch (e, st) {
+        debugPrint('Preload confirmations error: $e');
+        debugPrint(st.toString());
+      }
     }
   }
 
@@ -134,6 +169,13 @@ class _TrainsPageState extends State<TrainsPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(localizations.translate('trains')),
+        actions: [
+          IconButton(
+            tooltip: localizations.translate('train_confirm_legend_title'),
+            icon: const Icon(Icons.info_outline),
+            onPressed: () => _showLegendDialog(context, localizations),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50.0),
           child: Row(
@@ -180,14 +222,13 @@ class _TrainsPageState extends State<TrainsPage> {
                           final eventId = eventEntry.key;
                           final routes = eventEntry.value;
                           // Build the list of TrainCards for this event
+                          final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now().add(Duration(days: selectedDayIndex)));
                           final trainCards = routes.asMap().entries.map((routeEntry) {
                             final routeIndex = routeEntry.key;
                             final route = routeEntry.value as Map<String, dynamic>;
                             // Collect all legs (leg0, leg1, ...) sorted by index to ensure correct order
                             final legs = <Map<String, dynamic>>[];
-                            final legKeys = route.keys
-                                .where((k) => k.startsWith('leg'))
-                                .toList()
+                            final legKeys = route.keys.where((k) => k.startsWith('leg')).toList()
                               ..sort((a, b) {
                                 int ai = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
                                 int bi = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
@@ -201,19 +242,22 @@ class _TrainsPageState extends State<TrainsPage> {
                             for (final leg in legs) {
                               if (leg['friends'] != null) {
                                 for (final friend in (leg['friends'] as List)) {
-                                  final userId = (friend['user_id'] ?? '') as String;
+                                  final friendUserId = (friend['user_id'] ?? '') as String;
                                   final image = (friend['picture'] ?? '').toString();
                                   final name = (friend['username'] ?? '').toString();
                                   final from = (friend['from'] ?? '').toString();
                                   final to = (friend['to'] ?? '').toString();
+                                  final confirmed = (friend['confirmed'] == true).toString();
                                   // Use userId if present, otherwise fallback to image+name
-                                  final key = userId.isNotEmpty ? userId : '$image|$name';
+                                  final key = friendUserId.isNotEmpty ? friendUserId : '$image|$name';
                                   if (!userAvatarsMap.containsKey(key)) {
                                     userAvatarsMap[key] = {
                                       'image': image,
                                       'name': name,
                                       'from': from,
                                       'to': to,
+                                      'confirmed': confirmed,
+                                      'user_id': friendUserId,
                                     };
                                   } else {
                                     // Merge: set from=min(from), to=max(to)
@@ -222,6 +266,10 @@ class _TrainsPageState extends State<TrainsPage> {
                                     // Use string comparison for stop_id, or if numeric, use int
                                     userAvatarsMap[key]!['from'] = (from.compareTo(prevFrom) < 0) ? from : prevFrom;
                                     userAvatarsMap[key]!['to'] = (to.compareTo(prevTo) > 0) ? to : prevTo;
+                                    // Preserve confirmed if any occurrence is true
+                                    if (confirmed == 'true') {
+                                      userAvatarsMap[key]!['confirmed'] = 'true';
+                                    }
                                   }
                                 }
                               }
@@ -234,6 +282,7 @@ class _TrainsPageState extends State<TrainsPage> {
                               final s = (t ?? '').toString();
                               return s.length >= 5 ? s.substring(0, 5) : s;
                             }
+
                             if (legs.isNotEmpty) {
                               final firstLeg = legs.first;
                               final lastLeg = legs.last;
@@ -280,13 +329,22 @@ class _TrainsPageState extends State<TrainsPage> {
                                 'isDirect': isDirect,
                                 'userFrom': leg['from'] ?? '',
                                 'userTo': leg['to'] ?? '',
-                                'originalFriends': leg['friends'] ?? [],
+                                'originalFriends': (leg['friends'] as List?)?.map((f) {
+                                      final m = Map<String, dynamic>.from(f as Map);
+                                      m['confirmed'] = (m['confirmed'] == true);
+                                      return m;
+                                    }).toList() ??
+                                    [],
                               };
                             }).toList();
                             // Title: Solution N
                             final title = '${localizations.translate('solution')} $routeIndex';
                             // Use a unique index for expandedCardIndex per event
                             final cardIndex = routeIndex;
+                            final trainId =
+                                legsForCard.isNotEmpty ? (legsForCard.first['trainNumber']?.toString() ?? 'unknown') : 'unknown';
+                            final isConfirmed = confirmedTrainPerEvent[eventId] == trainId;
+                            final currentUserId = FirebaseAuth.instance.currentUser?.uid;
                             return TrainCard(
                               title: title,
                               isExpanded: expandedCardIndex == (eventId.hashCode ^ cardIndex),
@@ -301,6 +359,9 @@ class _TrainsPageState extends State<TrainsPage> {
                               isDirect: isDirect,
                               userAvatars: userAvatars,
                               legs: legsForCard,
+                              trailing: _buildConfirmButton(eventId, trainId, dateStr, routes),
+                              highlightConfirmed: isConfirmed,
+                              currentUserId: currentUserId,
                             );
                           }).toList();
 
@@ -323,18 +384,15 @@ class _TrainsPageState extends State<TrainsPage> {
                                         if (details != null) {
                                           final origin = (details['origin'] ?? '').toString();
                                           final destination = (details['destination'] ?? '').toString();
-                                          final startStr = DateFormat.Hm(localizations.languageCode()).format(details['event_start'].toDate());
+                                          final startStr =
+                                              DateFormat.Hm(localizations.languageCode()).format(details['event_start'].toDate());
                                           final endStr = DateFormat.Hm(localizations.languageCode()).format(details['event_end'].toDate());
 
                                           if (origin.isNotEmpty || destination.isNotEmpty) {
-                                            stationsText = [origin, destination]
-                                                .where((s) => s.isNotEmpty)
-                                                .join(' → ');
+                                            stationsText = [origin, destination].where((s) => s.isNotEmpty).join(' → ');
                                           }
                                           if (startStr.isNotEmpty || endStr.isNotEmpty) {
-                                            timesText = [startStr, endStr]
-                                                .where((s) => s.isNotEmpty)
-                                                .join(' - ');
+                                            timesText = [startStr, endStr].where((s) => s.isNotEmpty).join(' - ');
                                           }
                                         }
 
@@ -381,6 +439,151 @@ class _TrainsPageState extends State<TrainsPage> {
                       ],
                     ),
             ),
+    );
+  }
+
+  Widget _buildConfirmButton(String eventId, String trainId, String dateStr, dynamic routes) {
+    final isConfirmed = confirmedTrainPerEvent[eventId] == trainId;
+    final loc = AppLocalizations.of(context);
+    final confirmLabel = isConfirmed ? loc.translate('confirmed') : loc.translate('confirm');
+    return ElevatedButton(
+      onPressed: () async {
+        final user = FirebaseAuth.instance.currentUser;
+        final userId = user?.uid;
+        if (userId == null) return;
+        // Build list of trainIds for this event's routes
+        final List<String> trainIds = [];
+        if (routes is List) {
+          for (final r in routes) {
+            if (r is Map<String, dynamic>) {
+              final leg0 = r['leg0'];
+              if (leg0 is Map && leg0['trip_id'] != null) {
+                trainIds.add(leg0['trip_id'].toString());
+              }
+            }
+          }
+        }
+        try {
+          await _confirmationService.confirmTrain(
+            dateStr: dateStr,
+            trainId: trainId,
+            userId: userId,
+            eventTrainIds: trainIds,
+          );
+          if (mounted) {
+            setState(() {
+              confirmedTrainPerEvent[eventId] = trainId;
+            });
+          }
+        } catch (e, st) {
+          debugPrint('Confirm button error event=$eventId train=$trainId: $e');
+          debugPrint(st.toString());
+        }
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isConfirmed ? Colors.green : Colors.blue,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      ),
+      child: Text(confirmLabel),
+    );
+  }
+
+  void _showLegendDialog(BuildContext context, AppLocalizations loc) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(loc.translate('train_confirm_legend_title')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _legendRow(
+                ringColor: Colors.green,
+                glow: Colors.greenAccent,
+                label: loc.translate('train_confirm_legend_you'),
+                isUser: true,
+              ),
+              const SizedBox(height: 10),
+              _legendRow(
+                ringColor: Colors.amber,
+                glow: Colors.amberAccent,
+                label: loc.translate('train_confirm_legend_friend'),
+                showCheck: true,
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const CircleAvatar(radius: 12, backgroundColor: Colors.grey),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(loc.translate('train_confirm_legend_unconfirmed'))),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                loc.translate('train_confirm_info'),
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(loc.translate('ok')),
+            )
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _legendRow({required Color ringColor, required Color glow, required String label, bool showCheck = false, bool isUser = false}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: ringColor, width: isUser ? 3 : 2),
+                boxShadow: [
+                  BoxShadow(color: glow.withOpacity(0.6), blurRadius: 6, spreadRadius: 1),
+                ],
+                color: Colors.white,
+              ),
+              child: const Icon(Icons.person, size: 16, color: Colors.grey),
+            ),
+            if (showCheck)
+              Positioned(
+                bottom: -3,
+                right: -3,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: ringColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(color: ringColor.withOpacity(0.5), blurRadius: 4, spreadRadius: 0.5),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.check, size: 9, color: Colors.white),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label)),
+      ],
     );
   }
 }
