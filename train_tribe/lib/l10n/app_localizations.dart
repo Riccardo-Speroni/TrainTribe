@@ -143,11 +143,11 @@ class AppLocalizations {
       'you_not_confirmed_train': 'You have not confirmed a train yet',
       'friend_confirmed_train': 'Confirmed this train',
       'friend_not_confirmed_train': 'Has not confirmed a train yet',
-  'train_confirm_legend_title': 'Train confirmation legend',
-  'train_confirm_legend_you': 'Green ring: train you confirmed',
-  'train_confirm_legend_friend': 'Amber ring + check: friend confirmed',
-  'train_confirm_legend_unconfirmed': 'Plain avatar: not confirmed',
-  'train_confirm_info': 'You can confirm only one train per event. Re-confirming moves your selection.',
+      'train_confirm_legend_title': 'Train confirmation legend',
+      'train_confirm_legend_you': 'Green ring: train you confirmed',
+      'train_confirm_legend_friend': 'Amber ring + check: friend confirmed',
+      'train_confirm_legend_unconfirmed': 'Plain avatar: not confirmed',
+      'train_confirm_info': 'You can confirm only one train per event. Re-confirming moves your selection.',
 
       // Error Messages
       'error': 'Error',
@@ -306,11 +306,11 @@ class AppLocalizations {
       'you_not_confirmed_train': 'Non hai ancora confermato un treno',
       'friend_confirmed_train': 'Ha confermato questo treno',
       'friend_not_confirmed_train': 'Non ha ancora confermato un treno',
-  'train_confirm_legend_title': 'Legenda conferma treno',
-  'train_confirm_legend_you': 'Bordo verde: treno che hai confermato',
-  'train_confirm_legend_friend': 'Bordo ambra + check: amico che ha confermato',
-  'train_confirm_legend_unconfirmed': 'Avatar semplice: non confermato',
-  'train_confirm_info': 'Puoi confermare solo un treno per evento. Riconfermare sposta la tua selezione.',
+      'train_confirm_legend_title': 'Legenda conferma treno',
+      'train_confirm_legend_you': 'Bordo verde: treno che hai confermato',
+      'train_confirm_legend_friend': 'Bordo ambra + check: amico che ha confermato',
+      'train_confirm_legend_unconfirmed': 'Avatar semplice: non confermato',
+      'train_confirm_info': 'Puoi confermare solo un treno per evento. Riconfermare sposta la tua selezione.',
 
       // Error Messages
       'error': 'Errore',
