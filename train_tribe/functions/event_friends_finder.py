@@ -25,10 +25,11 @@ def get_event_trip_friends_logic(params):
             # Check if the friend ghosted the user
             friend_doc = db.collection("users").document(friend_id).get()
             friend_ghosted_user = False
+            friend_mood = friend_doc.to_dict().get("mood", True)
             if friend_doc.exists:
                 friend_friends_map = friend_doc.to_dict().get("friends", {})
                 friend_ghosted_user = friend_friends_map.get(user_id, {}).get("ghosted", False)
-            if not user_ghosted_friend and not friend_ghosted_user:
+            if not user_ghosted_friend and not friend_ghosted_user and friend_mood:
                 friends.append(friend_id)
 
     logging.info(f"Found {len(friends)} friends for user {user_id}.")

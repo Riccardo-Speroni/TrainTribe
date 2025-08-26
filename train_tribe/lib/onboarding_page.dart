@@ -22,19 +22,28 @@ class _OnboardingPageState extends State<OnboardingPage> {
       {
         'title': localizations.translate('onboarding_title_1'),
         'description': localizations.translate('onboarding_desc_1'),
+  'icon': '🚆',
       },
       {
         'title': localizations.translate('onboarding_title_2'),
         'description': localizations.translate('onboarding_desc_2'),
+  'icon': '📱',
       },
       {
         'title': localizations.translate('onboarding_title_3'),
         'description': localizations.translate('onboarding_desc_3'),
+  'icon': '🗓️',
       },
       {
         'title': localizations.translate('onboarding_title_4'),
         'description': localizations.translate('onboarding_desc_4'),
+  'icon': '👥↔️🚆',
       },
+  {
+    'title': localizations.translate('onboarding_title_5'),
+    'description': localizations.translate('onboarding_desc_5'),
+  'icon': '🎉',
+  },
     ];
 
     Future<void> completeOnboarding() async {
@@ -76,6 +85,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const SizedBox(height: 20),
+                    Text(
+                      data['icon'] ?? '',
+                      style: const TextStyle(fontSize: 64),
+                    ),
+                    const SizedBox(height: 24),
                     Text(
                       data['title']!,
                       style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
