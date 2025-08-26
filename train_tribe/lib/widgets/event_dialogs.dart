@@ -79,7 +79,7 @@ Future<void> showAddEventDialog({
                         controller: controller,
                         focusNode: focusNode,
                         decoration: InputDecoration(
-                          hintText: localizations.translate('departure_station'),
+                          hintText: localizations.translate('departure'),
                         ),
                         onChanged: (value) {
                           departureStation = value;
@@ -139,7 +139,7 @@ Future<void> showAddEventDialog({
                         controller: controller,
                         focusNode: focusNode,
                         decoration: InputDecoration(
-                          hintText: localizations.translate('arrival_station'),
+                          hintText: localizations.translate('arrival'),
                         ),
                         onChanged: (value) {
                           arrivalStation = value;

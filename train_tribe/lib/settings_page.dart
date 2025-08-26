@@ -55,12 +55,12 @@ class SettingsPage extends StatelessWidget {
               items: [
                 DropdownMenuItem(
                   value: const Locale('en'),
-                  child: Text(localizations.translate('english')), 
+                  child: Text('english'), 
 
                 ),
                 DropdownMenuItem(
                   value: const Locale('it'),
-                  child: Text(localizations.translate('italian')), 
+                  child: Text('italiano'), 
                 ),
               ],
             ),

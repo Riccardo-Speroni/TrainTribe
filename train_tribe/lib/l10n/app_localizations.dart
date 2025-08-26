@@ -95,6 +95,24 @@ class AppLocalizations {
       'cancel': 'Cancel',
       'delete': 'Delete',
       'saved': 'Saved',
+      'departure': 'Departure Station',
+      'arrival': 'Arrival Station',
+      'day': 'Day',
+      'start_hour': 'Start Hour',
+      'end_hour': 'End Hour',
+      'recurrent': 'Recurrent',
+      'end_recurrence': 'End Recurrence',
+      'invalid_station_name': 'Invalid station name',
+      'confirm_delete': 'Confirm Delete',
+      'delete_event_confirmation':'Are you sure you want to delete this event?',
+      'yes': 'Yes',
+      'no': 'No',
+
+      // Notifications
+      'new_friend_request': 'New friend request',
+      'new_friend_request_body': 'sent you a friend request.',
+      'new_friend': 'New Friend',
+      'request_accepted': 'has accepted your friend request.',
 
       // Miscellaneous
       'contacts_access': 'Contacts Access',
@@ -230,6 +248,25 @@ class AppLocalizations {
       'cancel': 'Annulla',
       'delete': 'Elimina',
       'saved': 'Salvato',
+      'departure': 'Stazione di Partenza',
+      'arrival': 'Stazione di Arrivo',
+      'day': 'Giorno',
+      'start_hour': 'Ora di Inizio',
+      'end_hour': 'Ora di Fine',
+      'recurrent': 'Ricorrente',
+      'end_recurrence': 'Fine Ricorrenza',
+      'invalid_station_name': 'Nome stazione non valido',
+      'confirm_delete': 'Conferma Eliminazione',
+      'delete_event_confirmation':'Sei sicuro di voler eliminare questo evento?',
+      'yes': 'Sì',
+      'no': 'No',
+
+
+      // Notifications
+      'new_friend_request': 'Nuova richiesta di amicizia',
+      'new_friend_request_body': 'ti ha inviato una richiesta di amicizia.',
+      'new_friend': 'Nuovo Amico',
+      'request_accepted': 'ha accettato la tua richiesta di amicizia.',
 
       // Miscellaneous
       'contacts_access': 'Accesso ai contatti',

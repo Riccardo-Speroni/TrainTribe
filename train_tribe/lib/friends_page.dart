@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'utils/phone_number_helper.dart';
+import 'utils/profile_picture_widget.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -22,7 +23,8 @@ class _FriendsPageState extends State<FriendsPage> {
   String get _uid => _auth.currentUser?.uid ?? '';
 
   // Streams for friends, requests, and sent requests
-  Stream<DocumentSnapshot<Map<String, dynamic>>> get _userDocStream => _db.collection('users').doc(_uid).snapshots();
+  Stream<DocumentSnapshot<Map<String, dynamic>>> get _userDocStream =>
+      _db.collection('users').doc(_uid).snapshots();
 
   // Search results for new users
   List<Map<String, dynamic>> _usersToAdd = [];
@@ -69,8 +71,9 @@ class _FriendsPageState extends State<FriendsPage> {
     final myUsername = myData.data()?['username'] ?? 'Unknown';
     await _db.collection('notifications').add({
       'userId': targetUid,
-      'title': 'Nuova richiesta di amicizia',
-      'description': '$myUsername ti ha inviato una richiesta di amicizia.',
+      'title': AppLocalizations.of(context).translate('new_friend_request'),
+      'description':
+          '$myUsername ${AppLocalizations.of(context).translate('new_friend_request_body')}',
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
@@ -78,6 +81,7 @@ class _FriendsPageState extends State<FriendsPage> {
   Future<void> _acceptFriendRequest(String requesterUid) async {
     final myData = await _db.collection('users').doc(_uid).get();
     final targetData = await _db.collection('users').doc(requesterUid).get();
+
     if (!targetData.exists) return;
 
     // Remove from requests
@@ -94,8 +98,9 @@ class _FriendsPageState extends State<FriendsPage> {
     final myUsername = myData.data()?['username'] ?? 'Unknown';
     await _db.collection('notifications').add({
       'userId': requesterUid,
-      'title': 'Nuovo Amico',
-      'description': '$myUsername ha accettato la tua richiesta di amicizia.',
+      'title': AppLocalizations.of(context).translate('new_friend'),
+      'description':
+          '$myUsername ${AppLocalizations.of(context).translate('request_accepted')}',
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
@@ -110,12 +115,21 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   Future<void> _toggleVisibility(String friendUid, bool currentGhosted) async {
-    await _db.collection('users').doc(_uid).update({'friends.$friendUid.ghosted': !currentGhosted});
+    await _db
+        .collection('users')
+        .doc(_uid)
+        .update({'friends.$friendUid.ghosted': !currentGhosted});
   }
 
   Future<void> _deleteFriend(String friendUid) async {
-    await _db.collection('users').doc(_uid).update({'friends.$friendUid': FieldValue.delete()});
-    await _db.collection('users').doc(friendUid).update({'friends.$_uid': FieldValue.delete()});
+    await _db
+        .collection('users')
+        .doc(_uid)
+        .update({'friends.$friendUid': FieldValue.delete()});
+    await _db
+        .collection('users')
+        .doc(friendUid)
+        .update({'friends.$_uid': FieldValue.delete()});
   }
 
   Future<void> _searchUsers(String query) async {
@@ -131,7 +145,8 @@ class _FriendsPageState extends State<FriendsPage> {
         .get();
     final myDoc = await _db.collection('users').doc(_uid).get();
     final myFriends = (myDoc.data()?['friends'] ?? {}).keys.toSet();
-    final receivedReqs = Set<String>.from(myDoc.data()?['receivedRequests'] ?? []);
+    final receivedReqs =
+        Set<String>.from(myDoc.data()?['receivedRequests'] ?? []);
     setState(() {
       _usersToAdd = results.docs
           .where((doc) =>
@@ -182,7 +197,9 @@ class _FriendsPageState extends State<FriendsPage> {
       final granted = await FlutterContacts.requestPermission(readonly: true);
       if (!granted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(localizations.translate('contacts_permission_denied'))),
+          SnackBar(
+              content:
+                  Text(localizations.translate('contacts_permission_denied'))),
         );
         setState(() => _loadingContacts = false);
         return;
@@ -192,7 +209,8 @@ class _FriendsPageState extends State<FriendsPage> {
       final numbers = <String>{};
       for (final c in contacts) {
         for (final p in c.phones) {
-          final e164 = normalizeRawToE164(p.number, defaultPrefix: kItalyPrefix);
+          final e164 =
+              normalizeRawToE164(p.number, defaultPrefix: kItalyPrefix);
           if (e164 != null) {
             numbers.add(e164);
             // Save first seen display name for this number
@@ -209,7 +227,8 @@ class _FriendsPageState extends State<FriendsPage> {
       final myDoc = await _db.collection('users').doc(_uid).get();
       final myFriends = (myDoc.data()?['friends'] ?? {}).keys.toSet();
       final sentReqs = Set<String>.from(myDoc.data()?['sentRequests'] ?? []);
-      final receivedReqs = Set<String>.from(myDoc.data()?['receivedRequests'] ?? []);
+      final receivedReqs =
+          Set<String>.from(myDoc.data()?['receivedRequests'] ?? []);
 
       // Chunked Firestore queries (whereIn limit conservative 10)
       final all = numbers.toList();
@@ -217,7 +236,11 @@ class _FriendsPageState extends State<FriendsPage> {
       final List<Map<String, dynamic>> matches = [];
       for (var i = 0; i < all.length; i += chunk) {
         final slice = all.sublist(i, (i + chunk).clamp(0, all.length));
-        final snap = await _db.collection('users').where('phone', whereIn: slice).limit(30).get();
+        final snap = await _db
+            .collection('users')
+            .where('phone', whereIn: slice)
+            .limit(30)
+            .get();
         for (final doc in snap.docs) {
           if (doc.id == _uid) continue;
           if (myFriends.contains(doc.id)) continue;
@@ -249,8 +272,12 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   // Modifica: recupera anche la foto profilo dell'amico e passala al dialog
-  void _showFriendDialog(BuildContext context, String friendUid, String friendName, bool isGhosted, bool hasPhone) async {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(friendUid).get();
+  void _showFriendDialog(BuildContext context, String friendUid,
+      String friendName, bool isGhosted, bool hasPhone) async {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(friendUid)
+        .get();
     final picture = (doc.data()?['picture'] ?? '').toString();
     showDialog(
       context: context,
@@ -283,7 +310,8 @@ class _FriendsPageState extends State<FriendsPage> {
         }
         final userData = snapshot.data!.data() ?? {};
         final friends = userData['friends'] as Map<String, dynamic>? ?? {};
-        final receivedRequests = List<String>.from(userData['receivedRequests'] ?? []);
+        final receivedRequests =
+            List<String>.from(userData['receivedRequests'] ?? []);
         final sentRequests = List<String>.from(userData['sentRequests'] ?? []);
 
         return Scaffold(
@@ -311,9 +339,12 @@ class _FriendsPageState extends State<FriendsPage> {
                     filteredFriends: friends.entries.toList(),
                     usersToAdd: _usersToAdd,
                     sentRequests: sentRequests,
-                    onToggleVisibility: (friendUid, isGhosted) => _toggleVisibility(friendUid, isGhosted),
-                    onShowFriendDialog: (ctx, friendUid, friendName, isGhosted, hasPhone) =>
-                        _showFriendDialog(ctx, friendUid, friendName, isGhosted, hasPhone),
+                    onToggleVisibility: (friendUid, isGhosted) =>
+                        _toggleVisibility(friendUid, isGhosted),
+                    onShowFriendDialog: (ctx, friendUid, friendName, isGhosted,
+                            hasPhone) =>
+                        _showFriendDialog(
+                            ctx, friendUid, friendName, isGhosted, hasPhone),
                     onSendFriendRequest: _sendFriendRequest,
                     searching: _searching,
                   ),
@@ -321,7 +352,9 @@ class _FriendsPageState extends State<FriendsPage> {
                   if (Platform.isAndroid || Platform.isIOS)
                     _SuggestionsSection(
                       title: localizations.translate('find_from_contacts'),
-                      subtitle: _contactSuggestions.isNotEmpty ? localizations.translate('suggested_from_contacts') : null,
+                      subtitle: _contactSuggestions.isNotEmpty
+                          ? localizations.translate('suggested_from_contacts')
+                          : null,
                       loading: _loadingContacts,
                       contactsRequested: _contactsRequested,
                       suggestions: _contactSuggestions,
@@ -330,7 +363,8 @@ class _FriendsPageState extends State<FriendsPage> {
                         await _sendFriendRequest(uid);
                         // remove from UI after sending
                         setState(() {
-                          _contactSuggestions.removeWhere((e) => e['uid'] == uid);
+                          _contactSuggestions
+                              .removeWhere((e) => e['uid'] == uid);
                         });
                       },
                     ),
@@ -383,27 +417,31 @@ class FriendRequestsContainer extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           ...friendRequests.map((uid) => FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+                future: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(uid)
+                    .get(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) return const SizedBox(height: 48);
-                  final user = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+                  final user =
+                      snapshot.data!.data() as Map<String, dynamic>? ?? {};
                   final picture = (user['picture'] ?? '').toString();
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          backgroundImage: picture.isNotEmpty
-                              ? NetworkImage(picture)
-                              : const AssetImage('images/djungelskog.jpg') as ImageProvider,
-                          radius: 22,
+                        ProfilePicture(
+                          picture: picture,
+                          size: 25,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Text(user['username'] ?? 'Unknown', style: const TextStyle(fontSize: 16)),
+                          child: Text(user['username'] ?? 'Unknown',
+                              style: const TextStyle(fontSize: 16)),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: Colors.redAccent),
+                          icon:
+                              const Icon(Icons.close, color: Colors.redAccent),
                           tooltip: localizations.translate('decline'),
                           onPressed: () => onDecline(uid),
                         ),
@@ -432,7 +470,8 @@ class FriendsSearchContainer extends StatelessWidget {
   final List<Map<String, dynamic>> usersToAdd;
   final List<String> sentRequests;
   final void Function(String, bool) onToggleVisibility;
-  final void Function(BuildContext, String, String, bool, bool) onShowFriendDialog;
+  final void Function(BuildContext, String, String, bool, bool)
+      onShowFriendDialog;
   final void Function(String) onSendFriendRequest;
   final bool searching;
 
@@ -479,11 +518,13 @@ class FriendsSearchContainer extends StatelessWidget {
                     controller: searchController,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search),
-                      hintText: localizations.translate('add_or_search_friends'),
+                      hintText:
+                          localizations.translate('add_or_search_friends'),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 0, horizontal: 12),
                     ),
                     onChanged: onSearchChanged,
                     onSubmitted: onSearchSubmitted,
@@ -491,7 +532,8 @@ class FriendsSearchContainer extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Tooltip(
-                  message: localizations.translate('search_and_add_friends_tooltip'),
+                  message:
+                      localizations.translate('search_and_add_friends_tooltip'),
                   child: IconButton(
                     icon: const Icon(Icons.person_add_alt_1),
                     onPressed: () => onSearchSubmitted(searchController.text),
@@ -505,7 +547,10 @@ class FriendsSearchContainer extends StatelessWidget {
             child: Center(
               child: Text(
                 localizations.translate('search_and_add_friends_hint'),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -513,29 +558,34 @@ class FriendsSearchContainer extends StatelessWidget {
           // Friends List
           if (filteredFriends.isNotEmpty)
             ...filteredFriends.map((entry) => FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
+                  future: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(entry.key)
+                      .get(),
                   builder: (context, snapshot) {
                     // Only render a friend if it matches the search query
                     if (!snapshot.hasData) return const SizedBox.shrink();
 
                     final friendData = entry.value as Map<String, dynamic>;
                     final isGhosted = friendData['ghosted'] == true;
-                    final user = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+                    final user =
+                        snapshot.data!.data() as Map<String, dynamic>? ?? {};
                     final username = (user['username'] ?? 'Unknown').toString();
-                    final hasPhone = (user['phone'] ?? '').toString().isNotEmpty;
+                    final hasPhone =
+                        (user['phone'] ?? '').toString().isNotEmpty;
                     final picture = (user['picture'] ?? '').toString();
 
                     final query = searchController.text.trim().toLowerCase();
-                    final matches = query.isEmpty || username.toLowerCase().startsWith(query);
+                    final matches = query.isEmpty ||
+                        username.toLowerCase().startsWith(query);
                     if (!matches) return const SizedBox.shrink();
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: picture.isNotEmpty
-                              ? NetworkImage(picture)
-                              : const AssetImage('images/djungelskog.jpg') as ImageProvider,
+                        leading: ProfilePicture(
+                          picture: picture,
+                          size: 25,
                         ),
                         title: Text(username),
                         trailing: IconButton(
@@ -543,10 +593,14 @@ class FriendsSearchContainer extends StatelessWidget {
                             isGhosted ? Icons.visibility_off : Icons.visibility,
                             color: isGhosted ? Colors.redAccent : Colors.green,
                           ),
-                          tooltip: isGhosted ? localizations.translate('unghost') : localizations.translate('ghost'),
-                          onPressed: () => onToggleVisibility(entry.key, isGhosted),
+                          tooltip: isGhosted
+                              ? localizations.translate('unghost')
+                              : localizations.translate('ghost'),
+                          onPressed: () =>
+                              onToggleVisibility(entry.key, isGhosted),
                         ),
-                        onTap: () => onShowFriendDialog(context, entry.key, username, isGhosted, hasPhone),
+                        onTap: () => onShowFriendDialog(
+                            context, entry.key, username, isGhosted, hasPhone),
                       ),
                     );
                   },
@@ -587,10 +641,9 @@ class FriendsSearchContainer extends StatelessWidget {
             ...usersToAdd.map((user) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundImage: (user['picture'] ?? '').toString().isNotEmpty
-                          ? NetworkImage((user['picture'] ?? '').toString())
-                          : const AssetImage('images/djungelskog.jpg') as ImageProvider,
+                    leading: ProfilePicture(
+                      picture: (user['picture'] ?? '').toString(),
+                      size: 25,
                     ),
                     title: Text(
                       user['username'] ?? '',
@@ -618,7 +671,7 @@ class FriendPopupDialog extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onToggleGhost;
   final bool hasPhone;
-  final String? picture; // aggiungi il campo picture
+  final String? picture;
 
   const FriendPopupDialog({
     super.key,
@@ -641,7 +694,8 @@ class FriendPopupDialog extends StatelessWidget {
           height: 44,
           child: CustomTextButton(
             text: 'Whatsapp',
-            iconWidget: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 18),
+            iconWidget: const FaIcon(FontAwesomeIcons.whatsapp,
+                color: Colors.white, size: 18),
             color: Colors.green,
             onPressed: () {
               // Implement WhatsApp launch logic here
@@ -652,7 +706,9 @@ class FriendPopupDialog extends StatelessWidget {
       SizedBox(
         height: 44,
         child: CustomTextButton(
-          text: isGhosted ? localizations.translate('unghost') : localizations.translate('ghost'),
+          text: isGhosted
+              ? localizations.translate('unghost')
+              : localizations.translate('ghost'),
           icon: isGhosted ? Icons.visibility : Icons.visibility_off,
           color: isGhosted ? Colors.green : Colors.redAccent,
           onPressed: onToggleGhost,
@@ -682,17 +738,17 @@ class FriendPopupDialog extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          CircleAvatar(
-            radius: 50,
-            backgroundImage: (picture != null && picture!.isNotEmpty)
-                ? NetworkImage(picture!)
-                : const AssetImage('images/djungelskog.jpg') as ImageProvider,
+          ProfilePicture(
+            picture: picture,
           ),
           const SizedBox(height: 24),
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ...buttons.expand((btn) => [btn, const SizedBox(height: 8)]).toList()..removeLast(),
+              ...buttons
+                  .expand((btn) => [btn, const SizedBox(height: 8)])
+                  .toList()
+                ..removeLast(),
             ],
           ),
         ],
@@ -727,7 +783,10 @@ class CustomTextButton extends StatelessWidget {
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       onPressed: onPressed,
-      icon: iconWidget ?? (icon != null ? Icon(icon, color: Colors.white, size: 18) : const SizedBox.shrink()),
+      icon: iconWidget ??
+          (icon != null
+              ? Icon(icon, color: Colors.white, size: 18)
+              : const SizedBox.shrink()),
       label: Text(
         text,
         style: const TextStyle(color: Colors.white),
@@ -790,7 +849,8 @@ class _SuggestionsSection extends StatelessWidget {
                       ),
                       child: Icon(
                         Icons.contacts,
-                        color: Theme.of(context).colorScheme.onTertiaryContainer,
+                        color:
+                            Theme.of(context).colorScheme.onTertiaryContainer,
                         size: 20,
                       ),
                     ),
@@ -799,14 +859,22 @@ class _SuggestionsSection extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(title, style: Theme.of(context).textTheme.titleMedium),
+                          Text(title,
+                              style: Theme.of(context).textTheme.titleMedium),
                           if (subtitle != null && suggestions.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
                                 subtitle!,
-                                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                      color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.color
+                                          ?.withOpacity(0.7),
                                     ),
                               ),
                             ),
@@ -823,13 +891,15 @@ class _SuggestionsSection extends StatelessWidget {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.sync),
                 label: Text(loading ? 'Scanning' : 'Scan'),
                 style: FilledButton.styleFrom(
                   shape: const StadiumBorder(),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   minimumSize: const Size(0, 36),
                 ),
               ),
@@ -838,7 +908,9 @@ class _SuggestionsSection extends StatelessWidget {
           const SizedBox(height: 12),
           if (loading && suggestions.isEmpty)
             Column(
-              children: List.generate(3, (i) => i).map((_) => _loadingTile(context)).toList(),
+              children: List.generate(3, (i) => i)
+                  .map((_) => _loadingTile(context))
+                  .toList(),
             )
           else if (suggestions.isNotEmpty)
             Column(
@@ -847,7 +919,10 @@ class _SuggestionsSection extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: _SuggestionCard(
                         username: (user['username'] ?? '').toString(),
-                        contactName: (user['contactName'] ?? '').toString().isNotEmpty ? (user['contactName'] ?? '').toString() : null,
+                        contactName:
+                            (user['contactName'] ?? '').toString().isNotEmpty
+                                ? (user['contactName'] ?? '').toString()
+                                : null,
                         picture: (user['picture'] ?? '').toString(),
                         onAdd: () => onAdd((user['uid'] ?? '').toString()),
                       ),
@@ -860,7 +935,10 @@ class _SuggestionsSection extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
                   l.translate('no_contact_suggestions'),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Colors.grey[600]),
                 ),
               ),
             ),
@@ -910,7 +988,8 @@ class _SuggestionsSection extends StatelessWidget {
         ),
       );
 
-  Widget _skeletonBar({required double width, required double height}) => Container(
+  Widget _skeletonBar({required double width, required double height}) =>
+      Container(
         width: width,
         height: height,
         decoration: BoxDecoration(
@@ -942,11 +1021,9 @@ class _SuggestionCard extends StatelessWidget {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: CircleAvatar(
-          backgroundImage: (picture != null && picture!.isNotEmpty)
-              ? NetworkImage(picture!)
-              : const AssetImage('images/djungelskog.jpg') as ImageProvider,
-          radius: 20,
+        leading: ProfilePicture(
+          picture: picture,
+          size: 25,
         ),
         title: Text(
           username,
@@ -961,7 +1038,10 @@ class _SuggestionCard extends StatelessWidget {
                   Flexible(
                     child: Text(
                       contactName!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.grey[700]),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -972,10 +1052,11 @@ class _SuggestionCard extends StatelessWidget {
           onPressed: onAdd,
           icon: const Icon(Icons.person_add_alt_1),
           label: const Text('Add'),
-          style: FilledButton.styleFrom(minimumSize: const Size(0, 36), padding: const EdgeInsets.symmetric(horizontal: 12)),
+          style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 12)),
         ),
       ),
     );
   }
 }
-
