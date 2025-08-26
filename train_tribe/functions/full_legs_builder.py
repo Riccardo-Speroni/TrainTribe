@@ -3,7 +3,6 @@ import os
 import logging
 from bucket_manager import upload_to_bucket, download_from_bucket
 import tempfile
-from difflib import SequenceMatcher
 from datetime import datetime
 from rapidfuzz import fuzz
 
@@ -11,11 +10,11 @@ def find_stop_index(trip, stop_name):
     best_match_idx = None
     best_match_ratio = 0.0
     for idx, stop in enumerate(trip['stops']):
-        match_ratio = fuzz.partial_ratio(stop['stop_name'].lower(), stop_name.lower())
+        match_ratio = fuzz.ratio(stop['stop_name'].lower(), stop_name.lower())
         if match_ratio > best_match_ratio:
             best_match_ratio = match_ratio
             best_match_idx = idx
-    if best_match_ratio >= 80:  # scaled 0-100 in rapidfuzz
+    if best_match_ratio >= 60:  # scaled 0-100 in rapidfuzz
         return best_match_idx
     else:
         return None

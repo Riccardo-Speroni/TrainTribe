@@ -37,19 +37,6 @@ class SettingsPage extends StatelessWidget {
         child: Column(
           children: [
             const Spacer(flex: 2),
-            Text(localizations.translate('mood_status')), 
-            ToggleSwitch(
-              totalSwitches: 3,
-              labels: [
-                localizations.translate('before_each_event'),
-                localizations.translate('daily'),
-                localizations.translate('never'),
-              ],
-              onToggle: (index) {
-                print('switched to: $index');
-              },
-            ),
-            const Spacer(flex: 1),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -76,22 +63,6 @@ class SettingsPage extends StatelessWidget {
                   child: Text(localizations.translate('italian')), 
                 ),
               ],
-            ),
-            const Spacer(flex: 1),
-            SwitchListTile(
-              title: Text(localizations.translate('contacts_access')), 
-              value: true, // This should be a variable that holds the current state
-              onChanged: (bool value) {
-                // Handle switch state change
-              },
-            ),
-            const Spacer(flex: 1),
-            SwitchListTile(
-              title: Text(localizations.translate('location_access')), 
-              value: true, // This should be a variable that holds the current state
-              onChanged: (bool value) {
-                // Handle switch state change
-              },
             ),
             const Spacer(flex: 1),
             Text(localizations.translate('theme')), 
