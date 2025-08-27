@@ -124,7 +124,7 @@ class AppLocalizations {
       'mood_question_1': 'Are you in the mood?',
       'mood_question_2': 'Wanna meet some friends?',
       'mood_question_3': 'What about some chit-chat?',
-      'mood_question_4': 'Why travelling alone?',
+      'mood_question_4': 'Why traveling alone?',
       'mood_question_5': 'What about making the ride more engaging?',
       'add_or_search_friends': 'Add or search friends',
       'next': 'Next',

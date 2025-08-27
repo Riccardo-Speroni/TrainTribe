@@ -209,133 +209,147 @@ class _LoginPageState extends State<LoginPage>
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
 
+    // Imposta la larghezza massima su desktop/web
+    final bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
+    final double maxFormWidth = isWideScreen ? 400.0 : double.infinity;
+
     return Stack(
       children: [
         Scaffold(
           body: Center(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // App Logo
-                  Image.asset(
-                    'images/djungelskog.jpg',
-                    height: 100,
-                  ),
-
-                  const SizedBox(height: 60),
-
-                  // Username Field
-                  Focus(
-                    onFocusChange: (hasFocus) {
-                      if (!hasFocus) {
-                        setState(() {
-                          showEmailError =
-                              !_isValidEmail(emailController.text.trim());
-                        });
-                      }
-                    },
-                    child: TextField(
-                      controller: emailController,
-                      decoration: InputDecoration(
-                        labelText: localizations.translate('username'),
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.person),
-                        errorText: showEmailError
-                            ? localizations.translate('invalid_email')
-                            : null,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: maxFormWidth,
+                ),
+                child: Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Riduci la dimensione del logo e degli spazi se necessario
+                      Image.asset(
+                        'images/djungelskog.jpg',
+                        height: 80, // ridotto da 100
                       ),
-                    ),
-                  ),
+                      const SizedBox(height: 40), // ridotto da 60
 
-                  const SizedBox(height: 20),
-
-                  // Password Field
-                  TextField(
-                    controller: passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: localizations.translate('password'),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.lock),
-                    ),
-                    onSubmitted: (_) {
-                      if (isButtonEnabled) {
-                        _loginWithEmailAndPassword();
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Login Button
-                  AnimatedBuilder(
-                    animation: _opacityAnimation,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: _opacityAnimation.value,
-                        child: ElevatedButton(
-                          onPressed: isButtonEnabled
-                              ? _loginWithEmailAndPassword
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            minimumSize:
-                                const Size(double.infinity, 50), // Full width
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primary,
-                            foregroundColor: Colors.white,
-                            elevation: isButtonEnabled ? 4 : 0,
+                      // Username Field
+                      Focus(
+                        onFocusChange: (hasFocus) {
+                          if (!hasFocus) {
+                            setState(() {
+                              showEmailError =
+                                  !_isValidEmail(emailController.text.trim());
+                            });
+                          }
+                        },
+                        child: TextField(
+                          controller: emailController,
+                          decoration: InputDecoration(
+                            labelText: localizations.translate('username'),
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.person),
+                            errorText: showEmailError
+                                ? localizations.translate('invalid_email')
+                                : null,
                           ),
-                          child: Text(localizations.translate('login')),
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 40),
+                      ),
 
-                  // Login with Google
-                  ElevatedButton.icon(
-                    onPressed: (kIsWeb || Platform.isAndroid || Platform.isIOS)
-                        ? _loginWithGoogle
-                        : null, // Disable button on unsupported platforms
-                    icon: const Icon(Icons.login),
-                    label: Text(localizations.translate('login_google')),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
+                      const SizedBox(height: 20),
 
-                  // Login with Facebook
-                  ElevatedButton.icon(
-                    onPressed: (kIsWeb || Platform.isAndroid || Platform.isIOS)
-                        ? _loginWithFacebook
-                        : null, // Disable button on unsupported platforms
-                    icon: const Icon(Icons.facebook),
-                    label: Text(localizations.translate('login_facebook')),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 60),
+                      // Password Field
+                      TextField(
+                        controller: passwordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: localizations.translate('password'),
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.lock),
+                        ),
+                        onSubmitted: (_) {
+                          if (isButtonEnabled) {
+                            _loginWithEmailAndPassword();
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 20),
 
-                  // Signup Redirection
-                  GestureDetector(
-                    onTap: () {
-                      GoRouter.of(context)
-                          .go('/signup'); // Navigate to Signup Page
-                    },
-                    child: Text(
-                      localizations.translate('dont_have_account'),
-                      style: const TextStyle(
-                          color: Colors.blueGrey, fontWeight: FontWeight.bold),
-                    ),
+                      // Login Button
+                      AnimatedBuilder(
+                        animation: _opacityAnimation,
+                        builder: (context, child) {
+                          return Opacity(
+                            opacity: _opacityAnimation.value,
+                            child: ElevatedButton(
+                              onPressed: isButtonEnabled
+                                  ? _loginWithEmailAndPassword
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                minimumSize:
+                                    const Size(double.infinity, 50), // Full width
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.primary,
+                                foregroundColor: Colors.white,
+                                elevation: isButtonEnabled ? 4 : 0,
+                              ),
+                              child: Text(localizations.translate('login')),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 40), // ridotto da 60
+
+                      // Other login options (Google, Facebook) available only for mobile
+                      if (!isWideScreen) ...[
+                        // Login with Google
+                        ElevatedButton.icon(
+                          onPressed: (kIsWeb || Platform.isAndroid || Platform.isIOS)
+                              ? _loginWithGoogle
+                              : null, // Disable button on unsupported platforms
+                          icon: const Icon(Icons.login),
+                          label: Text(localizations.translate('login_google')),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 50),
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Login with Facebook
+                        ElevatedButton.icon(
+                          onPressed: (kIsWeb || Platform.isAndroid || Platform.isIOS)
+                              ? _loginWithFacebook
+                              : null, // Disable button on unsupported platforms
+                          icon: const Icon(Icons.facebook),
+                          label: Text(localizations.translate('login_facebook')),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 50),
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 60),
+                      ],
+
+                      // Signup Redirection
+                      GestureDetector(
+                        onTap: () {
+                          GoRouter.of(context)
+                              .go('/signup'); // Navigate to Signup Page
+                        },
+                        child: Text(
+                          localizations.translate('dont_have_account'),
+                          style: const TextStyle(
+                              color: Colors.blueGrey, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

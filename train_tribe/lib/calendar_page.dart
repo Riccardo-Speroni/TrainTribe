@@ -486,7 +486,8 @@ class _CalendarPageState extends State<CalendarPage> {
     return Scaffold(
       body: Column(
         children: [
-          SizedBox(height: MediaQuery.of(context).padding.top), // Spazio per status bar
+          SizedBox(height: MediaQuery.of(context).padding.top),
+          SizedBox(height: 10),
           Expanded(
             child: Row(
               children: [
