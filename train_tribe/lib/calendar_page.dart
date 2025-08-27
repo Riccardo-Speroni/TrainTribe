@@ -538,12 +538,22 @@ class _CalendarPageState extends State<CalendarPage> {
                                   height: 40,
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey[300]!),
+                                    border: Border.all(
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.grey[800]!
+                                          : Colors.grey[300]!,
+                                    ),
                                     color: isToday
-                                        ? Colors.orangeAccent[400]
+                                        ? (Theme.of(context).brightness == Brightness.dark
+                                            ? Colors.orange[700]
+                                            : Colors.orangeAccent[400])
                                         : (isPastDay
-                                            ? Colors.grey[300]
-                                            : Colors.blue[100]),
+                                            ? (Theme.of(context).brightness == Brightness.dark
+                                                ? Colors.grey[900]
+                                                : Colors.grey[300])
+                                            : (Theme.of(context).brightness == Brightness.dark
+                                                ? Colors.blueGrey[900]
+                                                : Colors.blue[100])),
                                     borderRadius: BorderRadius.circular(8.0),
                                   ),
                                   child: Text(
@@ -554,7 +564,13 @@ class _CalendarPageState extends State<CalendarPage> {
                                       fontSize: 14,
                                       color: isToday
                                           ? Colors.white
-                                          : (isPastDay ? Colors.grey[600] : Colors.black),
+                                          : (isPastDay
+                                              ? (Theme.of(context).brightness == Brightness.dark
+                                                  ? Colors.grey[400]
+                                                  : Colors.grey[600])
+                                              : (Theme.of(context).brightness == Brightness.dark
+                                                  ? Colors.white
+                                                  : Colors.black)),
                                     ),
                                   ),
                                 ),
@@ -613,7 +629,9 @@ class _CalendarPageState extends State<CalendarPage> {
           _onAddEvent(
               DateTime.now(), 0); // Default to current day and first hour
         },
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Colors.orange[700]
+            : Colors.lightBlueAccent,
         child: const Icon(Icons.add),
       ),
     );

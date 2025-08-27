@@ -56,7 +56,9 @@ Future<void> showAddEventDialog({
                 Container(
                   width: 300,
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[900]
+                        : Colors.grey[100],
                     borderRadius: BorderRadius.circular(10),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -116,7 +118,9 @@ Future<void> showAddEventDialog({
                 Container(
                   width: 300,
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[900]
+                        : Colors.grey[100],
                     borderRadius: BorderRadius.circular(10),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -307,7 +311,12 @@ Future<void> showAddEventDialog({
                     padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
                     child: Text(
                       stationError!,
-                      style: TextStyle(color: Colors.red, fontSize: 13),
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.red[300]
+                            : Colors.red,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
               ],
@@ -318,7 +327,9 @@ Future<void> showAddEventDialog({
             ElevatedButton.icon(
               icon: const Icon(Icons.save),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.blue[700]
+                    : Theme.of(context).primaryColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -383,7 +394,9 @@ Future<void> showAddEventDialog({
             TextButton.icon(
               icon: const Icon(Icons.cancel),
               style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.secondary,
+                foregroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[400]
+                    : Theme.of(context).colorScheme.secondary,
               ),
               onPressed: () {
                 Navigator.pop(context);
@@ -447,7 +460,9 @@ Future<void> showEditEventDialog({
                 Container(
                   width: 300,
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[900]
+                        : Colors.grey[100],
                     borderRadius: BorderRadius.circular(10),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -509,7 +524,9 @@ Future<void> showEditEventDialog({
                 Container(
                   width: 300,
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[900]
+                        : Colors.grey[100],
                     borderRadius: BorderRadius.circular(10),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -696,7 +713,12 @@ Future<void> showEditEventDialog({
                     padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
                     child: Text(
                       stationError!,
-                      style: TextStyle(color: Colors.red, fontSize: 13),
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.red[300]
+                            : Colors.red,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
               ],
@@ -707,7 +729,9 @@ Future<void> showEditEventDialog({
             ElevatedButton.icon(
               icon: const Icon(Icons.save),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.blue[700]
+                    : Theme.of(context).primaryColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -834,7 +858,9 @@ Future<void> showEditEventDialog({
             TextButton.icon(
               icon: const Icon(Icons.cancel),
               style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.secondary,
+                foregroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[400]
+                    : Theme.of(context).colorScheme.secondary,
               ),
               onPressed: () => Navigator.pop(context),
               label: Text(localizations.translate('cancel')),

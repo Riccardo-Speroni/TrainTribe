@@ -192,7 +192,7 @@ class AppLocalizations {
       'system': 'Sistema',
 
       // Navigation
-      'home': 'Casa',
+      'home': 'Home',
       'friends': 'Amici',
       'trains': 'Treni',
       'calendar': 'Calendario',
