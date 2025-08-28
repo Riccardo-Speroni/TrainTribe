@@ -105,17 +105,16 @@ class TrainCard extends StatelessWidget {
     return LayoutBuilder(builder: (context, constraints) {
       final isTight = constraints.maxWidth < 560; // widen threshold to reduce single-row crowding
       final titleChip = _solutionChip(context);
-      final timeText = Flexible(
-        child: Text(
-          '$departureTime – $arrivalTime',
-          style: TextStyle(
-            fontSize: 13,
-            color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7) ?? Colors.grey,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          softWrap: false,
+      // Plain text widget (no Flexible/Expanded here to avoid nesting ParentDataWidgets incorrectly).
+      final timeLabel = Text(
+        '$departureTime – $arrivalTime',
+        style: TextStyle(
+          fontSize: 13,
+          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7) ?? Colors.grey,
         ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
       );
 
       final icon = Icon(
@@ -145,7 +144,8 @@ class TrainCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   titleChip,
                   const SizedBox(width: 14),
-                  timeText,
+                  // Use Flexible once here.
+                  Flexible(child: timeLabel),
                 ],
               ),
             ),
@@ -181,7 +181,8 @@ class TrainCard extends StatelessWidget {
               const SizedBox(width: 8),
               titleChip,
               const SizedBox(width: 10),
-              Expanded(child: timeText),
+              // Expanded wraps the plain text (was previously Flexible inside Expanded -> error).
+              Expanded(child: timeLabel),
             ],
           ),
           const SizedBox(height: 8),
