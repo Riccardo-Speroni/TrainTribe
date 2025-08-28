@@ -669,43 +669,69 @@ void _showLegendDialog(BuildContext context, AppLocalizations loc) {
   showDialog(
     context: context,
     builder: (ctx) {
+      final theme = Theme.of(ctx);
+      final subtleTextColor = theme.brightness == Brightness.dark
+          ? theme.colorScheme.onSurfaceVariant.withOpacity(0.92)
+          : theme.colorScheme.onSurfaceVariant.withOpacity(0.78);
       return AlertDialog(
-        title: Text(loc.translate('train_confirm_legend_title')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _legendRow(
-              ringColor: Colors.green,
-              glow: Colors.greenAccent,
-              label: loc.translate('train_confirm_legend_you'),
-              isUser: true,
-            ),
-            const SizedBox(height: 10),
-            _legendRow(
-              ringColor: Colors.amber,
-              glow: Colors.amberAccent,
-              label: loc.translate('train_confirm_legend_friend'),
-              showCheck: true,
-            ),
-            const SizedBox(height: 10),
-            _legendRow(
-              ringColor: Colors.grey,
-              glow: Colors.transparent,
-              label: loc.translate('train_confirm_legend_unconfirmed'),
-              backgroundColor: Colors.grey,
-              iconColor: Colors.white,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              loc.translate('train_confirm_info'),
-              style: const TextStyle(fontSize: 12, color: Colors.black54),
-            ),
-          ],
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        title: Padding(
+          padding: const EdgeInsets.only(bottom: 4.0),
+          child: Text(
+            loc.translate('train_confirm_legend_title'),
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
         ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 300, maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 12), // extra space after title
+              _legendRow(
+                ringColor: Colors.green,
+                glow: Colors.greenAccent,
+                label: loc.translate('train_confirm_legend_you'),
+                isUser: true,
+              ),
+              const SizedBox(height: 14),
+              _legendRow(
+                ringColor: Colors.amber,
+                glow: Colors.amberAccent,
+                label: loc.translate('train_confirm_legend_friend'),
+                showCheck: true,
+              ),
+              const SizedBox(height: 14),
+              _legendRow(
+                ringColor: Colors.grey,
+                glow: Colors.transparent,
+                label: loc.translate('train_confirm_legend_unconfirmed'),
+                backgroundColor: Colors.grey,
+                iconColor: Colors.white,
+              ),
+              const SizedBox(height: 28), // increased distance before info text
+              Text(
+                loc.translate('train_confirm_info'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: subtleTextColor,
+                  fontWeight: FontWeight.w300,
+                  letterSpacing: 0.15,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.primary,
+              textStyle: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             child: Text(loc.translate('ok')),
           )
         ],
