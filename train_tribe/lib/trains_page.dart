@@ -26,7 +26,8 @@ class _TrainsPageState extends State<TrainsPage> {
   bool isLoading = true;
   // Cached details for events: origin, destination, event_start, event_end
   Map<String, Map<String, dynamic>> eventDetails = {};
-  final Map<String, String?> confirmedTrainPerEvent = {}; // eventId -> trainId
+  // Now stores a route signature (all leg trainIds joined by '+') per event.
+  final Map<String, String?> confirmedTrainPerEvent = {}; // eventId -> routeSignature
   final TrainConfirmationService _confirmationService = TrainConfirmationService();
 
   @override
@@ -121,30 +122,57 @@ class _TrainsPageState extends State<TrainsPage> {
       });
     }
 
-    // Preload confirmed train per event (so returning to page keeps highlight)
+    // Preload confirmed route per event.
     if (eventsData != null && userId.isNotEmpty) {
       final Map<String, String?> preloadMap = {};
+      final dateStrForPreload = dateStr;
       try {
         for (final entry in eventsData!.entries) {
           final eventId = entry.key;
           final routes = entry.value;
-          final List<String> trainIds = [];
+          // Collect all trainIds across all routes (every leg).
+          final Set<String> allEventTrainIds = {};
+          // Build list of route trainId lists.
+          final List<List<String>> routeTrainIdLists = [];
+
           for (final r in routes) {
             if (r is Map<String, dynamic>) {
-              final leg0 = r['leg0'];
-              if (leg0 is Map && leg0['trip_id'] != null) {
-                final tid = leg0['trip_id'].toString();
-                if (!trainIds.contains(tid)) trainIds.add(tid);
+              final List<String> routeTrainIds = [];
+              // collect legX
+              final legKeys = r.keys.where((k) => k.startsWith('leg')).toList()
+                ..sort((a, b) {
+                  int ai = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                  int bi = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                  return ai.compareTo(bi);
+                });
+              for (final lk in legKeys) {
+                final leg = r[lk];
+                if (leg is Map && leg['trip_id'] != null) {
+                  final tid = leg['trip_id'].toString();
+                  routeTrainIds.add(tid);
+                  allEventTrainIds.add(tid);
+                }
+              }
+              if (routeTrainIds.isNotEmpty) {
+                routeTrainIdLists.add(routeTrainIds);
               }
             }
           }
-          if (trainIds.isNotEmpty) {
-            final confirmed = await _confirmationService.fetchConfirmedTrain(
-              dateStr: dateStr,
-              userId: userId,
-              eventTrainIds: trainIds,
-            );
-            preloadMap[eventId] = confirmed;
+
+          // Fetch all confirmed trainIds for this event's trains.
+          final confirmedIds = await _confirmationService.fetchConfirmedTrainIds(
+            dateStr: dateStrForPreload,
+            userId: userId,
+            trainIds: allEventTrainIds.toList(),
+          );
+
+          // Determine if any route is fully confirmed (all its leg ids in confirmedIds).
+          for (final routeIds in routeTrainIdLists) {
+            final full = routeIds.every(confirmedIds.contains);
+            if (full) {
+              preloadMap[eventId] = _routeSignature(routeIds);
+              break; // Only one route can be confirmed.
+            }
           }
         }
         if (mounted) {
@@ -153,11 +181,13 @@ class _TrainsPageState extends State<TrainsPage> {
           });
         }
       } catch (e, st) {
-        debugPrint('Preload confirmations error: $e');
+        debugPrint('Preload confirmations (multi-leg) error: $e');
         debugPrint(st.toString());
       }
     }
   }
+
+  String _routeSignature(List<String> ids) => ids.join('+');
 
   @override
   Widget build(BuildContext context) {
@@ -237,7 +267,8 @@ class _TrainsPageState extends State<TrainsPage> {
                           final trainCards = routes.asMap().entries.map((routeEntry) {
                             final routeIndex = routeEntry.key;
                             final route = routeEntry.value as Map<String, dynamic>;
-                            // Collect all legs (leg0, leg1, ...) sorted by index to ensure correct order
+
+                            // Collect legs
                             final legs = <Map<String, dynamic>>[];
                             final legKeys = route.keys.where((k) => k.startsWith('leg')).toList()
                               ..sort((a, b) {
@@ -248,7 +279,15 @@ class _TrainsPageState extends State<TrainsPage> {
                             for (final k in legKeys) {
                               legs.add(Map<String, dynamic>.from(route[k] as Map));
                             }
-                            // For userAvatars: collect all friends from all legs, and merge by user_id (or image+name)
+
+                            // Gather route trainIds (all legs).
+                            final List<String> routeTrainIds = [
+                              for (final l in legs)
+                                if (l['trip_id'] != null) l['trip_id'].toString()
+                            ];
+                            final routeSignature = _routeSignature(routeTrainIds);
+
+                            // Merge friend avatars across legs:
                             final Map<String, Map<String, String>> userAvatarsMap = {};
                             for (final leg in legs) {
                               if (leg['friends'] != null) {
@@ -258,8 +297,7 @@ class _TrainsPageState extends State<TrainsPage> {
                                   final name = (friend['username'] ?? '').toString();
                                   final from = (friend['from'] ?? '').toString();
                                   final to = (friend['to'] ?? '').toString();
-                                  final confirmed = (friend['confirmed'] == true).toString();
-                                  // Use userId if present, otherwise fallback to image+name
+                                  final legConfirmed = friend['confirmed'] == true;
                                   final key = friendUserId.isNotEmpty ? friendUserId : '$image|$name';
                                   if (!userAvatarsMap.containsKey(key)) {
                                     userAvatarsMap[key] = {
@@ -267,25 +305,26 @@ class _TrainsPageState extends State<TrainsPage> {
                                       'name': name,
                                       'from': from,
                                       'to': to,
-                                      'confirmed': confirmed,
+                                      // Start with this leg's confirmed value; we will AND across legs they appear in.
+                                      'confirmed': legConfirmed ? 'true' : 'false',
                                       'user_id': friendUserId,
                                     };
                                   } else {
-                                    // Merge: set from=min(from), to=max(to)
-                                    final prevFrom = userAvatarsMap[key]!['from'] ?? from;
-                                    final prevTo = userAvatarsMap[key]!['to'] ?? to;
-                                    // Use string comparison for stop_id, or if numeric, use int
-                                    userAvatarsMap[key]!['from'] = (from.compareTo(prevFrom) < 0) ? from : prevFrom;
-                                    userAvatarsMap[key]!['to'] = (to.compareTo(prevTo) > 0) ? to : prevTo;
-                                    // Preserve confirmed if any occurrence is true
-                                    if (confirmed == 'true') {
-                                      userAvatarsMap[key]!['confirmed'] = 'true';
-                                    }
+                                    // Merge range
+                                    final prev = userAvatarsMap[key]!;
+                                    final prevFrom = prev['from'] ?? from;
+                                    final prevTo = prev['to'] ?? to;
+                                    prev['from'] = (from.compareTo(prevFrom) < 0) ? from : prevFrom;
+                                    prev['to'] = (to.compareTo(prevTo) > 0) ? to : prevTo;
+                                    // AND logic: friend considered route-confirmed only if confirmed in every leg they appear.
+                                    final prevConfirmed = prev['confirmed'] == 'true';
+                                    prev['confirmed'] = (prevConfirmed && legConfirmed).toString();
                                   }
                                 }
                               }
                             }
                             final userAvatars = userAvatarsMap.values.toList();
+
                             // Departure/arrival time: time the user boards/alights (match stop_id with 'from'/'to')
                             String departureTime = '';
                             String arrivalTime = '';
