@@ -20,9 +20,9 @@ class _HomePageState extends State<HomePage> {
         children: [
           const Spacer(flex: 1),
           Image.asset(
-            'images/djungelskog.jpg',
-            height: 200,
-            width: 200,
+            'images/logo.png',
+            height: 300,
+            width: 300,
           ),
           const Spacer(flex: 2),
           Text(localizations.translate('mood_question'), style: const TextStyle(fontSize: 24)), 

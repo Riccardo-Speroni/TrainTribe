@@ -212,11 +212,22 @@ class _TrainsPageState extends State<TrainsPage> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
+          : RefreshIndicator(
+              onRefresh: _loadData,
+              displacement: 24,
               child: eventsData == null
-                  ? Center(child: Text(localizations.translate('no_trains_found')))
+                  // Even if no data, keep a scrollable list so pull-to-refresh works
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16.0),
+                      children: [
+                        const SizedBox(height: 120),
+                        Center(child: Text(localizations.translate('no_trains_found'))),
+                      ],
+                    )
                   : ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16.0),
                       children: [
                         ...eventsData!.entries.map((eventEntry) {
                           final eventId = eventEntry.key;
