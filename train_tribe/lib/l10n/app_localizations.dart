@@ -68,6 +68,7 @@ class AppLocalizations {
       'copied': 'Copied!',
 
       // Password
+      'password': 'Password',
       'choose_password': 'Choose a password',
       'repeat_password': 'Repeat the password',
       'confirm_password': 'Confirm Password',
@@ -245,6 +246,7 @@ class AppLocalizations {
       'copied': 'Copiato!',
 
       // Password
+      'password': 'Password',
       'choose_password': 'Scegli una password',
       'repeat_password': 'Ripeti la password',
       'confirm_password': 'Conferma Password',

@@ -144,11 +144,18 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                 alignment: Alignment.topLeft,
                 child: IconButton(
                   icon: const Icon(Icons.arrow_back),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                   onPressed: widget.onBack,
                 ),
               ),
             Image.asset('images/djungelskog.jpg', height: 100),
-            const SizedBox(height: 20),
+            const SizedBox(height: 25),
+            Text(
+              localizations.translate('username'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 15),
             TextField(
               controller: widget.usernameController,
               onChanged: (value) {
@@ -161,12 +168,12 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                 errorText: isUsernameUnique ? null : localizations.translate('error_username_taken'),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 25),
             Text(
               localizations.translate('name_surname'),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 15),
             Row(
               children: [
                 Expanded(
@@ -179,7 +186,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 15),
                 Expanded(
                   child: TextField(
                     controller: widget.surnameController,
@@ -192,17 +199,17 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 25),
             Text(
               localizations.translate('add_phone_number'),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 15),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: 110,
+                  width: 90,
                   child: TextField(
                     controller: _dialController,
                     keyboardType: TextInputType.phone,
@@ -227,7 +234,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 15),
                 Expanded(
                   child: TextField(
                     controller: widget.phoneController,
@@ -248,15 +255,21 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                       contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
                       labelText: localizations.translate('phone_number'),
                       border: const OutlineInputBorder(),
-                      helperText: localizations.translate('phone_number_note'),
+                        helperText: localizations.translate('phone_number_note'),
+                        helperMaxLines: 3,
                       errorText: _phoneError,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: areMandatoryFieldsFilled && isUsernameUnique
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey,
+              ),
               onPressed: areMandatoryFieldsFilled && isUsernameUnique
                   ? () {
                       final e164 = _composeAndValidateE164(localizations);
@@ -265,7 +278,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                       widget.onAction();
                     }
                   : null,
-              child: Text(widget.actionButtonText),
+              child: Text(widget.actionButtonText, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
