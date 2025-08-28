@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:timelines_plus/timelines_plus.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import '../utils/profile_picture_widget.dart';
-import '../l10n/app_localizations.dart';
+// Removed avatar tooltips dependence on localizations
 
 class TrainCard extends StatelessWidget {
   final String title;
@@ -112,40 +112,17 @@ class TrainCard extends StatelessWidget {
           for (int i = 0; i < userAvatars.length; i++)
             Positioned(
               left: i * 12.0,
-              child: Tooltip(
-                message: _avatarTooltip(AppLocalizations.of, userAvatars[i]),
-                child: _confirmedAvatarWrapper(userAvatars[i],
-                    child: ProfilePicture(
-                      picture: userAvatars[i]['image'],
-                      size: 16.0,
-                    )),
-              ),
+              child: _confirmedAvatarWrapper(userAvatars[i],
+                  child: ProfilePicture(
+                    picture: userAvatars[i]['image'],
+                    size: 16.0,
+                  )),
             ),
         ],
       ),
     );
   }
-
-  String _avatarTooltip(AppLocalizations Function(BuildContext) locGetter, Map<String, String> data) {
-    // Fallback to just the name if anything missing
-    try {
-      final confirmed = data['confirmed'] == 'true';
-      final isUser = currentUserId != null && data['user_id'] == currentUserId;
-      final name = data['name'] ?? '';
-      final loc = locGetter(_cachedContext!);
-      if (isUser) {
-        return confirmed ? loc.translate('you_confirmed_train') : loc.translate('you_not_confirmed_train');
-      } else {
-        final status = confirmed ? loc.translate('friend_confirmed_train') : loc.translate('friend_not_confirmed_train');
-        return name.isNotEmpty ? '$name: $status' : status;
-      }
-    } catch (_) {
-      return data['name'] ?? '';
-    }
-  }
-
-  // Store a context reference after build to use in tooltip building.
-  static BuildContext? _cachedContext;
+  // Removed tooltip + cached context.
 
   Widget _confirmedAvatarWrapper(Map<String, String> friend, {required Widget child}) {
     final isConfirmed = (friend['confirmed'] == 'true');
@@ -222,10 +199,7 @@ class TrainCard extends StatelessWidget {
                 ],
               ),
             ),
-            Builder(builder: (ctx) {
-              _cachedContext = ctx; // cache for tooltip localization
-              return _buildAvatars();
-            }),
+            _buildAvatars(),
             if (trailing != null) Padding(padding: const EdgeInsets.only(left: 8.0), child: trailing!),
           ],
         ),

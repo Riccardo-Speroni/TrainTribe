@@ -285,7 +285,6 @@ class _TrainsPageState extends State<TrainsPage> {
                               for (final l in legs)
                                 if (l['trip_id'] != null) l['trip_id'].toString()
                             ];
-                            final routeSignature = _routeSignature(routeTrainIds);
 
                             // Merge friend avatars across legs:
                             final Map<String, Map<String, String>> userAvatarsMap = {};
@@ -391,9 +390,9 @@ class _TrainsPageState extends State<TrainsPage> {
                             final title = '${localizations.translate('solution')} $routeIndex';
                             // Use a unique index for expandedCardIndex per event
                             final cardIndex = routeIndex;
-                            final trainId =
-                                legsForCard.isNotEmpty ? (legsForCard.first['trainNumber']?.toString() ?? 'unknown') : 'unknown';
-                            final isConfirmed = confirmedTrainPerEvent[eventId] == trainId;
+                            // Multi-leg confirmation: route considered confirmed only if ALL its leg trainIds confirmed.
+                            final routeSignature = _routeSignature(routeTrainIds);
+                            final isConfirmed = confirmedTrainPerEvent[eventId] == routeSignature;
                             final currentUserId = FirebaseAuth.instance.currentUser?.uid;
                             return TrainCard(
                               title: title,
@@ -409,7 +408,7 @@ class _TrainsPageState extends State<TrainsPage> {
                               isDirect: isDirect,
                               userAvatars: userAvatars,
                               legs: legsForCard,
-                              trailing: _buildConfirmButton(eventId, trainId, dateStr, routes),
+                              trailing: _buildConfirmButton(eventId: eventId, routeSignature: routeSignature, routeTrainIds: routeTrainIds, dateStr: dateStr, routes: routes),
                               highlightConfirmed: isConfirmed,
                               currentUserId: currentUserId,
                             );
@@ -492,8 +491,8 @@ class _TrainsPageState extends State<TrainsPage> {
     );
   }
 
-  Widget _buildConfirmButton(String eventId, String trainId, String dateStr, dynamic routes) {
-    final isConfirmed = confirmedTrainPerEvent[eventId] == trainId;
+  Widget _buildConfirmButton({required String eventId, required String routeSignature, required List<String> routeTrainIds, required String dateStr, required dynamic routes}) {
+    final isConfirmed = confirmedTrainPerEvent[eventId] == routeSignature;
     final loc = AppLocalizations.of(context);
     final confirmLabel = isConfirmed ? loc.translate('confirmed') : loc.translate('confirm');
     return ElevatedButton(
@@ -501,32 +500,35 @@ class _TrainsPageState extends State<TrainsPage> {
         final user = FirebaseAuth.instance.currentUser;
         final userId = user?.uid;
         if (userId == null) return;
-        // Build list of trainIds for this event's routes
-        final List<String> trainIds = [];
+        // Build list of ALL trainIds for this event (across all routes) to unconfirm others.
+        final Set<String> allTrainIds = {};
         if (routes is List) {
           for (final r in routes) {
             if (r is Map<String, dynamic>) {
-              final leg0 = r['leg0'];
-              if (leg0 is Map && leg0['trip_id'] != null) {
-                trainIds.add(leg0['trip_id'].toString());
+              final legKeys = r.keys.where((k) => k.startsWith('leg'));
+              for (final lk in legKeys) {
+                final leg = r[lk];
+                if (leg is Map && leg['trip_id'] != null) {
+                  allTrainIds.add(leg['trip_id'].toString());
+                }
               }
             }
           }
         }
         try {
-          await _confirmationService.confirmTrain(
+          await _confirmationService.confirmRoute(
             dateStr: dateStr,
-            trainId: trainId,
+            selectedRouteTrainIds: routeTrainIds,
             userId: userId,
-            eventTrainIds: trainIds,
+            allEventTrainIds: allTrainIds.toList(),
           );
           if (mounted) {
             setState(() {
-              confirmedTrainPerEvent[eventId] = trainId;
+              confirmedTrainPerEvent[eventId] = routeSignature;
             });
           }
         } catch (e, st) {
-          debugPrint('Confirm button error event=$eventId train=$trainId: $e');
+          debugPrint('Confirm button error event=$eventId route=$routeSignature: $e');
           debugPrint(st.toString());
         }
       },
@@ -564,12 +566,12 @@ class _TrainsPageState extends State<TrainsPage> {
                 showCheck: true,
               ),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  const CircleAvatar(radius: 12, backgroundColor: Colors.grey),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(loc.translate('train_confirm_legend_unconfirmed'))),
-                ],
+              _legendRow(
+                ringColor: Colors.grey,
+                glow: Colors.transparent,
+                label: loc.translate('train_confirm_legend_unconfirmed'),
+                backgroundColor: Colors.grey,
+                iconColor: Colors.white,
               ),
               const SizedBox(height: 16),
               Text(
@@ -589,7 +591,15 @@ class _TrainsPageState extends State<TrainsPage> {
     );
   }
 
-  Widget _legendRow({required Color ringColor, required Color glow, required String label, bool showCheck = false, bool isUser = false}) {
+  Widget _legendRow({
+    required Color ringColor,
+    required Color glow,
+    required String label,
+    bool showCheck = false,
+    bool isUser = false,
+    Color? backgroundColor,
+    Color? iconColor,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -601,13 +611,14 @@ class _TrainsPageState extends State<TrainsPage> {
               height: 30,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: ringColor, width: isUser ? 3 : 2),
+                border: Border.all(color: ringColor, width: 2),
                 boxShadow: [
-                  BoxShadow(color: glow.withOpacity(0.6), blurRadius: 6, spreadRadius: 1),
+                  if (glow != Colors.transparent)
+                    BoxShadow(color: glow.withOpacity(0.6), blurRadius: 6, spreadRadius: 1),
                 ],
-                color: Colors.white,
+                color: backgroundColor ?? Colors.white,
               ),
-              child: const Icon(Icons.person, size: 16, color: Colors.grey),
+              child: Icon(Icons.person, size: 16, color: iconColor ?? Colors.grey),
             ),
             if (showCheck)
               Positioned(
