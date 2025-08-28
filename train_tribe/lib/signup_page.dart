@@ -262,29 +262,32 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Widget _buildEmailPage(BuildContext context, AppLocalizations localizations) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('images/djungelskog.jpg', height: 100),
-            const SizedBox(height: 20),
-            Text(localizations.translate('enter_email'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            TextField(
-              controller: emailController,
-              onChanged: (_) => _validateEmail(),
-              decoration: InputDecoration(
-                labelText: localizations.translate('email'),
-                border: const OutlineInputBorder(),
-                errorText: isEmailValid ? null : localizations.translate('invalid_email'),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('images/djungelskog.jpg', height: 100),
+              const SizedBox(height: 20),
+              Text(localizations.translate('enter_email'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              TextField(
+                controller: emailController,
+                onChanged: (_) => _validateEmail(),
+                decoration: InputDecoration(
+                  labelText: localizations.translate('email'),
+                  border: const OutlineInputBorder(),
+                  errorText: isEmailValid ? null : localizations.translate('invalid_email'),
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: isEmailValid ? _nextPage : null,
-              child: Text(localizations.translate('next')),
-            ),
-          ],
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: isEmailValid ? _nextPage : null,
+                child: Text(localizations.translate('next')),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -306,75 +309,80 @@ class _SignUpPageState extends State<SignUpPage> {
       arePasswordsValid = isMinLength && hasUppercase && hasLowercase && hasNumber && passwordsMatch;
     });
 
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Align(
-            alignment: Alignment.topLeft,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: _prevPage,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            localizations.translate('choose_password'),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: passwordController,
-            obscureText: true,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: localizations.translate('password'),
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _buildPasswordCondition(
-                localizations.translate('password_min_length'),
-                isMinLength,
+              Align(
+                alignment: Alignment.topLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: _prevPage,
+                ),
               ),
-              _buildPasswordCondition(
-                localizations.translate('password_uppercase'),
-                hasUppercase,
+              const SizedBox(height: 20),
+              Text(
+                localizations.translate('choose_password'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              _buildPasswordCondition(
-                localizations.translate('password_lowercase'),
-                hasLowercase,
+              const SizedBox(height: 20),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: localizations.translate('password'),
+                  border: const OutlineInputBorder(),
+                ),
               ),
-              _buildPasswordCondition(
-                localizations.translate('password_number'),
-                hasNumber,
+              const SizedBox(height: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildPasswordCondition(
+                    localizations.translate('password_min_length'),
+                    isMinLength,
+                  ),
+                  _buildPasswordCondition(
+                    localizations.translate('password_uppercase'),
+                    hasUppercase,
+                  ),
+                  _buildPasswordCondition(
+                    localizations.translate('password_lowercase'),
+                    hasLowercase,
+                  ),
+                  _buildPasswordCondition(
+                    localizations.translate('password_number'),
+                    hasNumber,
+                  ),
+                  _buildPasswordCondition(
+                    localizations.translate('passwords_match'),
+                    passwordsMatch,
+                  ),
+                ],
               ),
-              _buildPasswordCondition(
-                localizations.translate('passwords_match'),
-                passwordsMatch,
+              const SizedBox(height: 20),
+              TextField(
+                controller: confirmPasswordController,
+                obscureText: true,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: localizations.translate('confirm_password'),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: arePasswordsValid ? _nextPage : null,
+                child: Text(localizations.translate('next')),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: confirmPasswordController,
-            obscureText: true,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: localizations.translate('confirm_password'),
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: arePasswordsValid ? _nextPage : null,
-            child: Text(localizations.translate('next')),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -400,123 +408,132 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildUserDetailsPage(AppLocalizations localizations) {
-    return UserDetailsPage(
-      prefilledName: firstNameController.text,
-      prefilledSurname: lastNameController.text,
-      prefilledUsername: usernameController.text,
-      prefilledPhone: phoneController.text,
-      onBack: _prevPage,
-      onAction: () {
-        // Save the current values to the controllers
-        setState(() {
-          firstNameController.text = firstNameController.text.trim();
-          lastNameController.text = lastNameController.text.trim();
-          usernameController.text = usernameController.text.trim();
-          phoneController.text = phoneController.text.trim();
-        });
-        _nextPage();
-      },
-      actionButtonText: localizations.translate('next'),
-      nameController: firstNameController,
-      surnameController: lastNameController,
-      usernameController: usernameController,
-      phoneController: phoneController,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: UserDetailsPage(
+          prefilledName: firstNameController.text,
+          prefilledSurname: lastNameController.text,
+          prefilledUsername: usernameController.text,
+          prefilledPhone: phoneController.text,
+          onBack: _prevPage,
+          onAction: () {
+            // Save the current values to the controllers
+            setState(() {
+              firstNameController.text = firstNameController.text.trim();
+              lastNameController.text = lastNameController.text.trim();
+              usernameController.text = usernameController.text.trim();
+              phoneController.text = phoneController.text.trim();
+            });
+            _nextPage();
+          },
+          actionButtonText: localizations.translate('next'),
+          nameController: firstNameController,
+          surnameController: lastNameController,
+          usernameController: usernameController,
+          phoneController: phoneController,
+        ),
+      ),
     );
   }
 
   Widget _buildProfilePicturePage(AppLocalizations localizations) {
-    final horizontalPadding = MediaQuery.of(context).size.width > 600 ? 40.0 : 20.0; // Add more padding for larger screens
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Padding(
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.topLeft,
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: _prevPage,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                localizations.translate('choose_profile_picture'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              CircleAvatar(
-                radius: 60, // Reduced size of the profile picture
-                backgroundColor: Colors.teal,
-                foregroundImage: _profileImage != null
-                    ? FileImage(_profileImage!)
-                    : (_selectedAvatarUrl != null ? NetworkImage(_selectedAvatarUrl!) : null),
-                child: _profileImage == null && _selectedAvatarUrl == null
-                    ? Initicon(
-                        text: "${firstNameController.text} ${lastNameController.text}",
-                        backgroundColor: Colors.transparent,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 50,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        size: 120, // Match the size to the CircleAvatar's diameter
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _pickImage,
-                child: Text(localizations.translate('pick_image')),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _generateAvatars,
-                child: Text(localizations.translate('generate_avatars')),
-              ),
-              const SizedBox(height: 20),
-              if (_avatarUrls.isNotEmpty)
-                Flexible(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 600), // Limit the grid width
-                      child: GridView.builder(
-                        shrinkWrap: true, // Prevent the grid from expanding unnecessarily
-                        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 80, // Reduced size of each avatar image
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          childAspectRatio: 1, // Ensure images are square
-                        ),
-                        itemCount: _avatarUrls.length,
-                        itemBuilder: (context, index) {
-                          final avatarUrl = _avatarUrls[index];
-                          return GestureDetector(
-                            onTap: () => _selectAvatar(avatarUrl),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(100), // Add rounded corners
-                              child: Image.network(
-                                avatarUrl,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+    final horizontalPadding = MediaQuery.of(context).size.width > 600 ? 40.0 : 20.0;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+              child: Column(
+                children: [
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: _prevPage,
                     ),
                   ),
-                ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _createUserInFirebase,
-                child: Text(localizations.translate('create_account')),
+                  const SizedBox(height: 20),
+                  Text(
+                    localizations.translate('choose_profile_picture'),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  CircleAvatar(
+                    radius: 60, // Reduced size of the profile picture
+                    backgroundColor: Colors.teal,
+                    foregroundImage: _profileImage != null
+                        ? FileImage(_profileImage!)
+                        : (_selectedAvatarUrl != null ? NetworkImage(_selectedAvatarUrl!) : null),
+                    child: _profileImage == null && _selectedAvatarUrl == null
+                        ? Initicon(
+                            text: "${firstNameController.text} ${lastNameController.text}",
+                            backgroundColor: Colors.transparent,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 50,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            size: 120, // Match the size to the CircleAvatar's diameter
+                          )
+                        : null,
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _pickImage,
+                    child: Text(localizations.translate('pick_image')),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _generateAvatars,
+                    child: Text(localizations.translate('generate_avatars')),
+                  ),
+                  const SizedBox(height: 20),
+                  if (_avatarUrls.isNotEmpty)
+                    Flexible(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 600), // Limit the grid width
+                          child: GridView.builder(
+                            shrinkWrap: true, // Prevent the grid from expanding unnecessarily
+                            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 80, // Reduced size of each avatar image
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: 1, // Ensure images are square
+                            ),
+                            itemCount: _avatarUrls.length,
+                            itemBuilder: (context, index) {
+                              final avatarUrl = _avatarUrls[index];
+                              return GestureDetector(
+                                onTap: () => _selectAvatar(avatarUrl),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(100), // Add rounded corners
+                                  child: Image.network(
+                                    avatarUrl,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _createUserInFirebase,
+                    child: Text(localizations.translate('create_account')),
+                  ),
+                  const SizedBox(height: 20), // Add padding below the button
+                ],
               ),
-              const SizedBox(height: 20), // Add padding below the button
-            ],
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 }

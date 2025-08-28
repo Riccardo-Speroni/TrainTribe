@@ -76,7 +76,11 @@ class CalendarDayColumn extends StatelessWidget {
       Widget emptyCell = IgnorePointer(
         ignoring: hasEvent,
         child: Container(
-          color: !hasEvent && isPastDay ? Colors.grey[200] : null, // <--- COLORE GRIGIO PER CELLE VUOTE PASSATE
+          color: !hasEvent && isPastDay
+              ? Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[850]
+                  : Colors.grey[200]
+              : null,
           child: CalendarEmptyCell(
             cellIndex: index,
             day: day,
@@ -129,18 +133,30 @@ class CalendarDayColumn extends StatelessWidget {
                   margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
                   decoration: BoxDecoration(
                     color: isPastDay
-                        ? Colors.grey
+                        ? Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[800]
+                            : Colors.grey
                         : isBeingDragged
                             ? overlappingEvent.isRecurrent
-                                ? Colors.purpleAccent.withOpacity(0.7)
-                                : Colors.blueAccent.withOpacity(0.7)
+                                ? Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.deepPurpleAccent.withOpacity(0.7)
+                                    : Colors.purpleAccent.withOpacity(0.7)
+                                : Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.blue[700]!.withOpacity(0.7)
+                                    : Colors.blueAccent.withOpacity(0.7)
                             : overlappingEvent.isRecurrent
-                                ? Colors.purpleAccent
-                                : Colors.lightBlueAccent,
+                                ? Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.deepPurpleAccent
+                                    : Colors.purpleAccent
+                                : Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.blue[700]
+                                    : Colors.lightBlueAccent,
                     borderRadius: BorderRadius.circular(8.0),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.grey.withOpacity(0.5),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black.withOpacity(0.3)
+                            : Colors.grey.withOpacity(0.5),
                         spreadRadius: 2,
                         blurRadius: 5,
                         offset: const Offset(0, 3),
@@ -150,10 +166,13 @@ class CalendarDayColumn extends StatelessWidget {
                   child: Center(
                     child: Text(
                       '${overlappingEvent.departureStation} - ${overlappingEvent.arrivalStation}',
-                      style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -210,7 +229,9 @@ class CalendarTimeColumn extends StatelessWidget {
     return Container(
       width: 60,
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey[900]
+            : Colors.grey[200],
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(10.0),
           bottomLeft: Radius.circular(10.0),
@@ -226,12 +247,22 @@ class CalendarTimeColumn extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: Colors.grey[300]!),
+                bottom: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[800]!
+                      : Colors.grey[300]!,
+                ),
               ),
             ),
             child: Text(
               label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[300]
+                    : Colors.black,
+              ),
             ),
           );
         }),

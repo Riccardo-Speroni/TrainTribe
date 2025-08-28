@@ -40,9 +40,15 @@ class CalendarEmptyCell extends StatelessWidget {
       return Container(
         height: cellHeight,
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[800]!
+                : Colors.grey[300]!,
+          ),
           borderRadius: BorderRadius.circular(4.0),
-          color: Colors.transparent,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.transparent
+              : Colors.transparent,
         ),
       );
     }
@@ -64,9 +70,19 @@ class CalendarEmptyCell extends StatelessWidget {
       child: Container(
         height: cellHeight,
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[800]!
+                : Colors.grey[300]!,
+          ),
           borderRadius: BorderRadius.circular(4.0),
-          color: isHighlighted ? Colors.blue.withOpacity(0.7) : Colors.transparent,
+          color: isHighlighted
+              ? (Theme.of(context).brightness == Brightness.dark
+                  ? Colors.lightBlueAccent.withOpacity(0.6)
+                  : Colors.blueAccent.withOpacity(0.6))
+              : (Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[900]
+                  : Colors.transparent),
         ),
       ),
     );
