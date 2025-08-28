@@ -61,37 +61,32 @@ class _TrainsPageState extends State<TrainsPage> {
 
   Future<void> _loadData() async {
     if (mounted) {
-      setState(() {
-        isLoading = true;
-      });
+      setState(() => isLoading = true);
     }
 
-    // Get current user ID
     final user = FirebaseAuth.instance.currentUser;
     final userId = user?.uid ?? '';
-
-    // Get selected date
     final now = DateTime.now().add(Duration(days: selectedDayIndex));
     final dateStr = DateFormat('yyyy-MM-dd').format(now);
 
-    // --- Actual HTTP call ---
-    final url = Uri.parse('https://get-event-full-trip-data-v75np53hva-uc.a.run.app?date=$dateStr&userId=$userId');
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      eventsData = (json.decode(response.body) as Map<String, dynamic>).map(
-        (key, value) => MapEntry(key, value as List<dynamic>),
-      );
-    } else if (response.statusCode == 404) {
-      eventsData = null; // No trips found
-    } else {
-      throw Exception('Failed to load trips data');
-    }
-    // Fetch event details from Firestore for each eventId if available
-    final Map<String, Map<String, dynamic>> details = {};
-    if (eventsData != null && eventsData!.isNotEmpty && userId.isNotEmpty) {
-      final firestore = FirebaseFirestore.instance;
-      final eventIds = eventsData!.keys.toList();
-      try {
+    Map<String, Map<String, dynamic>> details = {};
+
+    try {
+      // 1. Fetch routes (eventsData)
+      final url = Uri.parse('https://get-event-full-trip-data-v75np53hva-uc.a.run.app?date=$dateStr&userId=$userId');
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        eventsData = (json.decode(response.body) as Map<String, dynamic>).map((k, v) => MapEntry(k, v as List<dynamic>));
+      } else if (response.statusCode == 404) {
+        eventsData = null; // none
+      } else {
+        throw Exception('Failed to load trips data (${response.statusCode})');
+      }
+
+      // 2. Fetch event details (origin/destination/times)
+      if (eventsData != null && eventsData!.isNotEmpty && userId.isNotEmpty) {
+        final firestore = FirebaseFirestore.instance;
+        final eventIds = eventsData!.keys.toList();
         await Future.wait(eventIds.map((eventId) async {
           try {
             final doc = await firestore.collection('users').doc(userId).collection('events').doc(eventId).get();
@@ -106,39 +101,21 @@ class _TrainsPageState extends State<TrainsPage> {
                 };
               }
             }
-          } catch (_) {
-            // Ignore individual fetch errors, keep rendering others
-          }
+          } catch (_) {/* ignore per-event errors */}
         }));
-      } catch (_) {
-        // Ignore batch errors
       }
-    }
 
-    if (mounted) {
-      setState(() {
-        eventDetails = details;
-        isLoading = false;
-      });
-    }
-
-    // Preload confirmed route per event.
-    if (eventsData != null && userId.isNotEmpty) {
-      final Map<String, String?> preloadMap = {};
-      final dateStrForPreload = dateStr;
-      try {
+      // 3. Preload confirmed route signatures
+      if (eventsData != null && userId.isNotEmpty) {
+        final Map<String, String?> preloadMap = {};
         for (final entry in eventsData!.entries) {
           final eventId = entry.key;
           final routes = entry.value;
-          // Collect all trainIds across all routes (every leg).
           final Set<String> allEventTrainIds = {};
-          // Build list of route trainId lists.
           final List<List<String>> routeTrainIdLists = [];
-
           for (final r in routes) {
             if (r is Map<String, dynamic>) {
               final List<String> routeTrainIds = [];
-              // collect legX
               final legKeys = r.keys.where((k) => k.startsWith('leg')).toList()
                 ..sort((a, b) {
                   int ai = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
@@ -153,354 +130,423 @@ class _TrainsPageState extends State<TrainsPage> {
                   allEventTrainIds.add(tid);
                 }
               }
-              if (routeTrainIds.isNotEmpty) {
-                routeTrainIdLists.add(routeTrainIds);
-              }
+              if (routeTrainIds.isNotEmpty) routeTrainIdLists.add(routeTrainIds);
             }
           }
 
-          // Fetch all confirmed trainIds for this event's trains.
+          if (allEventTrainIds.isEmpty) continue;
           final confirmedIds = await _confirmationService.fetchConfirmedTrainIds(
-            dateStr: dateStrForPreload,
+            dateStr: dateStr,
             userId: userId,
             trainIds: allEventTrainIds.toList(),
           );
-
-          // Determine if any route is fully confirmed (all its leg ids in confirmedIds).
           for (final routeIds in routeTrainIdLists) {
-            final full = routeIds.every(confirmedIds.contains);
-            if (full) {
+            if (routeIds.every(confirmedIds.contains)) {
               preloadMap[eventId] = _routeSignature(routeIds);
-              break; // Only one route can be confirmed.
+              break; // one per event
             }
           }
         }
-        if (mounted) {
-          setState(() {
-            confirmedTrainPerEvent.addAll(preloadMap);
-          });
+        if (preloadMap.isNotEmpty && mounted) {
+          setState(() => confirmedTrainPerEvent.addAll(preloadMap));
         }
-      } catch (e, st) {
-        debugPrint('Preload confirmations (multi-leg) error: $e');
-        debugPrint(st.toString());
+      }
+    } catch (e, st) {
+      debugPrint('Load data error: $e');
+      debugPrint(st.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          eventDetails = details;
+          isLoading = false;
+        });
       }
     }
   }
 
   String _routeSignature(List<String> ids) => ids.join('+');
 
+  bool _shouldUseShortDayLabels(BuildContext context, double totalWidth) {
+    // Approximate per-character width (bold 14) ~8 px; longest (Wednesday) 9 chars
+    final effectiveWidth = totalWidth - 16; // margin
+    final perCellWidth = effectiveWidth / 7.0;
+    const longestFullChars = 9; // e.g., Wednesday length in English (without localization variability)
+    const charPx = 8.0;
+    const chipHorizontalPad = 24.0; // padding + border spacing
+    final estimatedNeeded = longestFullChars * charPx + chipHorizontalPad;
+    return estimatedNeeded > perCellWidth;
+  }
+
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final bool showFullDays = screenWidth > 600;
-    final daysOfWeek = showFullDays ? daysOfWeekFull : daysOfWeekShort;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(localizations.translate('trains')),
-        actions: [
-          IconButton(
-            tooltip: localizations.translate('train_confirm_legend_title'),
-            icon: const Icon(Icons.info_outline),
-            onPressed: () => _showLegendDialog(context, localizations),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(50.0),
-          child: Row(
-            children: List.generate(daysOfWeek.length, (index) {
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      selectedDayIndex = index;
-                    });
-                    _loadData();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10.0),
-                    decoration: BoxDecoration(
-                      color: selectedDayIndex == index ? Colors.blue : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20.0),
-                    ),
-                    child: Center(
-                      child: Text(
-                        daysOfWeek[index],
-                        style: TextStyle(
-                          color: selectedDayIndex == index ? Colors.white : Colors.black,
-                          fontWeight: FontWeight.bold,
+    // Dynamic abbreviation handled later via LayoutBuilder (no need for screen width heuristic here).
+    return SelectionContainer.disabled(
+      child: Scaffold(
+        appBar: AppBar(
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          surfaceTintColor: Colors.transparent, // remove Material3 scroll tint
+          title: SelectionContainer.disabled(child: Text(localizations.translate('trains'))),
+          actions: [
+            IconButton(
+              tooltip: localizations.translate('train_confirm_legend_title'),
+              icon: const Icon(Icons.info_outline),
+              onPressed: () => _showLegendDialog(context, localizations),
+            ),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(50.0),
+            child: Builder(builder: (context) {
+              final theme = Theme.of(context);
+              final selColor = theme.colorScheme.primary;
+              final unselectedText = theme.brightness == Brightness.dark ? theme.colorScheme.onSurface.withOpacity(0.60) : Colors.black87;
+              return LayoutBuilder(builder: (ctx, constraints) {
+                final useShort = _shouldUseShortDayLabels(ctx, constraints.maxWidth);
+                final labels = useShort ? daysOfWeekShort : daysOfWeekFull;
+                return SelectionContainer.disabled(
+                  child: Row(
+                    children: List.generate(labels.length, (index) {
+                      final selected = selectedDayIndex == index;
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() => selectedDayIndex = index);
+                              _loadData();
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 10.0),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? selColor
+                                    : (theme.brightness == Brightness.dark
+                                        ? theme.colorScheme.surfaceVariant.withOpacity(0.15)
+                                        : Colors.transparent),
+                                borderRadius: BorderRadius.circular(20.0),
+                                border: Border.all(
+                                  color: selected
+                                      ? selColor
+                                      : (theme.brightness == Brightness.dark
+                                          ? theme.colorScheme.outlineVariant.withOpacity(0.4)
+                                          : Colors.grey.withOpacity(0.3)),
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  labels[index],
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: selected ? theme.colorScheme.onPrimary : unselectedText,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    }),
                   ),
-                ),
-              );
+                );
+              });
             }),
           ),
         ),
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              displacement: 24,
-              child: eventsData == null
-                  // Even if no data, keep a scrollable list so pull-to-refresh works
-                  ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16.0),
-                      children: [
-                        const SizedBox(height: 120),
-                        Center(child: Text(localizations.translate('no_trains_found'))),
-                      ],
-                    )
-                  : ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16.0),
-                      children: [
-                        ...eventsData!.entries.map((eventEntry) {
-                          final eventId = eventEntry.key;
-                          final routes = eventEntry.value;
-                          // Build the list of TrainCards for this event
-                          final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now().add(Duration(days: selectedDayIndex)));
-                          final trainCards = routes.asMap().entries.map((routeEntry) {
-                            final routeIndex = routeEntry.key;
-                            final route = routeEntry.value as Map<String, dynamic>;
+        body: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _loadData,
+                displacement: 24,
+                child: eventsData == null
+                    // Even if no data, keep a scrollable list so pull-to-refresh works
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(16.0),
+                        children: [
+                          const SizedBox(height: 120),
+                          Center(child: Text(localizations.translate('no_trains_found'))),
+                        ],
+                      )
+                    : ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(16.0),
+                        children: [
+                          ...eventsData!.entries.map((eventEntry) {
+                            final eventId = eventEntry.key;
+                            final routes = eventEntry.value;
+                            // Build the list of TrainCards for this event
+                            final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now().add(Duration(days: selectedDayIndex)));
+                            final trainCards = routes.asMap().entries.map((routeEntry) {
+                              final routeIndex = routeEntry.key;
+                              final route = routeEntry.value as Map<String, dynamic>;
 
-                            // Collect legs
-                            final legs = <Map<String, dynamic>>[];
-                            final legKeys = route.keys.where((k) => k.startsWith('leg')).toList()
-                              ..sort((a, b) {
-                                int ai = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-                                int bi = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-                                return ai.compareTo(bi);
-                              });
-                            for (final k in legKeys) {
-                              legs.add(Map<String, dynamic>.from(route[k] as Map));
-                            }
+                              // Collect legs
+                              final legs = <Map<String, dynamic>>[];
+                              final legKeys = route.keys.where((k) => k.startsWith('leg')).toList()
+                                ..sort((a, b) {
+                                  int ai = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                                  int bi = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                                  return ai.compareTo(bi);
+                                });
+                              for (final k in legKeys) {
+                                legs.add(Map<String, dynamic>.from(route[k] as Map));
+                              }
 
-                            // Gather route trainIds (all legs).
-                            final List<String> routeTrainIds = [
-                              for (final l in legs)
-                                if (l['trip_id'] != null) l['trip_id'].toString()
-                            ];
+                              // Gather route trainIds (all legs).
+                              final List<String> routeTrainIds = [
+                                for (final l in legs)
+                                  if (l['trip_id'] != null) l['trip_id'].toString()
+                              ];
 
-                            // Merge friend avatars across legs:
-                            final Map<String, Map<String, String>> userAvatarsMap = {};
-                            for (final leg in legs) {
-                              if (leg['friends'] != null) {
-                                for (final friend in (leg['friends'] as List)) {
-                                  final friendUserId = (friend['user_id'] ?? '') as String;
-                                  final image = (friend['picture'] ?? '').toString();
-                                  final name = (friend['username'] ?? '').toString();
-                                  final from = (friend['from'] ?? '').toString();
-                                  final to = (friend['to'] ?? '').toString();
-                                  final legConfirmed = friend['confirmed'] == true;
-                                  final key = friendUserId.isNotEmpty ? friendUserId : '$image|$name';
-                                  if (!userAvatarsMap.containsKey(key)) {
-                                    userAvatarsMap[key] = {
-                                      'image': image,
-                                      'name': name,
-                                      'from': from,
-                                      'to': to,
-                                      // Start with this leg's confirmed value; we will AND across legs they appear in.
-                                      'confirmed': legConfirmed ? 'true' : 'false',
-                                      'user_id': friendUserId,
-                                    };
-                                  } else {
-                                    // Merge range
-                                    final prev = userAvatarsMap[key]!;
-                                    final prevFrom = prev['from'] ?? from;
-                                    final prevTo = prev['to'] ?? to;
-                                    prev['from'] = (from.compareTo(prevFrom) < 0) ? from : prevFrom;
-                                    prev['to'] = (to.compareTo(prevTo) > 0) ? to : prevTo;
-                                    // AND logic: friend considered route-confirmed only if confirmed in every leg they appear.
-                                    final prevConfirmed = prev['confirmed'] == 'true';
-                                    prev['confirmed'] = (prevConfirmed && legConfirmed).toString();
+                              // Merge friend avatars across legs:
+                              final Map<String, Map<String, String>> userAvatarsMap = {};
+                              for (final leg in legs) {
+                                if (leg['friends'] != null) {
+                                  for (final friend in (leg['friends'] as List)) {
+                                    final friendUserId = (friend['user_id'] ?? '') as String;
+                                    final image = (friend['picture'] ?? '').toString();
+                                    final name = (friend['username'] ?? '').toString();
+                                    final from = (friend['from'] ?? '').toString();
+                                    final to = (friend['to'] ?? '').toString();
+                                    final legConfirmed = friend['confirmed'] == true;
+                                    final key = friendUserId.isNotEmpty ? friendUserId : '$image|$name';
+                                    if (!userAvatarsMap.containsKey(key)) {
+                                      userAvatarsMap[key] = {
+                                        'image': image,
+                                        'name': name,
+                                        'from': from,
+                                        'to': to,
+                                        // Start with this leg's confirmed value; we will AND across legs they appear in.
+                                        'confirmed': legConfirmed ? 'true' : 'false',
+                                        'user_id': friendUserId,
+                                      };
+                                    } else {
+                                      // Merge range
+                                      final prev = userAvatarsMap[key]!;
+                                      final prevFrom = prev['from'] ?? from;
+                                      final prevTo = prev['to'] ?? to;
+                                      prev['from'] = (from.compareTo(prevFrom) < 0) ? from : prevFrom;
+                                      prev['to'] = (to.compareTo(prevTo) > 0) ? to : prevTo;
+                                      // AND logic: friend considered route-confirmed only if confirmed in every leg they appear.
+                                      final prevConfirmed = prev['confirmed'] == 'true';
+                                      prev['confirmed'] = (prevConfirmed && legConfirmed).toString();
+                                    }
                                   }
                                 }
                               }
-                            }
-                            final userAvatars = userAvatarsMap.values.toList();
+                              final userAvatars = userAvatarsMap.values.toList();
 
-                            // Departure/arrival time: time the user boards/alights (match stop_id with 'from'/'to')
-                            String departureTime = '';
-                            String arrivalTime = '';
-                            String _toHHmm(dynamic t) {
-                              final s = (t ?? '').toString();
-                              return s.length >= 5 ? s.substring(0, 5) : s;
-                            }
-
-                            if (legs.isNotEmpty) {
-                              final firstLeg = legs.first;
-                              final lastLeg = legs.last;
-
-                              final firstFromId = (firstLeg['from'] ?? '').toString();
-                              final lastToId = (lastLeg['to'] ?? '').toString();
-
-                              final firstStops = (firstLeg['stops'] as List<dynamic>? ?? []);
-                              final lastStops = (lastLeg['stops'] as List<dynamic>? ?? []);
-
-                              if (firstStops.isNotEmpty) {
-                                final Map<String, dynamic> boardStop = (firstStops.firstWhere(
-                                  (s) => ((s as Map)['stop_id'] ?? '').toString() == firstFromId,
-                                  orElse: () => firstStops.first,
-                                )) as Map<String, dynamic>;
-                                departureTime = _toHHmm(boardStop['departure_time'] ?? boardStop['arrival_time']);
+                              // Departure/arrival time: time the user boards/alights (match stop_id with 'from'/'to')
+                              String departureTime = '';
+                              String arrivalTime = '';
+                              String _toHHmm(dynamic t) {
+                                final s = (t ?? '').toString();
+                                return s.length >= 5 ? s.substring(0, 5) : s;
                               }
-                              if (lastStops.isNotEmpty) {
-                                final Map<String, dynamic> alightStop = (lastStops.firstWhere(
-                                  (s) => ((s as Map)['stop_id'] ?? '').toString() == lastToId,
-                                  orElse: () => lastStops.last,
-                                )) as Map<String, dynamic>;
-                                arrivalTime = _toHHmm(alightStop['arrival_time'] ?? alightStop['departure_time']);
+
+                              if (legs.isNotEmpty) {
+                                final firstLeg = legs.first;
+                                final lastLeg = legs.last;
+
+                                final firstFromId = (firstLeg['from'] ?? '').toString();
+                                final lastToId = (lastLeg['to'] ?? '').toString();
+
+                                final firstStops = (firstLeg['stops'] as List<dynamic>? ?? []);
+                                final lastStops = (lastLeg['stops'] as List<dynamic>? ?? []);
+
+                                if (firstStops.isNotEmpty) {
+                                  final Map<String, dynamic> boardStop = (firstStops.firstWhere(
+                                    (s) => ((s as Map)['stop_id'] ?? '').toString() == firstFromId,
+                                    orElse: () => firstStops.first,
+                                  )) as Map<String, dynamic>;
+                                  departureTime = _toHHmm(boardStop['departure_time'] ?? boardStop['arrival_time']);
+                                }
+                                if (lastStops.isNotEmpty) {
+                                  final Map<String, dynamic> alightStop = (lastStops.firstWhere(
+                                    (s) => ((s as Map)['stop_id'] ?? '').toString() == lastToId,
+                                    orElse: () => lastStops.last,
+                                  )) as Map<String, dynamic>;
+                                  arrivalTime = _toHHmm(alightStop['arrival_time'] ?? alightStop['departure_time']);
+                                }
                               }
-                            }
-                            // isDirect: only one leg
-                            final isDirect = legs.length == 1;
-                            // legs for TrainCard: stops, trainNumber, operator, isDirect
-                            final legsForCard = legs.map((leg) {
-                              final stops = (leg['stops'] as List<dynamic>).map((stop) {
+                              // isDirect: only one leg
+                              final isDirect = legs.length == 1;
+                              // legs for TrainCard: stops, trainNumber, operator, isDirect
+                              final legsForCard = legs.map((leg) {
+                                final stops = (leg['stops'] as List<dynamic>).map((stop) {
+                                  return {
+                                    'name': stop['stop_name'] ?? '',
+                                    'arrivalTime': stop['arrival_time']?.toString().substring(0, 5) ?? '',
+                                    'departureTime': stop['departure_time']?.toString().substring(0, 5) ?? '',
+                                    'platform': stop['platform'] ?? '',
+                                    'track': stop['track'] ?? '',
+                                    'id': stop['stop_id'] ?? '',
+                                  };
+                                }).toList();
                                 return {
-                                  'name': stop['stop_name'] ?? '',
-                                  'arrivalTime': stop['arrival_time']?.toString().substring(0, 5) ?? '',
-                                  'departureTime': stop['departure_time']?.toString().substring(0, 5) ?? '',
-                                  'platform': stop['platform'] ?? '',
-                                  'track': stop['track'] ?? '',
-                                  'id': stop['stop_id'] ?? '',
+                                  'stops': stops,
+                                  'trainNumber': leg['trip_id'] ?? '',
+                                  'operator': '', // Not present in json
+                                  'isDirect': isDirect,
+                                  'userFrom': leg['from'] ?? '',
+                                  'userTo': leg['to'] ?? '',
+                                  'originalFriends': (leg['friends'] as List?)?.map((f) {
+                                        final m = Map<String, dynamic>.from(f as Map);
+                                        m['confirmed'] = (m['confirmed'] == true);
+                                        return m;
+                                      }).toList() ??
+                                      [],
                                 };
                               }).toList();
-                              return {
-                                'stops': stops,
-                                'trainNumber': leg['trip_id'] ?? '',
-                                'operator': '', // Not present in json
-                                'isDirect': isDirect,
-                                'userFrom': leg['from'] ?? '',
-                                'userTo': leg['to'] ?? '',
-                                'originalFriends': (leg['friends'] as List?)?.map((f) {
-                                      final m = Map<String, dynamic>.from(f as Map);
-                                      m['confirmed'] = (m['confirmed'] == true);
-                                      return m;
-                                    }).toList() ??
-                                    [],
-                              };
+                              // Title: Solution N
+                              final title = '${localizations.translate('solution')} $routeIndex';
+                              // Use a unique index for expandedCardIndex per event
+                              final cardIndex = routeIndex;
+                              // Multi-leg confirmation: route considered confirmed only if ALL its leg trainIds confirmed.
+                              final routeSignature = _routeSignature(routeTrainIds);
+                              final isConfirmed = confirmedTrainPerEvent[eventId] == routeSignature;
+                              final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                              return TrainCard(
+                                title: title,
+                                isExpanded: expandedCardIndex == (eventId.hashCode ^ cardIndex),
+                                onTap: () {
+                                  setState(() {
+                                    expandedCardIndex =
+                                        expandedCardIndex == (eventId.hashCode ^ cardIndex) ? null : (eventId.hashCode ^ cardIndex);
+                                  });
+                                },
+                                departureTime: departureTime,
+                                arrivalTime: arrivalTime,
+                                isDirect: isDirect,
+                                userAvatars: userAvatars,
+                                legs: legsForCard,
+                                trailing: _buildConfirmButton(
+                                    eventId: eventId,
+                                    routeSignature: routeSignature,
+                                    routeTrainIds: routeTrainIds,
+                                    dateStr: dateStr,
+                                    routes: routes),
+                                highlightConfirmed: isConfirmed,
+                                currentUserId: currentUserId,
+                              );
                             }).toList();
-                            // Title: Solution N
-                            final title = '${localizations.translate('solution')} $routeIndex';
-                            // Use a unique index for expandedCardIndex per event
-                            final cardIndex = routeIndex;
-                            // Multi-leg confirmation: route considered confirmed only if ALL its leg trainIds confirmed.
-                            final routeSignature = _routeSignature(routeTrainIds);
-                            final isConfirmed = confirmedTrainPerEvent[eventId] == routeSignature;
-                            final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-                            return TrainCard(
-                              title: title,
-                              isExpanded: expandedCardIndex == (eventId.hashCode ^ cardIndex),
-                              onTap: () {
-                                setState(() {
-                                  expandedCardIndex =
-                                      expandedCardIndex == (eventId.hashCode ^ cardIndex) ? null : (eventId.hashCode ^ cardIndex);
-                                });
-                              },
-                              departureTime: departureTime,
-                              arrivalTime: arrivalTime,
-                              isDirect: isDirect,
-                              userAvatars: userAvatars,
-                              legs: legsForCard,
-                              trailing: _buildConfirmButton(eventId: eventId, routeSignature: routeSignature, routeTrainIds: routeTrainIds, dateStr: dateStr, routes: routes),
-                              highlightConfirmed: isConfirmed,
-                              currentUserId: currentUserId,
-                            );
-                          }).toList();
 
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Divider(thickness: 2, color: Colors.blueGrey),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                                      child: Builder(builder: (_) {
-                                        final details = eventDetails[eventId];
-                                        String stationsText = 'Event';
-                                        String timesText = '';
-                                        if (details != null) {
-                                          final origin = (details['origin'] ?? '').toString();
-                                          final destination = (details['destination'] ?? '').toString();
-                                          final startStr =
-                                              DateFormat.Hm(localizations.languageCode()).format(details['event_start'].toDate());
-                                          final endStr = DateFormat.Hm(localizations.languageCode()).format(details['event_end'].toDate());
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Divider(thickness: 2, color: Colors.blueGrey),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                                        child: Builder(builder: (_) {
+                                          final details = eventDetails[eventId];
+                                          String stationsText = 'Event';
+                                          String timesText = '';
+                                          if (details != null) {
+                                            final origin = (details['origin'] ?? '').toString();
+                                            final destination = (details['destination'] ?? '').toString();
+                                            final startStr =
+                                                DateFormat.Hm(localizations.languageCode()).format(details['event_start'].toDate());
+                                            final endStr =
+                                                DateFormat.Hm(localizations.languageCode()).format(details['event_end'].toDate());
 
-                                          if (origin.isNotEmpty || destination.isNotEmpty) {
-                                            stationsText = [origin, destination].where((s) => s.isNotEmpty).join(' → ');
+                                            if (origin.isNotEmpty || destination.isNotEmpty) {
+                                              stationsText = [origin, destination].where((s) => s.isNotEmpty).join(' → ');
+                                            }
+                                            if (startStr.isNotEmpty || endStr.isNotEmpty) {
+                                              timesText = [startStr, endStr].where((s) => s.isNotEmpty).join(' - ');
+                                            }
                                           }
-                                          if (startStr.isNotEmpty || endStr.isNotEmpty) {
-                                            timesText = [startStr, endStr].where((s) => s.isNotEmpty).join(' - ');
-                                          }
-                                        }
 
-                                        return Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment: CrossAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              stationsText,
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.blueGrey,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            if (timesText.isNotEmpty)
+                                          return Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                            children: [
                                               Text(
-                                                timesText,
+                                                stationsText,
                                                 textAlign: TextAlign.center,
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   color: Colors.blueGrey,
                                                 ),
                                               ),
-                                          ],
-                                        );
-                                      }),
-                                    ),
-                                    Expanded(
-                                      child: Divider(thickness: 2, color: Colors.blueGrey),
-                                    ),
-                                  ],
+                                              const SizedBox(height: 4),
+                                              if (timesText.isNotEmpty)
+                                                Text(
+                                                  timesText,
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.blueGrey,
+                                                  ),
+                                                ),
+                                            ],
+                                          );
+                                        }),
+                                      ),
+                                      Expanded(
+                                        child: Divider(thickness: 2, color: Colors.blueGrey),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              ResponsiveCardList(
-                                cards: trainCards,
-                                expandedCardIndex:
-                                    trainCards.indexWhere((card) => (expandedCardIndex == (eventId.hashCode ^ trainCards.indexOf(card)))),
-                              ),
-                            ],
-                          );
-                        }),
-                      ],
-                    ),
-            ),
+                                ResponsiveCardList(
+                                  cards: trainCards,
+                                  expandedCardIndex:
+                                      trainCards.indexWhere((card) => (expandedCardIndex == (eventId.hashCode ^ trainCards.indexOf(card)))),
+                                ),
+                              ],
+                            );
+                          }),
+                        ],
+                      ),
+              ),
+      ),
     );
   }
 
-  Widget _buildConfirmButton({required String eventId, required String routeSignature, required List<String> routeTrainIds, required String dateStr, required dynamic routes}) {
-    final isConfirmed = confirmedTrainPerEvent[eventId] == routeSignature;
+  Widget _buildConfirmButton({
+    required String eventId,
+    required String routeSignature,
+    required List<String> routeTrainIds,
+    required String dateStr,
+    required dynamic routes,
+  }) {
     final loc = AppLocalizations.of(context);
-    final confirmLabel = isConfirmed ? loc.translate('confirmed') : loc.translate('confirm');
-    return ElevatedButton(
-      onPressed: () async {
+    final confirmed = confirmedTrainPerEvent[eventId] == routeSignature;
+    final theme = Theme.of(context);
+    final label = confirmed ? loc.translate('confirmed') : loc.translate('confirm');
+
+    MaterialColor baseSwatch = Colors.green;
+    final Color basePrimary = baseSwatch;
+    final bool dark = theme.brightness == Brightness.dark;
+
+    // Revert to earlier solid confirmed style (no glow later handled in widget).
+    final Color bg = confirmed ? basePrimary : (dark ? basePrimary.withOpacity(0.18) : basePrimary.withOpacity(0.12));
+    final Color border = confirmed ? baseSwatch[700]! : (dark ? basePrimary.withOpacity(0.45) : basePrimary.withOpacity(0.55));
+    final Color fg = confirmed ? Colors.white : (dark ? basePrimary.withOpacity(0.95) : baseSwatch[800]!);
+
+    return _ConfirmButton(
+      label: label,
+      confirmed: confirmed,
+      bg: bg,
+      border: border,
+      fg: fg,
+      onTap: () async {
         final user = FirebaseAuth.instance.currentUser;
         final userId = user?.uid;
         if (userId == null) return;
-        // Build list of ALL trainIds for this event (across all routes) to unconfirm others.
         final Set<String> allTrainIds = {};
         if (routes is List) {
           for (final r in routes) {
@@ -522,129 +568,204 @@ class _TrainsPageState extends State<TrainsPage> {
             userId: userId,
             allEventTrainIds: allTrainIds.toList(),
           );
-          if (mounted) {
-            setState(() {
-              confirmedTrainPerEvent[eventId] = routeSignature;
-            });
-          }
+          if (mounted) setState(() => confirmedTrainPerEvent[eventId] = routeSignature);
         } catch (e, st) {
           debugPrint('Confirm button error event=$eventId route=$routeSignature: $e');
           debugPrint(st.toString());
         }
       },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isConfirmed ? Colors.green : Colors.blue,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-      ),
-      child: Text(confirmLabel),
     );
   }
+}
 
-  void _showLegendDialog(BuildContext context, AppLocalizations loc) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text(loc.translate('train_confirm_legend_title')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _legendRow(
-                ringColor: Colors.green,
-                glow: Colors.greenAccent,
-                label: loc.translate('train_confirm_legend_you'),
-                isUser: true,
-              ),
-              const SizedBox(height: 10),
-              _legendRow(
-                ringColor: Colors.amber,
-                glow: Colors.amberAccent,
-                label: loc.translate('train_confirm_legend_friend'),
-                showCheck: true,
-              ),
-              const SizedBox(height: 10),
-              _legendRow(
-                ringColor: Colors.grey,
-                glow: Colors.transparent,
-                label: loc.translate('train_confirm_legend_unconfirmed'),
-                backgroundColor: Colors.grey,
-                iconColor: Colors.white,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                loc.translate('train_confirm_info'),
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
-              ),
+// Reusable animated confirm button widget
+
+// Reusable animated confirm button widget (top-level)
+class _ConfirmButton extends StatefulWidget {
+  final String label;
+  final bool confirmed;
+  final Color bg;
+  final Color border;
+  final Color fg;
+  final VoidCallback onTap;
+  const _ConfirmButton({
+    required this.label,
+    required this.confirmed,
+    required this.bg,
+    required this.border,
+    required this.fg,
+    required this.onTap,
+  });
+
+  @override
+  State<_ConfirmButton> createState() => _ConfirmButtonState();
+}
+
+class _ConfirmButtonState extends State<_ConfirmButton> {
+  bool _hover = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    // Elevation only for unconfirmed hover (confirmed flat, no glow).
+    final elevation = widget.confirmed ? 0.0 : (_pressed ? 0.0 : (_hover ? 2.0 : 0.0));
+    final scale = _pressed ? 0.97 : (_hover ? 1.01 : 1.0);
+    final Color bg = widget.confirmed ? widget.bg : Color.lerp(widget.bg, widget.border, _hover ? 0.12 : 0.0)!;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() {
+        _hover = false;
+        _pressed = false;
+      }),
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapCancel: () => setState(() => _pressed = false),
+        onTapUp: (_) => setState(() => _pressed = false),
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOut,
+          transform: Matrix4.identity()..scale(scale),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: widget.border, width: 1.1),
+            boxShadow: [
+              if (!widget.confirmed && elevation > 0)
+                BoxShadow(
+                  color: widget.border.withOpacity(dark ? 0.30 : 0.22),
+                  blurRadius: 6 + elevation * 2,
+                  spreadRadius: 0.3,
+                  offset: Offset(0, elevation),
+                ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(loc.translate('ok')),
-            )
-          ],
-        );
-      },
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Center(
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 140),
+              curve: Curves.easeOut,
+              style: TextStyle(
+                color: widget.fg,
+                fontWeight: FontWeight.w600,
+                fontSize: 13.5,
+                letterSpacing: 0.3,
+              ),
+              child: Text(
+                widget.label,
+                softWrap: false,
+                overflow: TextOverflow.fade,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
+}
 
-  Widget _legendRow({
-    required Color ringColor,
-    required Color glow,
-    required String label,
-    bool showCheck = false,
-    bool isUser = false,
-    Color? backgroundColor,
-    Color? iconColor,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
+void _showLegendDialog(BuildContext context, AppLocalizations loc) {
+  showDialog(
+    context: context,
+    builder: (ctx) {
+      return AlertDialog(
+        title: Text(loc.translate('train_confirm_legend_title')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: ringColor, width: 2),
-                boxShadow: [
-                  if (glow != Colors.transparent)
-                    BoxShadow(color: glow.withOpacity(0.6), blurRadius: 6, spreadRadius: 1),
-                ],
-                color: backgroundColor ?? Colors.white,
-              ),
-              child: Icon(Icons.person, size: 16, color: iconColor ?? Colors.grey),
+            _legendRow(
+              ringColor: Colors.green,
+              glow: Colors.greenAccent,
+              label: loc.translate('train_confirm_legend_you'),
+              isUser: true,
             ),
-            if (showCheck)
-              Positioned(
-                bottom: -3,
-                right: -3,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: ringColor,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(color: ringColor.withOpacity(0.5), blurRadius: 4, spreadRadius: 0.5),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.check, size: 9, color: Colors.white),
-                  ),
-                ),
-              ),
+            const SizedBox(height: 10),
+            _legendRow(
+              ringColor: Colors.amber,
+              glow: Colors.amberAccent,
+              label: loc.translate('train_confirm_legend_friend'),
+              showCheck: true,
+            ),
+            const SizedBox(height: 10),
+            _legendRow(
+              ringColor: Colors.grey,
+              glow: Colors.transparent,
+              label: loc.translate('train_confirm_legend_unconfirmed'),
+              backgroundColor: Colors.grey,
+              iconColor: Colors.white,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              loc.translate('train_confirm_info'),
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
+            ),
           ],
         ),
-        const SizedBox(width: 12),
-        Expanded(child: Text(label)),
-      ],
-    );
-  }
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(loc.translate('ok')),
+          )
+        ],
+      );
+    },
+  );
+}
+
+Widget _legendRow({
+  required Color ringColor,
+  required Color glow,
+  required String label,
+  bool showCheck = false,
+  bool isUser = false,
+  Color? backgroundColor,
+  Color? iconColor,
+}) {
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: ringColor, width: 2),
+              boxShadow: [
+                if (glow != Colors.transparent) BoxShadow(color: glow.withOpacity(0.6), blurRadius: 6, spreadRadius: 1),
+              ],
+              color: backgroundColor ?? Colors.white,
+            ),
+            child: Icon(Icons.person, size: 16, color: iconColor ?? Colors.grey),
+          ),
+          if (showCheck)
+            Positioned(
+              bottom: -3,
+              right: -3,
+              child: Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: ringColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(color: ringColor.withOpacity(0.5), blurRadius: 4, spreadRadius: 0.5),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(Icons.check, size: 9, color: Colors.white),
+                ),
+              ),
+            ),
+        ],
+      ),
+      const SizedBox(width: 12),
+      Expanded(child: Text(label)),
+    ],
+  );
 }

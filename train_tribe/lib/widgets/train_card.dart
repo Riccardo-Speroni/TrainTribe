@@ -35,83 +35,202 @@ class TrainCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final bool userConfirmed = highlightConfirmed; // highlightConfirmed represents current user's confirmation
-    final borderColor = userConfirmed ? Colors.green : Colors.transparent;
-    final gradient = userConfirmed ? LinearGradient(colors: [Colors.green.shade50, Colors.green.shade100]) : null;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-        margin: const EdgeInsets.symmetric(vertical: 10.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12.0),
-          border: Border.all(color: borderColor, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 10,
-              spreadRadius: 2,
-              offset: const Offset(0, 4),
+    final baseBorderColor =
+        theme.brightness == Brightness.dark ? theme.colorScheme.outlineVariant.withOpacity(0.4) : Colors.grey.withOpacity(0.15);
+    final borderColor =
+        userConfirmed ? (theme.colorScheme.brightness == Brightness.dark ? theme.colorScheme.primary : Colors.green) : baseBorderColor;
+    final gradient = userConfirmed
+        ? LinearGradient(
+            colors: theme.colorScheme.brightness == Brightness.dark
+                ? [theme.colorScheme.primary.withOpacity(0.15), theme.colorScheme.primary.withOpacity(0.05)]
+                : [Colors.green.shade50, Colors.green.shade100],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : null;
+    return _Hoverable(
+      builder: (hovering) {
+        final hoverElevation = hovering ? 0.09 : 0.0;
+        return GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            transform: hovering ? (Matrix4.identity()..translate(0.0, -2.0)) : Matrix4.identity(),
+            margin: const EdgeInsets.symmetric(vertical: 10.0),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(14.0),
+              border: Border.all(color: borderColor, width: 1.6),
+              boxShadow: [
+                if (theme.brightness == Brightness.light)
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06 + hoverElevation),
+                    blurRadius: 14 + (hovering ? 4 : 0),
+                    spreadRadius: 1,
+                    offset: const Offset(0, 4),
+                  )
+                else
+                  BoxShadow(
+                    color: theme.colorScheme.primary.withOpacity(hovering ? 0.12 : 0.07),
+                    blurRadius: 10,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 1),
+                  ),
+              ],
+            ),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              decoration: BoxDecoration(
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 14.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!isExpanded) _buildCollapsed(context) else _buildExpanded(context),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCollapsed(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final isTight = constraints.maxWidth < 560; // widen threshold to reduce single-row crowding
+      final titleChip = _solutionChip(context);
+      final timeText = Flexible(
+        child: Text(
+          '$departureTime – $arrivalTime',
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7) ?? Colors.grey,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+        ),
+      );
+
+      final icon = Icon(
+        isDirect ? Icons.trending_flat : Icons.alt_route,
+        color: isDirect ? Colors.green : Colors.orange,
+        size: 22.0,
+      );
+
+      final avatars = _buildAvatars();
+      final confirmBtn = trailing != null
+          ? ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 96, maxWidth: 130),
+              child: trailing!,
+            )
+          : const SizedBox();
+
+      if (!isTight) {
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Left flexible group
+            Expanded(
+              flex: 6,
+              child: Row(
+                children: [
+                  icon,
+                  const SizedBox(width: 10),
+                  titleChip,
+                  const SizedBox(width: 14),
+                  timeText,
+                ],
+              ),
+            ),
+            const SizedBox(width: 20),
+            // Avatars shrink if needed
+            Flexible(
+              flex: 3,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: avatars,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Flexible(
+              flex: 3,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: confirmBtn,
+              ),
             ),
           ],
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: gradient,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        );
+      }
+
+      // Compact / narrow: multi-line layout
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              if (!isExpanded) _buildCollapsed(context) else _buildExpanded(context),
+              icon,
+              const SizedBox(width: 8),
+              titleChip,
+              const SizedBox(width: 10),
+              Expanded(child: timeText),
             ],
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: avatars),
+              const SizedBox(width: 12),
+              confirmBtn,
+            ],
+          ),
+        ],
+      );
+    });
+  }
+
+  Widget _solutionChip(BuildContext context) {
+    final theme = Theme.of(context);
+    final confirmed = highlightConfirmed;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: confirmed
+            ? (theme.brightness == Brightness.dark ? theme.colorScheme.primary.withOpacity(0.25) : Colors.green.withOpacity(0.15))
+            : theme.colorScheme.secondaryContainer.withOpacity(theme.brightness == Brightness.dark ? 0.3 : 0.5),
+      ),
+      child: Text(
+        title, // full title preserved
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: confirmed
+              ? (theme.brightness == Brightness.dark ? theme.colorScheme.primary : Colors.green.shade800)
+              : theme.colorScheme.onSecondaryContainer,
         ),
       ),
     );
   }
 
-  Widget _buildCollapsed(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(right: 12.0),
-          child: Icon(
-            isDirect ? Icons.trending_flat : Icons.alt_route,
-            color: isDirect ? Colors.green : Colors.orange,
-            size: 30.0,
-          ),
-        ),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 2),
-              Text('$departureTime - $arrivalTime', style: const TextStyle(fontSize: 13, color: Colors.grey)),
-            ],
-          ),
-        ),
-        _buildAvatars(),
-        if (trailing != null) Padding(padding: const EdgeInsets.only(left: 8.0), child: trailing!),
-      ],
-    );
-  }
-
   Widget _buildAvatars() {
     return SizedBox(
-      width: (userAvatars.isNotEmpty ? ((userAvatars.length - 1) * 12.0 + 32.0) : 32.0).clamp(32.0, 80.0),
+      width: (userAvatars.isNotEmpty ? ((userAvatars.length - 1) * 14.0 + 34.0) : 34.0).clamp(34.0, 120.0),
       height: 32.0,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           for (int i = 0; i < userAvatars.length; i++)
             Positioned(
-              left: i * 12.0,
+              left: i * 14.0,
               child: _confirmedAvatarWrapper(userAvatars[i],
                   child: ProfilePicture(
                     picture: userAvatars[i]['image'],
@@ -133,32 +252,40 @@ class TrainCard extends StatelessWidget {
 
     // User: keep current ring + glow (green).
     if (isUser) {
-      return Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: borderColor, width: 3),
-          boxShadow: [
-            BoxShadow(color: glowColor.withOpacity(0.6), blurRadius: 6, spreadRadius: 1),
-          ],
-        ),
-        child: child,
-      );
+      return Builder(builder: (context) {
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: borderColor, width: 3),
+            boxShadow: [
+              if (!dark) BoxShadow(color: glowColor.withOpacity(0.45), blurRadius: 5, spreadRadius: 0.6),
+              if (dark) BoxShadow(color: borderColor.withOpacity(0.22), blurRadius: 3, spreadRadius: 0.3),
+            ],
+          ),
+          child: child,
+        );
+      });
     }
 
     // Friend: add a distinct badge with a checkmark to avoid relying only on amber ring (which may blend with avatar colors).
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: borderColor, width: 2),
-            boxShadow: [
-              BoxShadow(color: glowColor.withOpacity(0.55), blurRadius: 5, spreadRadius: 1),
-            ],
-          ),
-          child: child,
-        ),
+        Builder(builder: (context) {
+          final dark = Theme.of(context).brightness == Brightness.dark;
+          return Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: borderColor, width: 2),
+              boxShadow: [
+                if (!dark) BoxShadow(color: glowColor.withOpacity(0.42), blurRadius: 4, spreadRadius: 0.6),
+                if (dark) BoxShadow(color: borderColor.withOpacity(0.18), blurRadius: 2.5, spreadRadius: 0.25),
+              ],
+            ),
+            child: child,
+          );
+        }),
         Positioned(
           bottom: -3,
           right: -3,
@@ -193,9 +320,27 @@ class TrainCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 4),
-                  Text('$departureTime - $arrivalTime', style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                  Text(
+                    '$departureTime - $arrivalTime',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7) ?? Colors.grey,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    softWrap: false,
+                  ),
                 ],
               ),
             ),
@@ -268,6 +413,34 @@ class TrainCard extends StatelessWidget {
           );
         }),
       ],
+    );
+  }
+}
+
+// Simple hover detector wrapper for desktop/web to provide hover state.
+class _Hoverable extends StatefulWidget {
+  final Widget Function(bool hovering) builder;
+  const _Hoverable({required this.builder});
+
+  @override
+  State<_Hoverable> createState() => _HoverableState();
+}
+
+class _HoverableState extends State<_Hoverable> {
+  bool _hovering = false;
+
+  void _setHover(bool value) {
+    if (_hovering != value) {
+      setState(() => _hovering = value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => _setHover(true),
+      onExit: (_) => _setHover(false),
+      child: widget.builder(_hovering),
     );
   }
 }
