@@ -78,8 +78,8 @@ class CalendarEmptyCell extends StatelessWidget {
           borderRadius: BorderRadius.circular(4.0),
           color: isHighlighted
               ? (Theme.of(context).brightness == Brightness.dark
-                  ? Colors.lightBlueAccent.withOpacity(0.6)
-                  : Colors.blueAccent.withOpacity(0.6))
+                  ? Theme.of(context).colorScheme.primary.withOpacity(0.6)
+                  : Theme.of(context).colorScheme.primary.withOpacity(0.6))
               : (Theme.of(context).brightness == Brightness.dark
                   ? Colors.grey[900]
                   : Colors.transparent),

@@ -546,15 +546,15 @@ class _CalendarPageState extends State<CalendarPage> {
                                     ),
                                     color: isToday
                                         ? (Theme.of(context).brightness == Brightness.dark
-                                            ? Colors.orange[700]
-                                            : Colors.orangeAccent[400])
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Theme.of(context).colorScheme.primary)
                                         : (isPastDay
                                             ? (Theme.of(context).brightness == Brightness.dark
                                                 ? Colors.grey[900]
                                                 : Colors.grey[300])
                                             : (Theme.of(context).brightness == Brightness.dark
-                                                ? Colors.blueGrey[900]
-                                                : Colors.blue[100])),
+                                                ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
+                                                : Theme.of(context).colorScheme.primary.withOpacity(0.7))),
                                     borderRadius: BorderRadius.circular(8.0),
                                   ),
                                   child: Text(
@@ -631,9 +631,9 @@ class _CalendarPageState extends State<CalendarPage> {
               DateTime.now(), 0); // Default to current day and first hour
         },
         backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? Colors.orange[700]
-            : Colors.lightBlueAccent,
-        child: const Icon(Icons.add),
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.primary,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

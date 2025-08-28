@@ -44,7 +44,7 @@ Future<void> showAddEventDialog({
           backgroundColor: Theme.of(context).dialogBackgroundColor,
           title: Row(
             children: [
-              Icon(Icons.event, color: Theme.of(context).primaryColor),
+              Icon(Icons.event, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
               Text(localizations.translate('new_event')),
             ],
@@ -179,7 +179,7 @@ Future<void> showAddEventDialog({
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 18, color: Theme.of(context).primaryColor),
+                    Icon(Icons.calendar_today, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Text('${localizations.translate('day')}: '),
                     TextButton(
@@ -205,7 +205,7 @@ Future<void> showAddEventDialog({
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.access_time, size: 18, color: Theme.of(context).primaryColor),
+                    Icon(Icons.access_time, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Text('${localizations.translate('start_hour')}: '),
                     DropdownButton<int>(
@@ -237,7 +237,7 @@ Future<void> showAddEventDialog({
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.access_time_filled, size: 18, color: Theme.of(context).primaryColor),
+                    Icon(Icons.access_time_filled, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Text('${localizations.translate('end_hour')}: '),
                     DropdownButton<int>(
@@ -269,7 +269,7 @@ Future<void> showAddEventDialog({
                         });
                       },
                     ),
-                    Icon(Icons.repeat, size: 18, color: Theme.of(context).primaryColor),
+                    Icon(Icons.repeat, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 4),
                     Text(localizations.translate('recurrent')),
                   ],
@@ -277,7 +277,7 @@ Future<void> showAddEventDialog({
                 if (isRecurrent)
                   Row(
                     children: [
-                      Icon(Icons.event_repeat, size: 18, color: Theme.of(context).primaryColor),
+                      Icon(Icons.event_repeat, size: 18, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 6),
                       Text('${localizations.translate('end_recurrence')}: '),
                       TextButton(
@@ -328,8 +328,8 @@ Future<void> showAddEventDialog({
               icon: const Icon(Icons.save),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.blue[700]
-                    : Theme.of(context).primaryColor,
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -448,7 +448,7 @@ Future<void> showEditEventDialog({
           backgroundColor: Theme.of(context).dialogBackgroundColor,
           title: Row(
             children: [
-              Icon(Icons.edit, color: Theme.of(context).primaryColor),
+              Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
               Text(localizations.translate('edit_event')),
             ],
@@ -587,7 +587,7 @@ Future<void> showEditEventDialog({
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 18, color: Theme.of(context).primaryColor),
+                    Icon(Icons.calendar_today, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Text('${localizations.translate('day')}: '),
                     TextButton(
@@ -613,7 +613,7 @@ Future<void> showEditEventDialog({
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.access_time, size: 18, color: Theme.of(context).primaryColor),
+                    Icon(Icons.access_time, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Text('${localizations.translate('start_hour')}: '),
                     DropdownButton<int>(
@@ -644,7 +644,7 @@ Future<void> showEditEventDialog({
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.access_time_filled, size: 18, color: Theme.of(context).primaryColor),
+                    Icon(Icons.access_time_filled, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Text('${localizations.translate('end_hour')}: '),
                     DropdownButton<int>(
@@ -676,7 +676,7 @@ Future<void> showEditEventDialog({
                         });
                       },
                     ),
-                    Icon(Icons.repeat, size: 18, color: Theme.of(context).primaryColor),
+                    Icon(Icons.repeat, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 4),
                     Text(localizations.translate('recurrent')),
                   ],
@@ -684,7 +684,7 @@ Future<void> showEditEventDialog({
                 if (isRecurrent)
                   Row(
                     children: [
-                      Icon(Icons.event_repeat, size: 18, color: Theme.of(context).primaryColor),
+                      Icon(Icons.event_repeat, size: 18, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 6),
                       Text('${localizations.translate('end_recurrence')}: '),
                       TextButton(
@@ -730,8 +730,8 @@ Future<void> showEditEventDialog({
               icon: const Icon(Icons.save),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.blue[700]
-                    : Theme.of(context).primaryColor,
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

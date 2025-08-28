@@ -142,15 +142,15 @@ class CalendarDayColumn extends StatelessWidget {
                                     ? Colors.deepPurpleAccent.withOpacity(0.7)
                                     : Colors.purpleAccent.withOpacity(0.7)
                                 : Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.blue[700]!.withOpacity(0.7)
-                                    : Colors.blueAccent.withOpacity(0.7)
+                                    ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
+                                    : Theme.of(context).colorScheme.primary.withOpacity(0.7)
                             : overlappingEvent.isRecurrent
                                 ? Theme.of(context).brightness == Brightness.dark
                                     ? Colors.deepPurpleAccent
                                     : Colors.purpleAccent
                                 : Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.blue[700]
-                                    : Colors.lightBlueAccent,
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.primary,
                     borderRadius: BorderRadius.circular(8.0),
                     boxShadow: [
                       BoxShadow(
