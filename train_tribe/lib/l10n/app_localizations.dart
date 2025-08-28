@@ -21,6 +21,9 @@ class AppLocalizations {
       'light': 'Light',
       'dark': 'Dark',
       'system': 'System',
+      'back': 'Back',
+      'reset_onboarding': 'Reset onboarding',
+      'onboarding_reset_done': 'Onboarding reset. It will show on next launch.',
 
       // Navigation
       'home': 'Home',
@@ -48,7 +51,9 @@ class AppLocalizations {
       // User Information
       'choose_username': 'Choose a username',
       'username': 'Username',
+      'name': 'Name',
       'name_surname': 'Name Surname',
+      'email': 'Email',
       'enter_email': 'Enter email',
       'invalid_email': 'Invalid email',
       'phone_number': 'Phone number',
@@ -56,8 +61,11 @@ class AppLocalizations {
       'your_email': 'Your email',
       'first_name': 'First Name',
       'last_name': 'Last Name',
+      'surname': 'Surname',
       'choose_profile_picture': 'Choose a profile picture',
       'pick_image': 'Pick an Image',
+      'copy_username': 'Copy username',
+      'copied': 'Copied!',
 
       // Password
       'choose_password': 'Choose a password',
@@ -71,16 +79,16 @@ class AppLocalizations {
       'passwords_do_not_match': 'Passwords do not match',
 
       // Onboarding
-  'onboarding_title_1': 'Welcome to TrainTribe',
-  'onboarding_desc_1': 'Instantly see which friends might be on the same train as you.',
-  'onboarding_title_2': 'Add Your Contacts',
-  'onboarding_desc_2': 'Turn phone contacts into TrainTribe friends in one tap.',
-  'onboarding_title_3': 'Plan Your Time Windows',
-  'onboarding_desc_3': 'Set when you can travel plus origin and destination — we\'ll match the options.',
-  'onboarding_title_4': 'Choose Your Combination',
-  'onboarding_desc_4': 'Compare train options and see which friends are on each one.',
-  'onboarding_title_5': 'Enjoy the Trip Together',
-  'onboarding_desc_5': 'Travel with friends and make every journey more fun.',
+      'onboarding_title_1': 'Welcome to TrainTribe',
+      'onboarding_desc_1': 'Instantly see which friends might be on the same train as you.',
+      'onboarding_title_2': 'Add Your Contacts',
+      'onboarding_desc_2': 'Turn phone contacts into TrainTribe friends in one tap.',
+      'onboarding_title_3': 'Plan Your Time Windows',
+      'onboarding_desc_3': 'Set when you can travel plus origin and destination — we\'ll match the options.',
+      'onboarding_title_4': 'Choose Your Combination',
+      'onboarding_desc_4': 'Compare train options and see which friends are on each one.',
+      'onboarding_title_5': 'Enjoy the Trip Together',
+      'onboarding_desc_5': 'Travel with friends and make every journey more fun.',
       'skip': 'Skip',
       'finish': 'Finish',
 
@@ -190,6 +198,9 @@ class AppLocalizations {
       'light': 'Chiaro',
       'dark': 'Scuro',
       'system': 'Sistema',
+      'back': 'Indietro',
+      'reset_onboarding': 'Reimposta onboarding',
+      'onboarding_reset_done': 'Onboarding reimpostato. Verrà mostrato al prossimo avvio.',
 
       // Navigation
       'home': 'Home',
@@ -217,7 +228,9 @@ class AppLocalizations {
       // User Information
       'username': 'Nome utente',
       'choose_username': 'Scegli un nome utente',
+      'name': 'Nome', 
       'name_surname': 'Nome Cognome',
+      'email': 'Email',
       'enter_email': 'Inserisci email',
       'invalid_email': 'Email non valida',
       'phone_number': 'Numero di telefono',
@@ -225,8 +238,11 @@ class AppLocalizations {
       'your_email': 'La tua email',
       'first_name': 'Nome',
       'last_name': 'Cognome',
+      'surname': 'Cognome',
       'choose_profile_picture': 'Scegli una foto profilo',
       'pick_image': 'Scegli un\'immagine',
+      'copy_username': 'Copia nome utente',
+      'copied': 'Copiato!',
 
       // Password
       'choose_password': 'Scegli una password',
@@ -240,16 +256,16 @@ class AppLocalizations {
       'passwords_do_not_match': 'Le password non corrispondono',
 
       // Onboarding
-  'onboarding_title_1': 'Benvenuto in TrainTribe',
-  'onboarding_desc_1': 'Scopri subito chi dei tuoi amici potrebbe essere sul tuo stesso treno.',
-  'onboarding_title_2': 'Importa i tuoi contatti',
-  'onboarding_desc_2': 'Aggiungi i contatti e trasformali in amici TrainTribe con un tap.',
-  'onboarding_title_3': 'Pianifica le tue fasce orarie',
-  'onboarding_desc_3': 'Indica quando puoi partire e le stazioni di origine e destinazione: penseremo noi a incrociare le opzioni.',
-  'onboarding_title_4': 'Scegli la tua combinazione',
-  'onboarding_desc_4': 'Confronta le opzioni di treno e scopri quali amici ci sono.',
-  'onboarding_title_5': 'Goditi il viaggio insieme',
-  'onboarding_desc_5': 'Viaggia con gli amici e rendi ogni spostamento più divertente.',
+      'onboarding_title_1': 'Benvenuto in TrainTribe',
+      'onboarding_desc_1': 'Scopri subito chi dei tuoi amici potrebbe essere sul tuo stesso treno.',
+      'onboarding_title_2': 'Importa i tuoi contatti',
+      'onboarding_desc_2': 'Aggiungi i contatti e trasformali in amici TrainTribe con un tap.',
+      'onboarding_title_3': 'Pianifica le tue fasce orarie',
+      'onboarding_desc_3': 'Indica quando puoi partire e le stazioni di origine e destinazione: penseremo noi a incrociare le opzioni.',
+      'onboarding_title_4': 'Scegli la tua combinazione',
+      'onboarding_desc_4': 'Confronta le opzioni di treno e scopri quali amici ci sono.',
+      'onboarding_title_5': 'Goditi il viaggio insieme',
+      'onboarding_desc_5': 'Viaggia con gli amici e rendi ogni spostamento più divertente.',
       'skip': 'Salta',
       'finish': 'Fine',
 

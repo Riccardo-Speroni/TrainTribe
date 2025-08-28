@@ -269,7 +269,7 @@ class _SignUpPageState extends State<SignUpPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset('images/djungelskog.jpg', height: 100),
+              Image.asset('images/logo.png', height: 200),
               const SizedBox(height: 20),
               Text(localizations.translate('enter_email'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               TextField(

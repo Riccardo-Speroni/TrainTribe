@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'utils/app_globals.dart';
 import 'package:go_router/go_router.dart';
 import 'l10n/app_localizations.dart';
 
@@ -17,6 +20,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
+    final bool isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
     final List<Map<String, String>> onboardingData = [
       {
@@ -68,6 +72,46 @@ class _OnboardingPageState extends State<OnboardingPage> {
     }
 
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        actions: [
+          // Show language dropdown only on first page, else show Skip
+          if (_currentPage == 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 4.0),
+              child: PopupMenuButton<String>(
+                tooltip: localizations.translate('language'),
+                icon: Icon(Icons.language, color: Theme.of(context).colorScheme.primary),
+                onSelected: (val) async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('language_code', val);
+                  appLocale.value = Locale(val);
+                  setState(() {});
+                },
+                itemBuilder: (context) => [
+                  CheckedPopupMenuItem(
+                    value: 'en',
+                    checked: appLocale.value.languageCode == 'en',
+                    child: const Text('English'),
+                  ),
+                  CheckedPopupMenuItem(
+                    value: 'it',
+                    checked: appLocale.value.languageCode == 'it',
+                    child: const Text('Italiano'),
+                  ),
+                ],
+              ),
+            )
+          else
+            TextButton(
+              onPressed: skipOnboarding,
+              child: Text(
+                localizations.translate('skip'),
+                style: TextStyle(color: Theme.of(context).colorScheme.primary),
+              ),
+            ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -81,61 +125,91 @@ class _OnboardingPageState extends State<OnboardingPage> {
               itemCount: onboardingData.length,
               itemBuilder: (context, index) {
                 final data = onboardingData[index];
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 20),
-                    Text(
-                      data['icon'] ?? '',
-                      style: const TextStyle(fontSize: 64),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      data['title']!,
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      data['description']!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ],
+                return Padding(
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 32 : 0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 20),
+                      Text(
+                        data['icon'] ?? '',
+                        style: const TextStyle(fontSize: 64),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        data['title']!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        data['description']!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton(
-                onPressed: skipOnboarding,
-                child: Text(localizations.translate('skip')),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  onboardingData.length,
-                  (index) => Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: _currentPage == index ? 12 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: _currentPage == index ? Colors.green : Colors.grey,
-                      borderRadius: BorderRadius.circular(4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Desktop/Web: Back button; Mobile: empty space
+                if (!isMobile)
+                  TextButton(
+                    onPressed: _currentPage == 0
+                        ? null
+                        : () {
+                            _pageController.previousPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          },
+                    child: Text(localizations.translate('back')),
+                  )
+                else
+                  const SizedBox(width: 64),
+                // Indicators
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    onboardingData.length,
+                    (index) => Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: _currentPage == index ? 12 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _currentPage == index
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.grey,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              TextButton(
-                onPressed: goToNextPage,
-                child: Text(
-                  _currentPage == onboardingData.length - 1
-                      ? localizations.translate('finish')
-                      : localizations.translate('next'),
-                ),
-              ),
-            ],
+                // Desktop/Web: Next/Finish; Mobile: Finish only on last page else placeholder
+                if (!isMobile)
+                  TextButton(
+                    onPressed: goToNextPage,
+                    child: Text(
+                      _currentPage == onboardingData.length - 1
+                          ? localizations.translate('finish')
+                          : localizations.translate('next'),
+                    ),
+                  )
+                else if (_currentPage == onboardingData.length - 1)
+                  TextButton(
+                    onPressed: completeOnboarding,
+                    child: Text(localizations.translate('finish')),
+                  )
+                else
+                  const SizedBox(width: 64),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
         ],

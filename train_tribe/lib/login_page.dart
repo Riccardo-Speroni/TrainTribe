@@ -228,12 +228,11 @@ class _LoginPageState extends State<LoginPage>
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Riduci la dimensione del logo e degli spazi se necessario
                       Image.asset(
-                        'images/djungelskog.jpg',
-                        height: 80, // ridotto da 100
+                        'images/logo.png',
+                        height: 200,
                       ),
-                      const SizedBox(height: 40), // ridotto da 60
+                      const SizedBox(height: 40),
 
                       // Username Field
                       Focus(

@@ -23,6 +23,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:async';
+import 'utils/app_globals.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,8 +70,6 @@ void main() async {
   runApp(MyApp());
 }
 
-ValueNotifier<Locale> appLocale = ValueNotifier(PlatformDispatcher.instance.locale);
-ValueNotifier<ThemeMode> appTheme = ValueNotifier(ThemeMode.system);
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -226,16 +225,8 @@ class _MyAppState extends State<MyApp> {
             return MaterialApp.router(
               routerConfig: _router, // Use GoRouter for navigation
               debugShowCheckedModeBanner: false,
-              theme: ThemeData.light().copyWith(
-                colorScheme: ThemeData.light().colorScheme.copyWith(
-                      primary: Colors.green,
-                    ),
-              ), // Light theme
-              darkTheme: ThemeData.dark().copyWith(
-                colorScheme: ThemeData.dark().colorScheme.copyWith(
-                      primary: Colors.green,
-                    ),
-              ), // Dark theme
+              theme: _buildAppTheme(Brightness.light),
+              darkTheme: _buildAppTheme(Brightness.dark),
               themeMode: themeMode, // Use appTheme for theme mode
               locale: locale, // Set the current locale
               localizationsDelegates: const [
@@ -254,6 +245,32 @@ class _MyAppState extends State<MyApp> {
       },
     );
   }
+}
+
+ThemeData _buildAppTheme(Brightness brightness) {
+  final base = brightness == Brightness.light ? ThemeData.light() : ThemeData.dark();
+  final scheme = base.colorScheme.copyWith(primary: Colors.green);
+  return base.copyWith(
+    useMaterial3: true,
+    colorScheme: scheme,
+    navigationBarTheme: NavigationBarThemeData(
+      indicatorColor: scheme.primary.withOpacity(0.15),
+      backgroundColor: base.navigationBarTheme.backgroundColor, // keep default
+      iconTheme: MaterialStateProperty.resolveWith((states) {
+        if (states.contains(MaterialState.selected)) {
+          return IconThemeData(color: scheme.primary);
+        }
+        return IconThemeData(color: scheme.onSurfaceVariant);
+      }),
+      labelTextStyle: MaterialStateProperty.resolveWith((states) {
+        final style = const TextStyle(fontSize: 12);
+        if (states.contains(MaterialState.selected)) {
+          return style.copyWith(color: scheme.primary, fontWeight: FontWeight.w600);
+        }
+        return style.copyWith(color: scheme.onSurfaceVariant);
+      }),
+    ),
+  );
 }
 
 class RootPage extends StatefulWidget {
