@@ -444,12 +444,21 @@ class FriendRequestsContainer extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
                       children: [
-                        ProfilePicture(
-                          picture: picture,
-                          size: 25,
-                          firstName: (user['name'] ?? '').toString(),
-                          lastName: (user['surname'] ?? '').toString(),
-                          username: (user['username'] ?? '').toString(),
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.green,
+                              width: 2,
+                            ),
+                          ),
+                          child: ProfilePicture(
+                            picture: picture,
+                            size: 25,
+                            firstName: (user['name'] ?? '').toString(),
+                            lastName: (user['surname'] ?? '').toString(),
+                            username: (user['username'] ?? '').toString(),
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -591,12 +600,21 @@ class FriendsSearchContainer extends StatelessWidget {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: ListTile(
-                        leading: ProfilePicture(
-                          picture: picture,
-                          size: 25,
-                          firstName: (user['name'] ?? '').toString(),
-                          lastName: (user['surname'] ?? '').toString(),
-                          username: username,
+                        leading: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.green,
+                              width: 2,
+                            ),
+                          ),
+                          child: ProfilePicture(
+                            picture: picture,
+                            size: 25,
+                            firstName: (user['name'] ?? '').toString(),
+                            lastName: (user['surname'] ?? '').toString(),
+                            username: username,
+                          ),
                         ),
                         title: Text(username),
                         trailing: IconButton(
@@ -652,12 +670,21 @@ class FriendsSearchContainer extends StatelessWidget {
             ...usersToAdd.map((user) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: ListTile(
-                    leading: ProfilePicture(
-                      picture: (user['picture'] ?? '').toString(),
-                      size: 25,
-                      firstName: (user['name'] ?? '').toString(),
-                      lastName: (user['surname'] ?? '').toString(),
-                      username: (user['username'] ?? '').toString(),
+                    leading: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.green,
+                          width: 2,
+                        ),
+                      ),
+                      child: ProfilePicture(
+                        picture: (user['picture'] ?? '').toString(),
+                        size: 25,
+                        firstName: (user['name'] ?? '').toString(),
+                        lastName: (user['surname'] ?? '').toString(),
+                        username: (user['username'] ?? '').toString(),
+                      ),
                     ),
                     title: Text(
                       user['username'] ?? '',
@@ -749,18 +776,46 @@ class FriendPopupDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Center(
-            child: Text(
-              friend,
-              style: Theme.of(context).textTheme.titleLarge,
-              textAlign: TextAlign.center,
+            child: Column(
+              children: [
+                Text(
+                  friend,
+                  style: Theme.of(context).textTheme.titleLarge,
+                  textAlign: TextAlign.center,
+                ),
+                if ((firstName != null && firstName!.isNotEmpty) ||
+                    (lastName != null && lastName!.isNotEmpty))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      [
+                        if (firstName != null && firstName!.isNotEmpty) firstName,
+                        if (lastName != null && lastName!.isNotEmpty) lastName
+                      ].join(' '),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[700],
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
-          ProfilePicture(
-            picture: picture,
-            username: friend,
-            firstName: firstName,
-            lastName: lastName,
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.green,
+                width: 2,
+              ),
+            ),
+            child: ProfilePicture(
+              picture: picture,
+              username: friend,
+              firstName: firstName,
+              lastName: lastName,
+            ),
           ),
           const SizedBox(height: 24),
           Column(
@@ -1045,11 +1100,20 @@ class _SuggestionCard extends StatelessWidget {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: ProfilePicture(
-          picture: picture,
-          size: 25,
-          username: username,
-          firstName: contactName, // può contenere nome e cognome interi
+        leading: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.green,
+              width: 2,
+            ),
+          ),
+          child: ProfilePicture(
+            picture: picture,
+            size: 25,
+            username: username,
+            firstName: contactName, // può contenere nome e cognome interi
+          ),
         ),
         title: Text(
           username,

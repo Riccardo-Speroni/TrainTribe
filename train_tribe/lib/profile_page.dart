@@ -54,245 +54,249 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return Center(child: Text(localizations.translate('error_loading_profile')));
+      return SafeArea(
+        child: Center(child: Text(localizations.translate('error_loading_profile'))),
+      );
     }
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const LoadingIndicator();
-        }
-        final data = snapshot.data!.data() ?? {};
-        final username = data['username'] ?? '';
-        final name = data['name'] ?? '';
-        final surname = data['surname'] ?? '';
-        final email = data['email'] ?? '';
-        final phone = data['phone'];
-        final picture = data['picture']; // URL or initials
+    return SafeArea(
+      child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const LoadingIndicator();
+          }
+          final data = snapshot.data!.data() ?? {};
+          final username = data['username'] ?? '';
+          final name = data['name'] ?? '';
+          final surname = data['surname'] ?? '';
+          final email = data['email'] ?? '';
+          final phone = data['phone'];
+          final picture = data['picture']; // URL or initials
 
-        // Responsive layout: two boxes (profile info + settings). Vertical on narrow, horizontal on wide.
-        final isWide = MediaQuery.of(context).size.width >= 700;
+          // Responsive layout: two boxes (profile info + settings). Vertical on narrow, horizontal on wide.
+          final isWide = MediaQuery.of(context).size.width >= 700;
 
-        Widget profileBox = _ProfileInfoBox(
-          username: username,
-          name: name,
-          surname: surname,
-          email: email,
-          phone: phone?.toString(),
-          picture: picture,
-          localizations: localizations,
-          onEditPicture: () => _showChangePictureDialog(localizations, username),
-          stacked: !isWide, // pass layout info
-        );
-
-        return LayoutBuilder(builder: (ctx, constraints) {
-          // Common top-right controls (language + theme dropdowns)
-          Widget topRightControls = Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              // Lingua (icona)
-              Tooltip(
-                message: localizations.translate('language'),
-                child: PopupMenuButton<Locale>(
-                  icon: const Icon(Icons.language),
-                  onSelected: (loc) => _saveLanguagePreference(loc),
-                  itemBuilder: (ctx) => [
-                    PopupMenuItem(
-                      value: const Locale('en'),
-                      child: Row(
-                        children: [
-                          if (localizations.languageCode() == 'en') const Icon(Icons.check, size: 16),
-                          if (localizations.languageCode() == 'en') const SizedBox(width: 6),
-                          const Text('English'),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: const Locale('it'),
-                      child: Row(
-                        children: [
-                          if (localizations.languageCode() == 'it') const Icon(Icons.check, size: 16),
-                          if (localizations.languageCode() == 'it') const SizedBox(width: 6),
-                          const Text('Italiano'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 4),
-              // Tema (icona)
-              Tooltip(
-                message: localizations.translate('theme'),
-                child: ValueListenableBuilder<ThemeMode>(
-                  valueListenable: appTheme,
-                  builder: (context, mode, _) {
-                    IconData icon;
-                    switch (mode) {
-                      case ThemeMode.light:
-                        icon = Icons.light_mode;
-                        break;
-                      case ThemeMode.dark:
-                        icon = Icons.dark_mode;
-                        break;
-                      case ThemeMode.system:
-                        icon = Icons.brightness_4;
-                        break;
-                    }
-                    return PopupMenuButton<ThemeMode>(
-                      icon: Icon(icon),
-                      onSelected: (m) {
-                        int idx = m == ThemeMode.light
-                            ? 0
-                            : (m == ThemeMode.dark ? 1 : 2);
-                        _saveThemePreference(idx);
-                      },
-                      itemBuilder: (ctx) => [
-                        PopupMenuItem(
-                          value: ThemeMode.light,
-                          child: Row(
-                            children: [
-                              if (mode == ThemeMode.light) const Icon(Icons.check, size: 16),
-                              if (mode == ThemeMode.light) const SizedBox(width: 6),
-                              Text(localizations.translate('light')),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: ThemeMode.dark,
-                          child: Row(
-                            children: [
-                              if (mode == ThemeMode.dark) const Icon(Icons.check, size: 16),
-                              if (mode == ThemeMode.dark) const SizedBox(width: 6),
-                              Text(localizations.translate('dark')),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: ThemeMode.system,
-                          child: Row(
-                            children: [
-                              if (mode == ThemeMode.system) const Icon(Icons.check, size: 16),
-                              if (mode == ThemeMode.system) const SizedBox(width: 6),
-                              Text(localizations.translate('system')),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ],
+          Widget profileBox = _ProfileInfoBox(
+            username: username,
+            name: name,
+            surname: surname,
+            email: email,
+            phone: phone?.toString(),
+            picture: picture,
+            localizations: localizations,
+            onEditPicture: () => _showChangePictureDialog(localizations, username),
+            stacked: !isWide, // pass layout info
           );
 
-          // Bottom action buttons: equal width, edges aligned; wrap on very narrow
-          const double gap = 12;
-          const double targetWidth = 200; // larghezza desiderata massima
-          const double minBtnWidth = 130; // larghezza minima prima di andare a wrap
-          const double horizontalPadding = 32; // padding totale (16 + 16)
-          final double effectiveWidth = constraints.maxWidth - horizontalPadding;
-          final double available = effectiveWidth - gap;
-          double btnWidth = targetWidth;
-            if (available < targetWidth * 2) {
-              btnWidth = available / 2; // si adatta
-            }
-          final bool wrapLayout = (available / 2) < minBtnWidth; // troppo stretto per due affiancati
-
-          List<Widget> buildButtons(double width) => [
-                SizedBox(
-                  width: width,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.restart_alt),
-                    onPressed: () => _resetOnboarding(context, localizations),
-                    label: Text(
-                      localizations.translate('reset_onboarding'),
-                      softWrap: true,
-                      maxLines: 2,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: width,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.logout),
-                    onPressed: () async {
-                      await FirebaseAuth.instance.signOut();
-                      GoRouter.of(context).go('/login');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
-                    label: Text(
-                      localizations.translate('logout'),
-                      softWrap: true,
-                      maxLines: 2,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ];
-
-          Widget bottomActions;
-          if (wrapLayout) {
-            final buttons = buildButtons(double.infinity);
-            bottomActions = Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          return LayoutBuilder(builder: (ctx, constraints) {
+            // Common top-right controls (language + theme dropdowns)
+            Widget topRightControls = Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                buttons[0],
-                const SizedBox(height: gap),
-                buttons[1],
+                // Lingua (icona)
+                Tooltip(
+                  message: localizations.translate('language'),
+                  child: PopupMenuButton<Locale>(
+                    icon: const Icon(Icons.language),
+                    onSelected: (loc) => _saveLanguagePreference(loc),
+                    itemBuilder: (ctx) => [
+                      PopupMenuItem(
+                        value: const Locale('en'),
+                        child: Row(
+                          children: [
+                            if (localizations.languageCode() == 'en') const Icon(Icons.check, size: 16),
+                            if (localizations.languageCode() == 'en') const SizedBox(width: 6),
+                            const Text('English'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: const Locale('it'),
+                        child: Row(
+                          children: [
+                            if (localizations.languageCode() == 'it') const Icon(Icons.check, size: 16),
+                            if (localizations.languageCode() == 'it') const SizedBox(width: 6),
+                            const Text('Italiano'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 2), // era 4, ora più stretto
+                // Tema (icona)
+                Tooltip(
+                  message: localizations.translate('theme'),
+                  child: ValueListenableBuilder<ThemeMode>(
+                    valueListenable: appTheme,
+                    builder: (context, mode, _) {
+                      IconData icon;
+                      switch (mode) {
+                        case ThemeMode.light:
+                          icon = Icons.light_mode;
+                          break;
+                        case ThemeMode.dark:
+                          icon = Icons.dark_mode;
+                          break;
+                        case ThemeMode.system:
+                          icon = Icons.brightness_4;
+                          break;
+                      }
+                      return PopupMenuButton<ThemeMode>(
+                        icon: Icon(icon),
+                        onSelected: (m) {
+                          int idx = m == ThemeMode.light
+                              ? 0
+                              : (m == ThemeMode.dark ? 1 : 2);
+                          _saveThemePreference(idx);
+                        },
+                        itemBuilder: (ctx) => [
+                          PopupMenuItem(
+                            value: ThemeMode.light,
+                            child: Row(
+                              children: [
+                                if (mode == ThemeMode.light) const Icon(Icons.check, size: 16),
+                                if (mode == ThemeMode.light) const SizedBox(width: 6),
+                                Text(localizations.translate('light')),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: ThemeMode.dark,
+                            child: Row(
+                              children: [
+                                if (mode == ThemeMode.dark) const Icon(Icons.check, size: 16),
+                                if (mode == ThemeMode.dark) const SizedBox(width: 6),
+                                Text(localizations.translate('dark')),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: ThemeMode.system,
+                            child: Row(
+                              children: [
+                                if (mode == ThemeMode.system) const Icon(Icons.check, size: 16),
+                                if (mode == ThemeMode.system) const SizedBox(width: 6),
+                                Text(localizations.translate('system')),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
               ],
             );
-          } else {
-            final btns = buildButtons(btnWidth);
-            bottomActions = Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: btns,
-            );
-          }
 
-          if (isWide) {
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
+            // Bottom action buttons: equal width, edges aligned; wrap on very narrow
+            const double gap = 12;
+            const double targetWidth = 200; // larghezza desiderata massima
+            const double minBtnWidth = 130; // larghezza minima prima di andare a wrap
+            const double horizontalPadding = 32; // padding totale (16 + 16)
+            final double effectiveWidth = constraints.maxWidth - horizontalPadding;
+            final double available = effectiveWidth - gap;
+            double btnWidth = targetWidth;
+              if (available < targetWidth * 2) {
+                btnWidth = available / 2; // si adatta
+              }
+            final bool wrapLayout = (available / 2) < minBtnWidth; // troppo stretto per due affiancati
+
+            List<Widget> buildButtons(double width) => [
+                  SizedBox(
+                    width: width,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.restart_alt),
+                      onPressed: () => _resetOnboarding(context, localizations),
+                      label: Text(
+                        localizations.translate('reset_onboarding'),
+                        softWrap: true,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: width,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.logout),
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+                        GoRouter.of(context).go('/login');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      label: Text(
+                        localizations.translate('logout'),
+                        softWrap: true,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ];
+
+            Widget bottomActions;
+            if (wrapLayout) {
+              final buttons = buildButtons(double.infinity);
+              bottomActions = Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  topRightControls,
-                  const SizedBox(height: 16),
-                  profileBox,
-                  const SizedBox(height: 16),
-                  bottomActions,
+                  buttons[0],
+                  const SizedBox(height: gap),
+                  buttons[1],
                 ],
+              );
+            } else {
+              final btns = buildButtons(btnWidth);
+              bottomActions = Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: btns,
+              );
+            }
+
+            if (isWide) {
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    topRightControls,
+                    const SizedBox(height: 16),
+                    profileBox,
+                    const SizedBox(height: 16),
+                    bottomActions,
+                  ],
+                ),
+              );
+            }
+
+            // Narrow layout scrollable
+            final content = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                topRightControls,
+                const SizedBox(height: 4), // era 16, ora più stretto
+                profileBox,
+                const SizedBox(height: 16),
+                bottomActions,
+              ],
+            );
+
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
+                  child: content,
+                ),
               ),
             );
-          }
-
-          // Narrow layout scrollable
-          final content = Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              topRightControls,
-              const SizedBox(height: 16),
-              profileBox,
-              const SizedBox(height: 16),
-              bottomActions,
-            ],
-          );
-
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
-                child: content,
-              ),
-            ),
-          );
-        });
-      },
+          });
+        },
+      ),
     );
   }
 }
