@@ -315,143 +315,153 @@ class _LoginForm extends StatelessWidget {
     final Color? cardTextColor = isWideScreen
         ? Theme.of(context).colorScheme.onPrimary
         : null;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Image.asset(
-          'images/logo.png',
-          height: 200,
-        ),
-        const SizedBox(height: 40),
+    // Aggiungi larghezza massima su desktop/web
+    final double maxFormWidth = isWideScreen ? 400.0 : double.infinity;
 
-        // Username Field
-        SizedBox(
-          width: isWideScreen ? 320 : double.infinity,
-          child: Focus(
-            onFocusChange: (hasFocus) {
-              if (!hasFocus) {
-                // ignore: invalid_use_of_protected_member
-                (context as Element).markNeedsBuild();
-              }
-            },
-            child: TextField(
-              controller: emailController,
-              decoration: InputDecoration(
-                labelText: localizations.translate('email'),
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.person),
-                errorText: showEmailError
-                    ? localizations.translate('invalid_email')
-                    : null,
-                isDense: false,
-                contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+    return SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: maxFormWidth,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'images/logo.png',
+              height: 200,
+            ),
+            const SizedBox(height: 40),
+
+            // Username Field
+            SizedBox(
+              width: isWideScreen ? 320 : double.infinity,
+              child: Focus(
+                onFocusChange: (hasFocus) {
+                  if (!hasFocus) {
+                    // ignore: invalid_use_of_protected_member
+                    (context as Element).markNeedsBuild();
+                  }
+                },
+                child: TextField(
+                  controller: emailController,
+                  decoration: InputDecoration(
+                    labelText: localizations.translate('email'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.person),
+                    errorText: showEmailError
+                        ? localizations.translate('invalid_email')
+                        : null,
+                    isDense: false,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                  ),
+                  style: cardTextColor != null ? TextStyle(color: Colors.black) : null,
+                ),
               ),
-              style: cardTextColor != null ? TextStyle(color: Colors.black) : null,
             ),
-          ),
-        ),
 
-        const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-        // Password Field
-        SizedBox(
-          width: isWideScreen ? 320 : double.infinity,
-          child: TextField(
-            controller: passwordController,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: localizations.translate('password'),
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.lock),
-              isDense: false,
-              contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+            // Password Field
+            SizedBox(
+              width: isWideScreen ? 320 : double.infinity,
+              child: TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: localizations.translate('password'),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock),
+                  isDense: false,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                ),
+                onSubmitted: (_) {
+                  if (isButtonEnabled) {
+                    loginWithEmailAndPassword();
+                  }
+                },
+                style: cardTextColor != null ? TextStyle(color: Colors.black) : null,
+              ),
             ),
-            onSubmitted: (_) {
-              if (isButtonEnabled) {
-                loginWithEmailAndPassword();
-              }
-            },
-            style: cardTextColor != null ? TextStyle(color: Colors.black) : null,
-          ),
-        ),
-        const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-        // Login Button
-        AnimatedBuilder(
-          animation: opacityAnimation,
-          builder: (context, child) {
-            return Opacity(
-              opacity: opacityAnimation.value,
-              child: ElevatedButton(
-                onPressed: isButtonEnabled
-                    ? loginWithEmailAndPassword
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  minimumSize:
-                      const Size(double.infinity, 50), // Full width
-                  backgroundColor:
-                      isWideScreen
+            // Login Button
+            AnimatedBuilder(
+              animation: opacityAnimation,
+              builder: (context, child) {
+                return Opacity(
+                  opacity: opacityAnimation.value,
+                  child: ElevatedButton(
+                    onPressed: isButtonEnabled
+                        ? loginWithEmailAndPassword
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize:
+                          const Size(double.infinity, 50), // Full width
+                      backgroundColor:
+                          isWideScreen
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.primary,
+                      foregroundColor: isWideScreen
                           ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.primary,
-                  foregroundColor: isWideScreen
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onPrimary,
-                  elevation: isButtonEnabled ? 4 : 0,
-                ),
-                child: Text(
-                  localizations.translate('login'),
-                  style: cardTextColor != null
-                        ? TextStyle(color: Colors.white)
-                      : null,
+                          : Theme.of(context).colorScheme.onPrimary,
+                      elevation: isButtonEnabled ? 4 : 0,
+                    ),
+                    child: Text(
+                      localizations.translate('login'),
+                      style: cardTextColor != null
+                            ? TextStyle(color: Colors.white)
+                          : null,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 40), // ridotto da 60
+
+            // Other login options (Google, Facebook) available only for mobile
+            if (!isWideScreen) ...[
+              ElevatedButton.icon(
+                onPressed: loginWithGoogle,
+                icon: const Icon(Icons.login),
+                label: Text(localizations.translate('login_google')),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
                 ),
               ),
-            );
-          },
-        ),
-        const SizedBox(height: 40), // ridotto da 60
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                onPressed: loginWithFacebook,
+                icon: const Icon(Icons.facebook),
+                label: Text(localizations.translate('login_facebook')),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 60),
+            ],
 
-        // Other login options (Google, Facebook) available only for mobile
-        if (!isWideScreen) ...[
-          ElevatedButton.icon(
-            onPressed: loginWithGoogle,
-            icon: const Icon(Icons.login),
-            label: Text(localizations.translate('login_google')),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 50),
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+            // Signup Redirection
+            GestureDetector(
+              onTap: () {
+                GoRouter.of(context)
+                    .go('/signup'); // Navigate to Signup Page
+              },
+              child: Text(
+                localizations.translate('dont_have_account'),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton.icon(
-            onPressed: loginWithFacebook,
-            icon: const Icon(Icons.facebook),
-            label: Text(localizations.translate('login_facebook')),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 50),
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 60),
-        ],
-
-        // Signup Redirection
-        GestureDetector(
-          onTap: () {
-            GoRouter.of(context)
-                .go('/signup'); // Navigate to Signup Page
-          },
-          child: Text(
-            localizations.translate('dont_have_account'),
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
