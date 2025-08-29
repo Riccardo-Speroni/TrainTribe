@@ -279,6 +279,9 @@ class _FriendsPageState extends State<FriendsPage> {
         .doc(friendUid)
         .get();
     final picture = (doc.data()?['picture'] ?? '').toString();
+  // Retrieve first name and surname so we can render two initials consistently
+  final firstName = (doc.data()?['name'] ?? '').toString();
+  final lastName = (doc.data()?['surname'] ?? '').toString();
     showDialog(
       context: context,
       builder: (context) => FriendPopupDialog(
@@ -294,6 +297,8 @@ class _FriendsPageState extends State<FriendsPage> {
         },
         hasPhone: hasPhone,
         picture: picture, // passa la foto profilo
+    firstName: firstName,
+    lastName: lastName,
       ),
     );
   }
@@ -433,6 +438,9 @@ class FriendRequestsContainer extends StatelessWidget {
                         ProfilePicture(
                           picture: picture,
                           size: 25,
+                          firstName: (user['name'] ?? '').toString(),
+                          lastName: (user['surname'] ?? '').toString(),
+                          username: (user['username'] ?? '').toString(),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -586,6 +594,9 @@ class FriendsSearchContainer extends StatelessWidget {
                         leading: ProfilePicture(
                           picture: picture,
                           size: 25,
+                          firstName: (user['name'] ?? '').toString(),
+                          lastName: (user['surname'] ?? '').toString(),
+                          username: username,
                         ),
                         title: Text(username),
                         trailing: IconButton(
@@ -644,6 +655,9 @@ class FriendsSearchContainer extends StatelessWidget {
                     leading: ProfilePicture(
                       picture: (user['picture'] ?? '').toString(),
                       size: 25,
+                      firstName: (user['name'] ?? '').toString(),
+                      lastName: (user['surname'] ?? '').toString(),
+                      username: (user['username'] ?? '').toString(),
                     ),
                     title: Text(
                       user['username'] ?? '',
@@ -672,6 +686,8 @@ class FriendPopupDialog extends StatelessWidget {
   final VoidCallback onToggleGhost;
   final bool hasPhone;
   final String? picture;
+  final String? firstName;
+  final String? lastName;
 
   const FriendPopupDialog({
     super.key,
@@ -681,6 +697,8 @@ class FriendPopupDialog extends StatelessWidget {
     required this.onToggleGhost,
     required this.hasPhone,
     this.picture,
+    this.firstName,
+    this.lastName,
   });
 
   @override
@@ -740,6 +758,9 @@ class FriendPopupDialog extends StatelessWidget {
           const SizedBox(height: 16),
           ProfilePicture(
             picture: picture,
+            username: friend,
+            firstName: firstName,
+            lastName: lastName,
           ),
           const SizedBox(height: 24),
           Column(
@@ -1024,6 +1045,8 @@ class _SuggestionCard extends StatelessWidget {
         leading: ProfilePicture(
           picture: picture,
           size: 25,
+          username: username,
+          firstName: contactName, // può contenere nome e cognome interi
         ),
         title: Text(
           username,
