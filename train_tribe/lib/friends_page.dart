@@ -67,7 +67,7 @@ class _FriendsPageState extends State<FriendsPage> {
       'receivedRequests': FieldValue.arrayUnion([_uid])
     });
 
-    // Crea una notifica per il destinatario
+    // Create a Notification for the receiver
     final myUsername = myData.data()?['username'] ?? 'Unknown';
     await _db.collection('notifications').add({
       'userId': targetUid,
@@ -94,7 +94,7 @@ class _FriendsPageState extends State<FriendsPage> {
       'friends.$_uid': {'ghosted': false}
     });
 
-    // Crea una notifica per il destinatario
+    // Create a Notification for the requester
     final myUsername = myData.data()?['username'] ?? 'Unknown';
     await _db.collection('notifications').add({
       'userId': requesterUid,
@@ -102,6 +102,11 @@ class _FriendsPageState extends State<FriendsPage> {
       'description':
           '$myUsername ${AppLocalizations.of(context).translate('request_accepted')}',
       'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    setState(() {
+      _usersToAdd.removeWhere((u) => u['uid'] == requesterUid);
+      _contactSuggestions.removeWhere((u) => u['uid'] == requesterUid);
     });
   }
 
@@ -244,8 +249,6 @@ class _FriendsPageState extends State<FriendsPage> {
         for (final doc in snap.docs) {
           if (doc.id == _uid) continue;
           if (myFriends.contains(doc.id)) continue;
-          if (sentReqs.contains(doc.id)) continue;
-          if (receivedReqs.contains(doc.id)) continue;
           final data = doc.data();
           final phone = (data['phone'] ?? '').toString();
           final contactName = _contactNameByE164[phone];
@@ -319,6 +322,15 @@ class _FriendsPageState extends State<FriendsPage> {
             List<String>.from(userData['receivedRequests'] ?? []);
         final sentRequests = List<String>.from(userData['sentRequests'] ?? []);
 
+        // Filtra gli utenti che sono già amici dalla ricerca e dai suggerimenti contatti
+        final friendUids = friends.keys.toSet();
+        final filteredUsersToAdd = _usersToAdd
+            .where((u) => !friendUids.contains(u['uid']))
+            .toList();
+        final filteredContactSuggestions = _contactSuggestions
+            .where((u) => !friendUids.contains(u['uid']))
+            .toList();
+
         return Scaffold(
           appBar: AppBar(
             title: Text(localizations.translate('friends')),
@@ -342,7 +354,7 @@ class _FriendsPageState extends State<FriendsPage> {
                     onSearchChanged: _onSearchChanged,
                     onSearchSubmitted: _onSearchSubmitted,
                     filteredFriends: friends.entries.toList(),
-                    usersToAdd: _usersToAdd,
+                    usersToAdd: filteredUsersToAdd, // usa la lista filtrata
                     sentRequests: sentRequests,
                     onToggleVisibility: (friendUid, isGhosted) =>
                         _toggleVisibility(friendUid, isGhosted),
@@ -357,20 +369,17 @@ class _FriendsPageState extends State<FriendsPage> {
                   if (Platform.isAndroid || Platform.isIOS)
                     _SuggestionsSection(
                       title: localizations.translate('find_from_contacts'),
-                      subtitle: _contactSuggestions.isNotEmpty
+                      subtitle: filteredContactSuggestions.isNotEmpty
                           ? localizations.translate('suggested_from_contacts')
                           : null,
                       loading: _loadingContacts,
                       contactsRequested: _contactsRequested,
-                      suggestions: _contactSuggestions,
+                      suggestions: filteredContactSuggestions, // usa la lista filtrata
+                      sentRequests: sentRequests,
                       onRefresh: _findFriendsFromContacts,
                       onAdd: (uid) async {
                         await _sendFriendRequest(uid);
-                        // remove from UI after sending
-                        setState(() {
-                          _contactSuggestions
-                              .removeWhere((e) => e['uid'] == uid);
-                        });
+                        setState(() {});
                       },
                     ),
                 ],
@@ -538,15 +547,6 @@ class FriendsSearchContainer extends StatelessWidget {
                     onSubmitted: onSearchSubmitted,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Tooltip(
-                  message:
-                      localizations.translate('search_and_add_friends_tooltip'),
-                  child: IconButton(
-                    icon: const Icon(Icons.person_add_alt_1),
-                    onPressed: () => onSearchSubmitted(searchController.text),
-                  ),
-                ),
               ],
             ),
           ),
@@ -666,7 +666,7 @@ class FriendsSearchContainer extends StatelessWidget {
                     trailing: sentRequests.contains(user['uid'])
                         ? const Icon(Icons.check, color: Colors.green)
                         : IconButton(
-                            icon: const Icon(Icons.add, color: Colors.blue),
+                            icon: const Icon(Icons.add, color: Colors.green),
                             tooltip: localizations.translate('add_friend'),
                             onPressed: () => onSendFriendRequest(user['uid']),
                           ),
@@ -824,6 +824,7 @@ class _SuggestionsSection extends StatelessWidget {
   final bool loading;
   final bool contactsRequested;
   final List<Map<String, dynamic>> suggestions;
+  final List<String> sentRequests;
   final VoidCallback onRefresh;
   final void Function(String uid) onAdd;
 
@@ -833,6 +834,7 @@ class _SuggestionsSection extends StatelessWidget {
     required this.loading,
     required this.contactsRequested,
     required this.suggestions,
+    required this.sentRequests,
     required this.onRefresh,
     required this.onAdd,
   });
@@ -865,13 +867,11 @@ class _SuggestionsSection extends StatelessWidget {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.tertiaryContainer,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.contacts,
-                        color:
-                            Theme.of(context).colorScheme.onTertiaryContainer,
+                        color: Theme.of(context).colorScheme.primary,
                         size: 20,
                       ),
                     ),
@@ -945,6 +945,7 @@ class _SuggestionsSection extends StatelessWidget {
                                 ? (user['contactName'] ?? '').toString()
                                 : null,
                         picture: (user['picture'] ?? '').toString(),
+                        sent: sentRequests.contains((user['uid'] ?? '').toString()), // pass sent status
                         onAdd: () => onAdd((user['uid'] ?? '').toString()),
                       ),
                     )),
@@ -1025,12 +1026,14 @@ class _SuggestionCard extends StatelessWidget {
   final String? contactName;
   final VoidCallback onAdd;
   final String? picture;
+  final bool sent;
 
   const _SuggestionCard({
     required this.username,
     required this.contactName,
     required this.onAdd,
     this.picture,
+    this.sent = false,
   });
 
   @override
@@ -1054,32 +1057,31 @@ class _SuggestionCard extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: contactName != null
-            ? Row(
-                children: [
-                  const Icon(Icons.contact_page, size: 14, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      contactName!,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: Colors.grey[700]),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              )
-            : null,
-        trailing: FilledButton.icon(
-          onPressed: onAdd,
-          icon: const Icon(Icons.person_add_alt_1),
-          label: const Text('Add'),
-          style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 36),
-              padding: const EdgeInsets.symmetric(horizontal: 12)),
-        ),
+        ? Row(
+            children: [
+          const Icon(Icons.contact_page, size: 14, color: Colors.grey),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              contactName!,
+              style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: Colors.grey[700]),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+            ],
+          )
+        : null,
+        trailing: sent
+            ? const Icon(Icons.check, color: Colors.green)
+            : IconButton(
+                icon: Icon(Icons.add, color: Colors.green),
+                tooltip: 'Add',
+                onPressed: onAdd,
+              ),
       ),
-    );
+      );
   }
 }

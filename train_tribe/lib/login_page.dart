@@ -251,27 +251,29 @@ class _LoginPageState extends State<LoginPage>
                         ),
                       ),
                     )
-                  : ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: maxFormWidth,
-                      ),
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: _LoginForm(
-                              localizations: localizations,
-                              emailController: emailController,
-                              passwordController: passwordController,
-                              showEmailError: showEmailError,
-                              isButtonEnabled: isButtonEnabled,
-                              opacityAnimation: _opacityAnimation,
-                              loginWithEmailAndPassword: _loginWithEmailAndPassword,
-                              loginWithGoogle: _loginWithGoogle,
-                              loginWithFacebook: _loginWithFacebook,
-                              isWideScreen: isWideScreen,
+                  : SafeArea(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: maxFormWidth,
+                        ),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: _LoginForm(
+                                localizations: localizations,
+                                emailController: emailController,
+                                passwordController: passwordController,
+                                showEmailError: showEmailError,
+                                isButtonEnabled: isButtonEnabled,
+                                opacityAnimation: _opacityAnimation,
+                                loginWithEmailAndPassword: _loginWithEmailAndPassword,
+                                loginWithGoogle: _loginWithGoogle,
+                                loginWithFacebook: _loginWithFacebook,
+                                isWideScreen: isWideScreen,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
             ),
