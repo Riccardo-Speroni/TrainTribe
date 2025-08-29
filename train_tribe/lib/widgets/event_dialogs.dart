@@ -47,6 +47,14 @@ Future<void> showAddEventDialog({
               Icon(Icons.event, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
               Text(localizations.translate('new_event')),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: localizations.translate('cancel'),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
             ],
           ),
           content: SingleChildScrollView(
@@ -94,7 +102,7 @@ Future<void> showAddEventDialog({
                         child: Material(
                           elevation: 4.0,
                           child: SizedBox(
-                            width: 285,
+                            width: 257,
                             child: ConstrainedBox(
                               constraints: BoxConstraints(maxHeight: stationListMaxHeight),
                               child: ListView(
@@ -156,7 +164,7 @@ Future<void> showAddEventDialog({
                         child: Material(
                           elevation: 4.0,
                           child: SizedBox(
-                            width: 300,
+                            width: 257,
                             child: ConstrainedBox(
                               constraints: BoxConstraints(maxHeight: stationListMaxHeight),
                               child: ListView(
@@ -324,84 +332,74 @@ Future<void> showAddEventDialog({
           ),
           actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           actions: [
-            ElevatedButton.icon(
-              icon: const Icon(Icons.save),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              ),
-              onPressed: () async {
-                if (!stationNames.contains(departureStation) ||
-                    !stationNames.contains(arrivalStation)) {
+            Center(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.save),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).brightness == Brightness.dark
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                onPressed: () async {
+                  if (!stationNames.contains(departureStation) ||
+                      !stationNames.contains(arrivalStation)) {
+                    setStateDialog(() {
+                      stationError = localizations.translate('invalid_station_name');
+                    });
+                    return;
+                  }
+                  if (departureStation.isEmpty || arrivalStation.isEmpty) {
+                    return;
+                  }
                   setStateDialog(() {
-                    stationError = localizations.translate('invalid_station_name');
+                    isSaving = true;
+                    stationError = null;
                   });
-                  return;
-                }
-                if (departureStation.isEmpty || arrivalStation.isEmpty) {
-                  return;
-                }
-                setStateDialog(() {
-                  isSaving = true;
-                  stationError = null;
-                });
 
-                final user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  final eventsCollection = FirebaseFirestore.instance.collection('users/${user.uid}/events');
-                  final eventStart = DateTime(
-                    day.year, day.month, day.day,
-                    6 + (startSlot ~/ 4),
-                    (startSlot % 4) * 15,
-                  );
-                  final eventEnd = DateTime(
-                    day.year, day.month, day.day,
-                    6 + (selectedEndSlot ~/ 4),
-                    (selectedEndSlot % 4) * 15,
-                  );
-                  final eventData = {
-                    'origin': departureStation,
-                    'destination': arrivalStation,
-                    'event_start': Timestamp.fromDate(eventStart),
-                    'event_end': Timestamp.fromDate(eventEnd),
-                    'recurrence_end': isRecurrent && recurrenceEndDate != null
-                        ? Timestamp.fromDate(recurrenceEndDate!)
-                        : null,
-                    'recurrent': isRecurrent,
-                  };
-                  final newEventRef = await eventsCollection.add(eventData);
-                  final newEventId = newEventRef.id;
-                  onEventAdded(CalendarEvent(
-                    id: newEventId,
-                    date: day,
-                    hour: startSlot,
-                    endHour: selectedEndSlot,
-                    departureStation: departureStation,
-                    arrivalStation: arrivalStation,
-                    isRecurrent: isRecurrent,
-                    recurrenceEndDate: recurrenceEndDate,
-                  ));
-                }
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    final eventsCollection = FirebaseFirestore.instance.collection('users/${user.uid}/events');
+                    final eventStart = DateTime(
+                      day.year, day.month, day.day,
+                      6 + (startSlot ~/ 4),
+                      (startSlot % 4) * 15,
+                    );
+                    final eventEnd = DateTime(
+                      day.year, day.month, day.day,
+                      6 + (selectedEndSlot ~/ 4),
+                      (selectedEndSlot % 4) * 15,
+                    );
+                    final eventData = {
+                      'origin': departureStation,
+                      'destination': arrivalStation,
+                      'event_start': Timestamp.fromDate(eventStart),
+                      'event_end': Timestamp.fromDate(eventEnd),
+                      'recurrence_end': isRecurrent && recurrenceEndDate != null
+                          ? Timestamp.fromDate(recurrenceEndDate!)
+                          : null,
+                      'recurrent': isRecurrent,
+                    };
+                    final newEventRef = await eventsCollection.add(eventData);
+                    final newEventId = newEventRef.id;
+                    onEventAdded(CalendarEvent(
+                      id: newEventId,
+                      date: day,
+                      hour: startSlot,
+                      endHour: selectedEndSlot,
+                      departureStation: departureStation,
+                      arrivalStation: arrivalStation,
+                      isRecurrent: isRecurrent,
+                      recurrenceEndDate: recurrenceEndDate,
+                    ));
+                  }
 
-                Navigator.pop(context);
-              },
-              label: Text(localizations.translate('save')),
-            ),
-            TextButton.icon(
-              icon: const Icon(Icons.cancel),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[400]
-                    : Theme.of(context).colorScheme.secondary,
+                  Navigator.pop(context);
+                },
+                label: Text(localizations.translate('save')),
               ),
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              label: Text(localizations.translate('cancel')),
             ),
           ],
         );
@@ -451,6 +449,14 @@ Future<void> showEditEventDialog({
               Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
               Text(localizations.translate('edit_event')),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: localizations.translate('cancel'),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
             ],
           ),
           content: SingleChildScrollView(
@@ -499,8 +505,7 @@ Future<void> showEditEventDialog({
                         child: Material(
                           elevation: 4.0,
                           child: SizedBox(
-                            width: 300, // Assicura la stessa larghezza del campo input
-                            // Imposta altezza massima per la lista suggerimenti
+                            width: 257,
                             child: ConstrainedBox(
                               constraints: BoxConstraints(maxHeight: stationListMaxHeight),
                               child: ListView(
@@ -563,8 +568,7 @@ Future<void> showEditEventDialog({
                         child: Material(
                           elevation: 4.0,
                           child: SizedBox(
-                            width: 300, // Assicura la stessa larghezza del campo input
-                            // Imposta altezza massima per la lista suggerimenti
+                            width: 257,
                             child: ConstrainedBox(
                               constraints: BoxConstraints(maxHeight: stationListMaxHeight),
                               child: ListView(
@@ -854,16 +858,6 @@ Future<void> showEditEventDialog({
                 }
               },
               label: Text(localizations.translate('delete')),
-            ),
-            TextButton.icon(
-              icon: const Icon(Icons.cancel),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[400]
-                    : Theme.of(context).colorScheme.secondary,
-              ),
-              onPressed: () => Navigator.pop(context),
-              label: Text(localizations.translate('cancel')),
             ),
           ],
         );
