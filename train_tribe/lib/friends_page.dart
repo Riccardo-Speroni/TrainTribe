@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'utils/phone_number_helper.dart';
 import 'utils/profile_picture_widget.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -231,9 +232,7 @@ class _FriendsPageState extends State<FriendsPage> {
       // Fetch my doc to filter out existing relationships
       final myDoc = await _db.collection('users').doc(_uid).get();
       final myFriends = (myDoc.data()?['friends'] ?? {}).keys.toSet();
-      final sentReqs = Set<String>.from(myDoc.data()?['sentRequests'] ?? []);
-      final receivedReqs =
-          Set<String>.from(myDoc.data()?['receivedRequests'] ?? []);
+  // sent/received requests not needed in suggestions filtering here
 
       // Chunked Firestore queries (whereIn limit conservative 10)
       final all = numbers.toList();
@@ -285,6 +284,7 @@ class _FriendsPageState extends State<FriendsPage> {
   // Retrieve first name and surname so we can render two initials consistently
   final firstName = (doc.data()?['name'] ?? '').toString();
   final lastName = (doc.data()?['surname'] ?? '').toString();
+  final phone = (doc.data()?['phone'] ?? '').toString();
     showDialog(
       context: context,
       builder: (context) => FriendPopupDialog(
@@ -302,6 +302,7 @@ class _FriendsPageState extends State<FriendsPage> {
         picture: picture, // passa la foto profilo
     firstName: firstName,
     lastName: lastName,
+    phone: phone,
       ),
     );
   }
@@ -715,6 +716,7 @@ class FriendPopupDialog extends StatelessWidget {
   final String? picture;
   final String? firstName;
   final String? lastName;
+  final String? phone;
 
   const FriendPopupDialog({
     super.key,
@@ -726,6 +728,7 @@ class FriendPopupDialog extends StatelessWidget {
     this.picture,
     this.firstName,
     this.lastName,
+    this.phone,
   });
 
   @override
@@ -734,7 +737,7 @@ class FriendPopupDialog extends StatelessWidget {
 
     // Always show the three buttons vertically, in the requested order
     List<Widget> buttons = [
-      if (hasPhone && (Platform.isAndroid || Platform.isIOS))
+      if (hasPhone) //&& (Platform.isAndroid || Platform.isIOS)
         SizedBox(
           height: 44,
           child: CustomTextButton(
@@ -743,7 +746,10 @@ class FriendPopupDialog extends StatelessWidget {
                 color: Colors.white, size: 18),
             color: Colors.green,
             onPressed: () {
-              // Implement WhatsApp launch logic here
+              if (phone != null && phone!.isNotEmpty) {
+                final uri = Uri.parse('https://api.whatsapp.com/send?phone=${Uri.encodeComponent(phone!)}');
+                launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
               Navigator.pop(context);
             },
           ),
