@@ -22,8 +22,7 @@ class AppLocalizations {
       'dark': 'Dark',
       'system': 'System',
       'back': 'Back',
-      'reset_onboarding': 'Reset onboarding',
-      'onboarding_reset_done': 'Onboarding reset. It will show on next launch.',
+      'reset_onboarding': 'Repeat onboarding',
 
       // Navigation
       'home': 'Home',
@@ -64,7 +63,9 @@ class AppLocalizations {
       'surname': 'Surname',
       'choose_profile_picture': 'Choose a profile picture',
       'pick_image': 'Pick an Image',
+      'remove_image': 'Remove Image',
       'copy_username': 'Copy username',
+      'more': 'Generate new avatars',
       'copied': 'Copied!',
 
       // Password
@@ -200,8 +201,7 @@ class AppLocalizations {
       'dark': 'Scuro',
       'system': 'Sistema',
       'back': 'Indietro',
-      'reset_onboarding': 'Reimposta onboarding',
-      'onboarding_reset_done': 'Onboarding reimpostato. Verrà mostrato al prossimo avvio.',
+      'reset_onboarding': 'Ripeti onboarding',
 
       // Navigation
       'home': 'Home',
@@ -242,7 +242,9 @@ class AppLocalizations {
       'surname': 'Cognome',
       'choose_profile_picture': 'Scegli una foto profilo',
       'pick_image': 'Scegli un\'immagine',
+      'remove_image': 'Rimuovi immagine',
       'copy_username': 'Copia nome utente',
+      'more': 'Genera altri avatar',
       'copied': 'Copiato!',
 
       // Password

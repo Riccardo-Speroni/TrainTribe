@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/phone_number_helper.dart';
+import 'profile_picture_picker.dart';
 
 class UserDetailsPage extends StatefulWidget {
   final String? prefilledName;
@@ -11,6 +12,7 @@ class UserDetailsPage extends StatefulWidget {
   final VoidCallback? onBack;
   final VoidCallback onAction;
   final String actionButtonText;
+  final void Function(ProfileImageSelection selection)? onProfileImageSelected;
 
   // Accept controllers from the parent widget
   final TextEditingController nameController;
@@ -30,6 +32,7 @@ class UserDetailsPage extends StatefulWidget {
     required this.surnameController,
     required this.usernameController,
     required this.phoneController,
+  this.onProfileImageSelected,
     super.key,
   });
 
@@ -149,7 +152,19 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                   onPressed: widget.onBack,
                 ),
               ),
-            Image.asset('images/djungelskog.jpg', height: 100),
+            Center(
+              child: ProfilePicturePicker(
+                firstName: widget.nameController.text,
+                lastName: widget.surnameController.text,
+                username: widget.usernameController.text,
+                size: 110,
+                onSelection: (sel) async {
+                  if (widget.onProfileImageSelected != null) {
+                    widget.onProfileImageSelected!(sel);
+                  }
+                },
+              ),
+            ),
             const SizedBox(height: 25),
             Text(
               localizations.translate('username'),

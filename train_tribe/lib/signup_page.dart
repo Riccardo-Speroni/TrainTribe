@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_initicon/flutter_initicon.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image/image.dart' as img;
 import 'l10n/app_localizations.dart';
@@ -24,7 +22,8 @@ class SignUpPage extends StatefulWidget {
 class _SignUpPageState extends State<SignUpPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  File? _profileImage;
+  File? _profileImage; // Local picked file (resized & uploaded later)
+  String? _generatedAvatarUrl; // Chosen generated avatar
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -41,14 +40,12 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isLoading = false; // State to control loading indicator
   bool isUsernameUnique = true; // State to track username uniqueness
 
-  int _avatarPage = 1; // Tracks the current page of avatars
-  List<String> _avatarUrls = []; // Stores the generated avatar URLs
-  String? _selectedAvatarUrl; // Memorizza l'URL dell'avatar selezionato
+  // Avatar generation state removed; handled by reusable picker widget
 
   void _nextPage() {
     final bool isWideScreen =
         kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
-    if (_currentPage < 3) {
+  if (_currentPage < 2) {
       if (isWideScreen) {
         setState(() => _currentPage++);
       } else {
@@ -64,7 +61,7 @@ class _SignUpPageState extends State<SignUpPage> {
   void _prevPage() {
     final bool isWideScreen =
         kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
-    if (_currentPage > 0) {
+  if (_currentPage > 0) {
       if (isWideScreen) {
         setState(() => _currentPage--);
       } else {
@@ -74,14 +71,6 @@ class _SignUpPageState extends State<SignUpPage> {
         );
         setState(() => _currentPage--);
       }
-    }
-  }
-
-  Future<void> _pickImage() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() => _profileImage = File(pickedFile.path));
     }
   }
 
@@ -97,7 +86,7 @@ class _SignUpPageState extends State<SignUpPage> {
         throw Exception("Failed to decode image");
       }
       final resizedImage =
-          img.copyResize(decodedImage, width: 300, height: 300);
+          img.copyResize(decodedImage, height: 300);
 
       // Encode the resized image back to bytes
       final resizedImageBytes = img.encodeJpg(resizedImage);
@@ -130,13 +119,6 @@ class _SignUpPageState extends State<SignUpPage> {
     });
   }
 
-  void _validateMandatoryFields() {
-    setState(() {
-      areMandatoryFieldsFilled = usernameController.text.trim().isNotEmpty &&
-          firstNameController.text.trim().isNotEmpty &&
-          lastNameController.text.trim().isNotEmpty;
-    });
-  }
 
   Future<void> _createUserInFirebase() async {
     setState(() => _isLoading = true); // Show loading indicator
@@ -165,15 +147,12 @@ class _SignUpPageState extends State<SignUpPage> {
 
       String? profilePictureUrl;
       if (_profileImage != null) {
-        // Upload selected image
         profilePictureUrl = await _uploadImageToFirebase(_profileImage!);
-      } else if (_selectedAvatarUrl != null) {
-        // Use selected avatar URL
-        profilePictureUrl = _selectedAvatarUrl;
+      } else if (_generatedAvatarUrl != null) {
+        profilePictureUrl = _generatedAvatarUrl;
       } else {
-        // Generate initials-based avatar
         final initials = "${firstName[0]}${lastName[0]}".toUpperCase();
-        profilePictureUrl = initials; // Save initials as a placeholder
+        profilePictureUrl = initials;
       }
 
       await FirebaseFirestore.instance
@@ -219,38 +198,14 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
-  void _generateAvatars({bool nextPage = false}) {
-    setState(() {
-      if (nextPage) {
-        _avatarPage++;
-      } else {
-        _avatarPage = 1;
-      }
-      final username = usernameController.text.trim();
-      if (username.isEmpty) {
-        _avatarUrls = [];
-        return;
-      }
-      _avatarUrls = List.generate(10, (index) {
-        final seed = '$username${(_avatarPage - 1) * 10 + index + 1}';
-        return 'https://api.dicebear.com/9.x/adventurer-neutral/png?seed=$seed&backgroundType=gradientLinear,solid';
-      });
-    });
-  }
-
-  void _selectAvatar(String avatarUrl) {
-    setState(() {
-      _selectedAvatarUrl = avatarUrl; // Save the selected avatar URL
-      _profileImage = null; // Remove any previously selected image
-    });
-  }
+  // Avatar generation & selection handled by ProfilePicturePicker
 
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final bool isWideScreen =
         kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
-    final double maxFormWidth = isWideScreen ? 500.0 : double.infinity;
+  // maxFormWidth no longer needed after refactor
 
     return Stack(
       children: [
@@ -283,9 +238,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                 else if (_currentPage == 1)
                                   _buildPasswordPage(localizations)
                                 else if (_currentPage == 2)
-                                  _buildUserDetailsPage(localizations)
-                                else if (_currentPage == 3)
-                                  _buildProfilePicturePage(localizations),
+                                  _buildUserDetailsPage(localizations),
                                 if (_currentPage == 0)
                                   Padding(
                                     padding: const EdgeInsets.all(16.0),
@@ -321,7 +274,6 @@ class _SignUpPageState extends State<SignUpPage> {
                               _buildEmailPage(context, localizations),
                               _buildPasswordPage(localizations),
                               _buildUserDetailsPage(localizations),
-                              _buildProfilePicturePage(localizations),
                             ],
                           ),
                         ),
@@ -545,162 +497,27 @@ class _SignUpPageState extends State<SignUpPage> {
           prefilledPhone: phoneController.text,
           onBack: _prevPage,
           onAction: () {
-            // Save the current values to the controllers
             setState(() {
               firstNameController.text = firstNameController.text.trim();
               lastNameController.text = lastNameController.text.trim();
               usernameController.text = usernameController.text.trim();
               phoneController.text = phoneController.text.trim();
             });
-            _nextPage();
+            _createUserInFirebase();
           },
-          actionButtonText: localizations.translate('next'),
+          actionButtonText: localizations.translate('create_account'),
           nameController: firstNameController,
           surnameController: lastNameController,
           usernameController: usernameController,
           phoneController: phoneController,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfilePicturePage(AppLocalizations localizations) {
-    final horizontalPadding =
-        MediaQuery.of(context).size.width > 600 ? 40.0 : 20.0;
-    final bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Padding(
-              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-              child: Column(
-                children: [
-                  const SizedBox(height: 30),
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: _prevPage,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    localizations.translate('choose_profile_picture'),
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-                  CircleAvatar(
-                    radius: 60, // Reduced size of the profile picture
-                    backgroundColor: Colors.teal,
-                    foregroundImage: _profileImage != null
-                        ? FileImage(_profileImage!)
-                        : (_selectedAvatarUrl != null
-                            ? NetworkImage(_selectedAvatarUrl!)
-                            : null),
-                    child: _profileImage == null && _selectedAvatarUrl == null
-                        ? Initicon(
-                            text:
-                                "${firstNameController.text} ${lastNameController.text}",
-                            backgroundColor: Colors.transparent,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 50,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            size:
-                                120, // Match the size to the CircleAvatar's diameter
-                          )
-                        : null,
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _pickImage,
-                    child: Text(localizations.translate('pick_image')),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () => _generateAvatars(),
-                    child: Text(localizations.translate('generate_avatars')),
-                  ),
-                  // Bottone per vedere altri avatar se già generati
-                  if (_avatarUrls.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: ElevatedButton(
-                        onPressed: () => _generateAvatars(nextPage: true),
-                        child: Text('Altri avatar'),
-                      ),
-                    ),
-                  const SizedBox(height: 20),
-                  if (_avatarUrls.isNotEmpty)
-                    SizedBox(
-                        height: isWideScreen ? 180 : 220,
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                              maxWidth: 600), // Limit the grid width
-                          child: ScrollConfiguration(
-                            behavior: const ScrollBehavior().copyWith(overscroll: false),
-                            child: SingleChildScrollView(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      return GridView.builder(
-                                        shrinkWrap: true,
-                                        physics: const NeverScrollableScrollPhysics(),
-                                        gridDelegate:
-                                            SliverGridDelegateWithMaxCrossAxisExtent(
-                                          maxCrossAxisExtent: 80,
-                                          crossAxisSpacing: 10,
-                                          mainAxisSpacing: 10,
-                                          childAspectRatio: 1,
-                                        ),
-                                        itemCount: _avatarUrls.length,
-                                        itemBuilder: (context, index) {
-                                          final avatarUrl = _avatarUrls[index];
-                                          return GestureDetector(
-                                            onTap: () => _selectAvatar(avatarUrl),
-                                            child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(100),
-                                              child: Image.network(
-                                                avatarUrl,
-                                                fit: BoxFit.cover,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _createUserInFirebase,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                    ),
-                    child: Text(
-                      localizations.translate('create_account'),
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  const SizedBox(height: 20), // Add padding below the button
-                ],
-              ),
-            );
+          onProfileImageSelected: (sel) {
+            if (sel.removed) {
+              setState(() { _profileImage = null; _generatedAvatarUrl = null; });
+            } else if (sel.generatedAvatarUrl != null) {
+              setState(() { _generatedAvatarUrl = sel.generatedAvatarUrl; _profileImage = null; });
+            } else if (sel.pickedFile != null) {
+              setState(() { _profileImage = File(sel.pickedFile!.path); _generatedAvatarUrl = null; });
+            }
           },
         ),
       ),
