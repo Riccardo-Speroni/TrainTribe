@@ -205,7 +205,6 @@ class _SignUpPageState extends State<SignUpPage> {
     final localizations = AppLocalizations.of(context);
     final bool isWideScreen =
         kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
-  // maxFormWidth no longer needed after refactor
 
     return Stack(
       children: [
@@ -304,6 +303,9 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildEmailPage(BuildContext context, AppLocalizations localizations) {
+    final textColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 500),
@@ -326,6 +328,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 child: TextField(
                   controller: emailController,
                   onChanged: (_) => _validateEmail(),
+                  style: TextStyle(color: textColor),
                   decoration: InputDecoration(
                     labelText: localizations.translate('email'),
                     border: const OutlineInputBorder(),
@@ -358,6 +361,9 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildPasswordPage(AppLocalizations localizations) {
+    final textColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
     final password = passwordController.text.trim();
     final confirmPassword = confirmPasswordController.text.trim();
 
@@ -405,6 +411,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 controller: passwordController,
                 obscureText: true,
                 onChanged: (_) => setState(() {}),
+                style: TextStyle(color: textColor),
                 decoration: InputDecoration(
                   labelText: localizations.translate('password'),
                   border: const OutlineInputBorder(),
@@ -441,6 +448,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 controller: confirmPasswordController,
                 obscureText: true,
                 onChanged: (_) => setState(() {}),
+                style: TextStyle(color: textColor),
                 decoration: InputDecoration(
                   labelText: localizations.translate('confirm_password'),
                   border: const OutlineInputBorder(),

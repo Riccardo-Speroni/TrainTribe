@@ -315,8 +315,12 @@ class _LoginForm extends StatelessWidget {
     final Color? cardTextColor = isWideScreen
         ? Theme.of(context).colorScheme.onPrimary
         : null;
-    // Aggiungi larghezza massima su desktop/web
+
     final double maxFormWidth = isWideScreen ? 400.0 : double.infinity;
+
+    final Color inputTextColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
 
     return SingleChildScrollView(
       child: ConstrainedBox(
@@ -355,7 +359,7 @@ class _LoginForm extends StatelessWidget {
                     isDense: false,
                     contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
                   ),
-                  style: cardTextColor != null ? TextStyle(color: Colors.black) : null,
+                  style: TextStyle(color: inputTextColor),
                 ),
               ),
             ),
@@ -380,7 +384,7 @@ class _LoginForm extends StatelessWidget {
                     loginWithEmailAndPassword();
                   }
                 },
-                style: cardTextColor != null ? TextStyle(color: Colors.black) : null,
+                style: TextStyle(color: inputTextColor),
               ),
             ),
             const SizedBox(height: 20),
