@@ -1,6 +1,7 @@
 // Removed unused dart:typed_data import
 import 'dart:io' show File; // For FileImage on non-web
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../l10n/app_localizations.dart';
@@ -74,8 +75,16 @@ class _ProfilePicturePickerState extends State<ProfilePicturePicker> {
   }
 
   Future<void> _pickImage(AppLocalizations l) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    XFile? picked;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS) {
+      final result = await FilePicker.platform.pickFiles(type: FileType.image);
+      if (result != null && result.files.single.path != null) {
+        picked = XFile(result.files.single.path!);
+      }
+    } else {
+      final picker = ImagePicker();
+      picked = await picker.pickImage(source: ImageSource.gallery);
+    }
     if (picked == null) return;
     setState(() {
       _pickedFile = picked;
