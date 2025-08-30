@@ -294,6 +294,12 @@ class _ProfilePicturePickerState extends State<ProfilePicturePicker> {
 
     return InkWell(
       onTap: () => _showDialog(l),
+      // Rimuove il quadrato grigio/overlay su hover & splash
+      hoverColor: Colors.transparent,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      overlayColor: MaterialStateProperty.all(Colors.transparent),
+      customBorder: const CircleBorder(),
       child: Stack(
         alignment: Alignment.bottomRight,
         children: [
