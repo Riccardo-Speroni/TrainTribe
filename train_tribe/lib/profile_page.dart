@@ -94,97 +94,93 @@ class _ProfilePageState extends State<ProfilePage> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 // Lingua (icona)
-                Tooltip(
-                  message: localizations.translate('language'),
-                  child: PopupMenuButton<Locale>(
-                    icon: const Icon(Icons.language),
-                    onSelected: (loc) => _saveLanguagePreference(loc),
-                    itemBuilder: (ctx) => [
-                      PopupMenuItem(
-                        value: const Locale('en'),
-                        child: Row(
-                          children: [
-                            if (localizations.languageCode() == 'en') const Icon(Icons.check, size: 16),
-                            if (localizations.languageCode() == 'en') const SizedBox(width: 6),
-                            const Text('English'),
-                          ],
-                        ),
+                PopupMenuButton<Locale>(
+                  tooltip: localizations.translate('change_language'),
+                  icon: const Icon(Icons.language),
+                  onSelected: (loc) => _saveLanguagePreference(loc),
+                  itemBuilder: (ctx) => [
+                    PopupMenuItem(
+                      value: const Locale('en'),
+                      child: Row(
+                        children: [
+                          if (localizations.languageCode() == 'en') const Icon(Icons.check, size: 16),
+                          if (localizations.languageCode() == 'en') const SizedBox(width: 6),
+                          const Text('English'),
+                        ],
                       ),
-                      PopupMenuItem(
-                        value: const Locale('it'),
-                        child: Row(
-                          children: [
-                            if (localizations.languageCode() == 'it') const Icon(Icons.check, size: 16),
-                            if (localizations.languageCode() == 'it') const SizedBox(width: 6),
-                            const Text('Italiano'),
-                          ],
-                        ),
+                    ),
+                    PopupMenuItem(
+                      value: const Locale('it'),
+                      child: Row(
+                        children: [
+                          if (localizations.languageCode() == 'it') const Icon(Icons.check, size: 16),
+                          if (localizations.languageCode() == 'it') const SizedBox(width: 6),
+                          const Text('Italiano'),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 const SizedBox(width: 2), // era 4, ora più stretto
                 // Tema (icona)
-                Tooltip(
-                  message: localizations.translate('theme'),
-                  child: ValueListenableBuilder<ThemeMode>(
-                    valueListenable: appTheme,
-                    builder: (context, mode, _) {
-                      IconData icon;
-                      switch (mode) {
-                        case ThemeMode.light:
-                          icon = Icons.light_mode;
-                          break;
-                        case ThemeMode.dark:
-                          icon = Icons.dark_mode;
-                          break;
-                        case ThemeMode.system:
-                          icon = Icons.brightness_4;
-                          break;
-                      }
-                      return PopupMenuButton<ThemeMode>(
-                        icon: Icon(icon),
-                        onSelected: (m) {
-                          int idx = m == ThemeMode.light
-                              ? 0
-                              : (m == ThemeMode.dark ? 1 : 2);
-                          _saveThemePreference(idx);
-                        },
-                        itemBuilder: (ctx) => [
-                          PopupMenuItem(
-                            value: ThemeMode.light,
-                            child: Row(
-                              children: [
-                                if (mode == ThemeMode.light) const Icon(Icons.check, size: 16),
-                                if (mode == ThemeMode.light) const SizedBox(width: 6),
-                                Text(localizations.translate('light')),
-                              ],
-                            ),
+                ValueListenableBuilder<ThemeMode>(
+                  valueListenable: appTheme,
+                  builder: (context, mode, _) {
+                    IconData icon;
+                    switch (mode) {
+                      case ThemeMode.light:
+                        icon = Icons.light_mode;
+                        break;
+                      case ThemeMode.dark:
+                        icon = Icons.dark_mode;
+                        break;
+                      case ThemeMode.system:
+                        icon = Icons.brightness_4;
+                        break;
+                    }
+                    return PopupMenuButton<ThemeMode>(
+                      tooltip: localizations.translate('change_theme'),
+                      icon: Icon(icon),
+                      onSelected: (m) {
+                        int idx = m == ThemeMode.light
+                            ? 0
+                            : (m == ThemeMode.dark ? 1 : 2);
+                        _saveThemePreference(idx);
+                      },
+                      itemBuilder: (ctx) => [
+                        PopupMenuItem(
+                          value: ThemeMode.light,
+                          child: Row(
+                            children: [
+                              if (mode == ThemeMode.light) const Icon(Icons.check, size: 16),
+                              if (mode == ThemeMode.light) const SizedBox(width: 6),
+                              Text(localizations.translate('light')),
+                            ],
                           ),
-                          PopupMenuItem(
-                            value: ThemeMode.dark,
-                            child: Row(
-                              children: [
-                                if (mode == ThemeMode.dark) const Icon(Icons.check, size: 16),
-                                if (mode == ThemeMode.dark) const SizedBox(width: 6),
-                                Text(localizations.translate('dark')),
-                              ],
-                            ),
+                        ),
+                        PopupMenuItem(
+                          value: ThemeMode.dark,
+                          child: Row(
+                            children: [
+                              if (mode == ThemeMode.dark) const Icon(Icons.check, size: 16),
+                              if (mode == ThemeMode.dark) const SizedBox(width: 6),
+                              Text(localizations.translate('dark')),
+                            ],
                           ),
-                          PopupMenuItem(
-                            value: ThemeMode.system,
-                            child: Row(
-                              children: [
-                                if (mode == ThemeMode.system) const Icon(Icons.check, size: 16),
-                                if (mode == ThemeMode.system) const SizedBox(width: 6),
-                                Text(localizations.translate('system')),
-                              ],
-                            ),
+                        ),
+                        PopupMenuItem(
+                          value: ThemeMode.system,
+                          child: Row(
+                            children: [
+                              if (mode == ThemeMode.system) const Icon(Icons.check, size: 16),
+                              if (mode == ThemeMode.system) const SizedBox(width: 6),
+                              Text(localizations.translate('system')),
+                            ],
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             );
