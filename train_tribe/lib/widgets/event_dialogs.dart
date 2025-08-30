@@ -187,6 +187,7 @@ Future<void> showAddEventDialog({
                 const SizedBox(height: 16),
                 Row(
                   children: [
+                    const SizedBox(width: 7),
                     Icon(Icons.calendar_today, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Text('${localizations.translate('day')}: '),
@@ -213,6 +214,7 @@ Future<void> showAddEventDialog({
                 const SizedBox(height: 12),
                 Row(
                   children: [
+                    const SizedBox(width: 7),
                     Icon(Icons.access_time, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Text('${localizations.translate('start_hour')}: '),
@@ -245,6 +247,7 @@ Future<void> showAddEventDialog({
                 const SizedBox(height: 12),
                 Row(
                   children: [
+                    const SizedBox(width: 7),
                     Icon(Icons.access_time_filled, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Text('${localizations.translate('end_hour')}: '),
@@ -285,6 +288,7 @@ Future<void> showAddEventDialog({
                 if (isRecurrent)
                   Row(
                     children: [
+                      const SizedBox(width: 7),
                       Icon(Icons.event_repeat, size: 18, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 6),
                       Text('${localizations.translate('end_recurrence')}: '),
@@ -591,6 +595,7 @@ Future<void> showEditEventDialog({
                 const SizedBox(height: 16),
                 Row(
                   children: [
+                    const SizedBox(width: 7),
                     Icon(Icons.calendar_today, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Text('${localizations.translate('day')}: '),
@@ -617,6 +622,7 @@ Future<void> showEditEventDialog({
                 const SizedBox(height: 12),
                 Row(
                   children: [
+                    const SizedBox(width: 7),
                     Icon(Icons.access_time, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Text('${localizations.translate('start_hour')}: '),
@@ -648,6 +654,7 @@ Future<void> showEditEventDialog({
                 const SizedBox(height: 12),
                 Row(
                   children: [
+                    const SizedBox(width: 7),
                     Icon(Icons.access_time_filled, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Text('${localizations.translate('end_hour')}: '),
@@ -688,6 +695,7 @@ Future<void> showEditEventDialog({
                 if (isRecurrent)
                   Row(
                     children: [
+                      const SizedBox(width: 7),
                       Icon(Icons.event_repeat, size: 18, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 6),
                       Text('${localizations.translate('end_recurrence')}: '),

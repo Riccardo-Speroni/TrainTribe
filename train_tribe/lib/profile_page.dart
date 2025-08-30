@@ -254,15 +254,26 @@ class _ProfilePageState extends State<ProfilePage> {
             if (isWide) {
               return Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    topRightControls,
-                    const SizedBox(height: 16),
-                    profileBox,
-                    const SizedBox(height: 16),
-                    bottomActions,
-                  ],
+                child: LayoutBuilder(
+                  builder: (ctx, constraints) {
+                    return SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            topRightControls,
+                            const SizedBox(height: 16),
+                            profileBox,
+                            const SizedBox(height: 16),
+                            bottomActions,
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               );
             }
