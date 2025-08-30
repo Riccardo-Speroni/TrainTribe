@@ -142,9 +142,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       tooltip: localizations.translate('change_theme'),
                       icon: Icon(icon),
                       onSelected: (m) {
-                        int idx = m == ThemeMode.light
-                            ? 0
-                            : (m == ThemeMode.dark ? 1 : 2);
+                        int idx = m == ThemeMode.light ? 0 : (m == ThemeMode.dark ? 1 : 2);
                         _saveThemePreference(idx);
                       },
                       itemBuilder: (ctx) => [
@@ -336,6 +334,7 @@ class _ProfileInfoBox extends StatelessWidget {
                 lastName: surname,
                 username: username,
                 initialImageUrl: picture is String ? picture : null,
+                ringWidth: 5,
                 onSelection: (sel) async {
                   final user = FirebaseAuth.instance.currentUser;
                   if (user == null) return;
@@ -348,9 +347,6 @@ class _ProfileInfoBox extends StatelessWidget {
                     // Upload picked file (reuse existing method?) For simplicity, delegate to outer handler
                     // Not implemented here to avoid duplicating upload logic; could be extended.
                   }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(AppLocalizations.of(context).translate('saved'))),
-                  );
                 },
                 size: 120,
               ),
@@ -734,9 +730,6 @@ void _showEditPhoneDialog(BuildContext context, AppLocalizations l, String curre
                   await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'phone': e164});
                 }
                 Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l.translate('saved'))),
-                );
               },
               child: Text(l.translate('save')),
             ),
@@ -793,10 +786,7 @@ void _showEditSimpleFieldDialog(
     if (user != null) {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({fieldKey: raw});
     }
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.translate('saved'))),
-    );
+  Navigator.of(context).pop();
   }
 
 

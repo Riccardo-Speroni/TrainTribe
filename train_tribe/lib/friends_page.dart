@@ -300,9 +300,9 @@ class _FriendsPageState extends State<FriendsPage> {
         },
         hasPhone: hasPhone,
         picture: picture, // passa la foto profilo
-    firstName: firstName,
-    lastName: lastName,
-    phone: phone,
+        firstName: firstName,
+        lastName: lastName,
+        phone: phone,
       ),
     );
   }
@@ -445,21 +445,13 @@ class FriendRequestsContainer extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
                       children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.green,
-                              width: 2,
-                            ),
-                          ),
-                          child: ProfilePicture(
-                            picture: picture,
-                            size: 25,
-                            firstName: (user['name'] ?? '').toString(),
-                            lastName: (user['surname'] ?? '').toString(),
-                            username: (user['username'] ?? '').toString(),
-                          ),
+                        ProfilePicture(
+                          picture: picture,
+                          size: 25,
+                          firstName: (user['name'] ?? '').toString(),
+                          lastName: (user['surname'] ?? '').toString(),
+                          username: (user['username'] ?? '').toString(),
+                          ringWidth: 2,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -601,21 +593,13 @@ class FriendsSearchContainer extends StatelessWidget {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: ListTile(
-                        leading: Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.green,
-                              width: 2,
-                            ),
-                          ),
-                          child: ProfilePicture(
-                            picture: picture,
-                            size: 25,
-                            firstName: (user['name'] ?? '').toString(),
-                            lastName: (user['surname'] ?? '').toString(),
-                            username: username,
-                          ),
+                        leading: ProfilePicture(
+                          picture: picture,
+                          size: 25,
+                          firstName: (user['name'] ?? '').toString(),
+                          lastName: (user['surname'] ?? '').toString(),
+                          username: username,
+                          ringWidth: 2,
                         ),
                         title: Text(username),
                         trailing: IconButton(
@@ -671,21 +655,13 @@ class FriendsSearchContainer extends StatelessWidget {
             ...usersToAdd.map((user) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: ListTile(
-                    leading: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.green,
-                          width: 2,
-                        ),
-                      ),
-                      child: ProfilePicture(
-                        picture: (user['picture'] ?? '').toString(),
-                        size: 25,
-                        firstName: (user['name'] ?? '').toString(),
-                        lastName: (user['surname'] ?? '').toString(),
-                        username: (user['username'] ?? '').toString(),
-                      ),
+                    leading: ProfilePicture(
+                      picture: (user['picture'] ?? '').toString(),
+                      size: 25,
+                      firstName: (user['name'] ?? '').toString(),
+                      lastName: (user['surname'] ?? '').toString(),
+                      username: (user['username'] ?? '').toString(),
+                      ringWidth: 2,
                     ),
                     title: Text(
                       user['username'] ?? '',
@@ -808,20 +784,12 @@ class FriendPopupDialog extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.green,
-                width: 2,
-              ),
-            ),
-            child: ProfilePicture(
-              picture: picture,
-              username: friend,
-              firstName: firstName,
-              lastName: lastName,
-            ),
+          ProfilePicture(
+            picture: picture,
+            username: friend,
+            firstName: firstName,
+            lastName: lastName,
+            ringWidth: 5, // popup detail keeps thicker ring
           ),
           const SizedBox(height: 24),
           Column(
@@ -1106,20 +1074,12 @@ class _SuggestionCard extends StatelessWidget {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.green,
-              width: 2,
-            ),
-          ),
-          child: ProfilePicture(
-            picture: picture,
-            size: 25,
-            username: username,
-            firstName: contactName, // può contenere nome e cognome interi
-          ),
+        leading: ProfilePicture(
+          picture: picture,
+          size: 25,
+          username: username,
+          firstName: contactName, // può contenere nome e cognome interi
+          ringWidth: 2,
         ),
         title: Text(
           username,

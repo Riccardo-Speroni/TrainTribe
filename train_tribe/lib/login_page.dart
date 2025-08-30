@@ -335,7 +335,7 @@ class _LoginForm extends StatelessWidget {
           children: [
             Image.asset(
               'images/logo.png',
-              height: 200,
+              height: 100,
             ),
             const SizedBox(height: 40),
 
