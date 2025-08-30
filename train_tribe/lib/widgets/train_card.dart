@@ -6,10 +6,10 @@ import 'package:timelines_plus/timelines_plus.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import '../utils/profile_picture_widget.dart';
 
-part 'train_card_hoverable.dart';
-part 'train_card_scrolling.dart';
-part 'train_card_leg_timeline.dart';
-part 'train_card_color_ext.dart';
+part 'train_card_widgets/train_card_hoverable.dart';
+part 'train_card_widgets/train_card_scrolling.dart';
+part 'train_card_widgets/train_card_leg_timeline.dart';
+part 'train_card_widgets/train_card_color_ext.dart';
 // Removed avatar tooltips dependence on localizations
 
 class TrainCard extends StatelessWidget {

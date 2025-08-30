@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'l10n/app_localizations.dart';
 import 'widgets/train_card.dart';
-import 'widgets/responsive_card_list.dart';
+import 'widgets/train_card_widgets/responsive_card_list.dart';
 import 'utils/train_confirmation.dart';
 
 class TrainsPage extends StatefulWidget {
