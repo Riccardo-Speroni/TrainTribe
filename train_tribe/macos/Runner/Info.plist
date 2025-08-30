@@ -74,5 +74,13 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Questa app richiede l'accesso alla libreria foto per selezionare una foto profilo.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Questa app può richiedere l'accesso al microfono per registrare video.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Questa app può richiedere l'accesso alla fotocamera per scattare foto profilo.</string>
+	<key>NSFilePickerUsageDescription</key>
+	<string>Questa app richiede l'accesso ai file per selezionare una foto profilo dal computer.</string>
 </dict>
 </plist>

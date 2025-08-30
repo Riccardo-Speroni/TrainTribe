@@ -158,6 +158,8 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                 lastName: widget.surnameController.text,
                 username: widget.usernameController.text,
                 size: 110,
+                ringWidth: 5,
+                autoUpload: false, // defer upload until after user document creation
                 onSelection: (sel) async {
                   if (widget.onProfileImageSelected != null) {
                     widget.onProfileImageSelected!(sel);

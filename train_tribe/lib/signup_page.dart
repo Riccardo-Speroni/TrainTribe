@@ -3,8 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image/image.dart' as img;
+import 'utils/image_uploader.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/firebase_exception_handler.dart';
 import 'utils/loading_indicator.dart';
@@ -74,43 +73,7 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
-  Future<String?> _uploadImageToFirebase(File imageFile) async {
-    File? tempFile;
-    try {
-      // Read the image file as bytes
-      final imageBytes = await imageFile.readAsBytes();
-
-      // Decode the image and resize it
-      final decodedImage = img.decodeImage(imageBytes);
-      if (decodedImage == null) {
-        throw Exception("Failed to decode image");
-      }
-      final resizedImage =
-          img.copyResize(decodedImage, height: 300);
-
-      // Encode the resized image back to bytes
-      final resizedImageBytes = img.encodeJpg(resizedImage);
-
-      // Create a temporary file for the resized image
-      final tempDir = Directory.systemTemp;
-      tempFile = File('${tempDir.path}/resized_profile_picture.jpg');
-      await tempFile.writeAsBytes(resizedImageBytes);
-
-      // Upload the resized image to Firebase Storage
-      final storageRef = FirebaseStorage.instance.ref().child(
-          'profile_pictures/${DateTime.now().millisecondsSinceEpoch}.jpg');
-      final uploadTask = await storageRef.putFile(tempFile);
-      return await uploadTask.ref.getDownloadURL();
-    } catch (e) {
-      print("Error uploading image: $e");
-      return null;
-    } finally {
-      // Ensure the temporary file is deleted
-      if (tempFile != null && await tempFile.exists()) {
-        await tempFile.delete();
-      }
-    }
-  }
+  // Removed local upload; using ImageUploader.uploadProfileImage
 
   void _validateEmail() {
     final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
@@ -147,7 +110,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
       String? profilePictureUrl;
       if (_profileImage != null) {
-        profilePictureUrl = await _uploadImageToFirebase(_profileImage!);
+        profilePictureUrl = await ImageUploader.uploadProfileImage(file: _profileImage!);
       } else if (_generatedAvatarUrl != null) {
         profilePictureUrl = _generatedAvatarUrl;
       } else {
@@ -205,7 +168,6 @@ class _SignUpPageState extends State<SignUpPage> {
     final localizations = AppLocalizations.of(context);
     final bool isWideScreen =
         kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
-  // maxFormWidth no longer needed after refactor
 
     return Stack(
       children: [
@@ -304,6 +266,9 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildEmailPage(BuildContext context, AppLocalizations localizations) {
+    final textColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 500),
@@ -326,6 +291,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 child: TextField(
                   controller: emailController,
                   onChanged: (_) => _validateEmail(),
+                  style: TextStyle(color: textColor),
                   decoration: InputDecoration(
                     labelText: localizations.translate('email'),
                     border: const OutlineInputBorder(),
@@ -358,6 +324,9 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildPasswordPage(AppLocalizations localizations) {
+    final textColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
     final password = passwordController.text.trim();
     final confirmPassword = confirmPasswordController.text.trim();
 
@@ -405,6 +374,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 controller: passwordController,
                 obscureText: true,
                 onChanged: (_) => setState(() {}),
+                style: TextStyle(color: textColor),
                 decoration: InputDecoration(
                   labelText: localizations.translate('password'),
                   border: const OutlineInputBorder(),
@@ -441,6 +411,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 controller: confirmPasswordController,
                 obscureText: true,
                 onChanged: (_) => setState(() {}),
+                style: TextStyle(color: textColor),
                 decoration: InputDecoration(
                   labelText: localizations.translate('confirm_password'),
                   border: const OutlineInputBorder(),

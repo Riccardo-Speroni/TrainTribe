@@ -1,8 +1,10 @@
 // Removed unused dart:typed_data import
 import 'dart:io' show File; // For FileImage on non-web
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../utils/image_uploader.dart';
 import '../l10n/app_localizations.dart';
 
 /// Encapsulates the result of a profile image selection.
@@ -18,6 +20,9 @@ class ProfileImageSelection {
 
 typedef OnProfileImageSelection = Future<void> Function(ProfileImageSelection selection);
 
+/// Optional uploader signature: given an XFile returns a remote URL (or null if failed)
+typedef ProfileImageUploader = Future<String?> Function(XFile file);
+
 /// Reusable profile picture picker: shows current picture (or initials) and opens a dialog
 /// to pick from gallery, generate avatars, select one, or remove the existing picture.
 class ProfilePicturePicker extends StatefulWidget {
@@ -27,6 +32,9 @@ class ProfilePicturePicker extends StatefulWidget {
   final String? initialImageUrl; // Existing image URL or initials placeholder
   final double size;
   final OnProfileImageSelection onSelection;
+  final ProfileImageUploader? uploader; // If provided, widget uploads and returns generatedAvatarUrl as URL
+  final bool autoUpload; // When false, never uploads automatically (registration flow)
+  final int ringWidth; // >0 draw green ring like friends page
 
   /// Seed override for avatar generation (defaults to username or 'user').
   final String? seedOverride;
@@ -40,6 +48,9 @@ class ProfilePicturePicker extends StatefulWidget {
     required this.onSelection,
     this.size = 70,
     this.seedOverride,
+  this.uploader,
+  this.autoUpload = true,
+  this.ringWidth = 0,
   });
 
   @override
@@ -53,9 +64,42 @@ class _ProfilePicturePickerState extends State<ProfilePicturePicker> {
   bool _loadingAvatars = false;
   String? _selectedGeneratedAvatar;
   XFile? _pickedFile; // For preview before parent uploads
+  bool _uploading = false; // show progress when uploading
+  String? _uploadedUrl; // store uploaded url so preview uses it
+
+  Future<String?> _defaultUpload(XFile xf) => ImageUploader.uploadProfileImage(xfile: xf);
+
+  Future<void> _handlePickedFile(XFile picked) async {
+    setState(() {
+      _pickedFile = picked;
+      _selectedGeneratedAvatar = null;
+      _uploadedUrl = null;
+    });
+  if (widget.autoUpload && (widget.uploader != null || !kIsWeb)) {
+      setState(() { _uploading = true; });
+      final url = await (widget.uploader != null ? widget.uploader!(picked) : _defaultUpload(picked));
+      if (!mounted) return;
+      setState(() { _uploading = false; _uploadedUrl = url; });
+      if (url != null) {
+        await widget.onSelection(ProfileImageSelection(generatedAvatarUrl: url));
+        if (mounted) Navigator.of(context).maybePop();
+        return;
+      }
+    }
+    // Fallback: return raw file to parent if upload not performed or failed.
+    await widget.onSelection(ProfileImageSelection(pickedFile: picked));
+    if (mounted) Navigator.of(context).maybePop();
+  }
 
   Future<void> _generateAvatars({bool nextPage = false}) async {
-    final base = (widget.seedOverride ?? widget.username ?? widget.firstName ?? 'user').trim();
+    final base = (widget.seedOverride?.isNotEmpty ?? false
+        ? widget.seedOverride!
+        : (widget.username?.isNotEmpty ?? false
+            ? widget.username!
+            : (widget.firstName?.isNotEmpty ?? false
+                ? widget.firstName!
+                : 'user')))
+        .trim();
     if (base.isEmpty) return; // nothing to seed with
     setState(() { _loadingAvatars = true; if (!nextPage) _avatarUrls = []; });
     await Future.delayed(const Duration(milliseconds: 50));
@@ -74,15 +118,18 @@ class _ProfilePicturePickerState extends State<ProfilePicturePicker> {
   }
 
   Future<void> _pickImage(AppLocalizations l) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    XFile? picked;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS) {
+      final result = await FilePicker.platform.pickFiles(type: FileType.image);
+      if (result != null && result.files.single.path != null) {
+        picked = XFile(result.files.single.path!);
+      }
+    } else {
+      final picker = ImagePicker();
+      picked = await picker.pickImage(source: ImageSource.gallery);
+    }
     if (picked == null) return;
-    setState(() {
-      _pickedFile = picked;
-      _selectedGeneratedAvatar = null; // clear avatar selection
-    });
-    await widget.onSelection(ProfileImageSelection(pickedFile: picked));
-    if (mounted) Navigator.of(context).maybePop();
+  await _handlePickedFile(picked);
   }
 
   Future<void> _removeImage() async {
@@ -156,8 +203,10 @@ class _ProfilePicturePickerState extends State<ProfilePicturePicker> {
                             final url = _avatarUrls[i];
                             final selected = _selectedGeneratedAvatar == url;
                             return InkWell(
-                              onTap: () {
+                              onTap: () async {
                                 setStateLocal(() { _selectedGeneratedAvatar = url; _pickedFile = null; });
+                                // Salva immediatamente la selezione senza chiudere il popup
+                                await widget.onSelection(ProfileImageSelection(generatedAvatarUrl: url));
                               },
                               child: Stack(
                                 children: [
@@ -194,17 +243,15 @@ class _ProfilePicturePickerState extends State<ProfilePicturePicker> {
                           ),
                           const Spacer(),
                           TextButton(
-                            onPressed: () { setStateLocal(() { showAvatarPicker = false; }); },
-                            child: Text(l.translate('back')),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: _selectedGeneratedAvatar == null ? null : () async {
-                              final chosen = _selectedGeneratedAvatar!;
-                              await widget.onSelection(ProfileImageSelection(generatedAvatarUrl: chosen));
-                              if (mounted) Navigator.of(dialogCtx).pop();
+                            onPressed: () {
+                              if (_selectedGeneratedAvatar != null) {
+                                // Chiudi il popup se già selezionato
+                                Navigator.of(dialogCtx).pop();
+                              } else {
+                                setStateLocal(() { showAvatarPicker = false; });
+                              }
                             },
-                            child: Text(l.translate('save')),
+                            child: Text(_selectedGeneratedAvatar != null ? l.translate('finish') : l.translate('back')),
                           ),
                         ],
                       ),
@@ -233,13 +280,17 @@ class _ProfilePicturePickerState extends State<ProfilePicturePicker> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-  final displayImageProvider = _pickedFile != null
-    ? (_pickedFile!.path.isNotEmpty && !kIsWeb ? FileImage(File(_pickedFile!.path)) as ImageProvider : NetworkImage(_pickedFile!.path))
-        : (_selectedGeneratedAvatar != null
-            ? NetworkImage(_selectedGeneratedAvatar!)
-            : (widget.initialImageUrl != null && widget.initialImageUrl!.startsWith('http')
-                ? NetworkImage(widget.initialImageUrl!)
-                : null));
+  final displayImageProvider = _uploadedUrl != null
+    ? NetworkImage(_uploadedUrl!)
+    : (_selectedGeneratedAvatar != null
+      ? NetworkImage(_selectedGeneratedAvatar!)
+      : (_pickedFile != null
+        ? (_pickedFile!.path.isNotEmpty && !kIsWeb
+          ? FileImage(File(_pickedFile!.path)) as ImageProvider
+          : NetworkImage(_pickedFile!.path))
+        : (widget.initialImageUrl != null && widget.initialImageUrl!.startsWith('http')
+          ? NetworkImage(widget.initialImageUrl!)
+          : null)));
 
     // Fallback initials
     final initials = ((widget.firstName?.isNotEmpty ?? false) && (widget.lastName?.isNotEmpty ?? false))
@@ -250,19 +301,52 @@ class _ProfilePicturePickerState extends State<ProfilePicturePicker> {
 
     return InkWell(
       onTap: () => _showDialog(l),
+      // Rimuove il quadrato grigio/overlay su hover & splash
+      hoverColor: Colors.transparent,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      overlayColor: MaterialStateProperty.all(Colors.transparent),
+      customBorder: const CircleBorder(),
       child: Stack(
         alignment: Alignment.bottomRight,
         children: [
-          CircleAvatar(
-            radius: widget.size / 2,
-            backgroundImage: displayImageProvider,
-            backgroundColor: Colors.teal,
-            child: displayImageProvider == null
-                ? Text(
-                    initials.toUpperCase(),
-                    style: TextStyle(fontSize: widget.size / 2.2, color: Colors.white, fontWeight: FontWeight.bold),
-                  )
-                : null,
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                decoration: widget.ringWidth > 0
+                    ? BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Theme.of(context).colorScheme.primary, width: widget.ringWidth.toDouble()),
+                      )
+                    : null,
+                padding: EdgeInsets.zero,
+                child: CircleAvatar(
+                  radius: widget.size / 2,
+                  backgroundImage: displayImageProvider,
+                  backgroundColor: Colors.teal,
+                  child: displayImageProvider == null
+                      ? Text(
+                          initials.toUpperCase(),
+                          style: TextStyle(fontSize: widget.size / 2.2, color: Colors.white, fontWeight: FontWeight.bold),
+                        )
+                      : null,
+                ),
+              ),
+              if (_uploading)
+                Container(
+                  width: widget.size,
+                  height: widget.size,
+                  decoration: BoxDecoration(
+                    color: Colors.black45,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
+                  ),
+                ),
+            ],
           ),
           Positioned(
             right: 2,

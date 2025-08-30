@@ -185,12 +185,12 @@ def update_event_trip_options_logic(event, key, bucket_name):
         logging.error("No previous data found for event trip options update.")
         return
     else:
-        logging.error("BEFORE DATA: " + event.data.before.to_dict())
+        logging.error("BEFORE DATA: " + event.data.before)
     if event.data.after is None:
         logging.error("No new data found for event trip options update.")
         return
     else:
-        logging.error("AFTER DATA: " + event.data.after.to_dict())
+        logging.error("AFTER DATA: " + event.data.after)
 
     before = event.data.before.to_dict()
     after = event.data.after.to_dict()
@@ -199,7 +199,7 @@ def update_event_trip_options_logic(event, key, bucket_name):
     changed = any(before.get(k) != after.get(k) for k in keys)
 
     if not changed:
-        logging.warn("No relevant changes detected in event trip options.")
+        logging.warning("No relevant changes detected in event trip options.")
         return
     
     delete_event_trip_options_logic(event)

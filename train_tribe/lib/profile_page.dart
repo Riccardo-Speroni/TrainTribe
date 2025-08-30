@@ -54,46 +54,48 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return Center(child: Text(localizations.translate('error_loading_profile')));
+      return SafeArea(
+        child: Center(child: Text(localizations.translate('error_loading_profile'))),
+      );
     }
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const LoadingIndicator();
-        }
-        final data = snapshot.data!.data() ?? {};
-        final username = data['username'] ?? '';
-        final name = data['name'] ?? '';
-        final surname = data['surname'] ?? '';
-        final email = data['email'] ?? '';
-        final phone = data['phone'];
-        final picture = data['picture']; // URL or initials
+    return SafeArea(
+      child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const LoadingIndicator();
+          }
+          final data = snapshot.data!.data() ?? {};
+          final username = data['username'] ?? '';
+          final name = data['name'] ?? '';
+          final surname = data['surname'] ?? '';
+          final email = data['email'] ?? '';
+          final phone = data['phone'];
+          final picture = data['picture']; // URL or initials
 
-        // Responsive layout: two boxes (profile info + settings). Vertical on narrow, horizontal on wide.
-        final isWide = MediaQuery.of(context).size.width >= 700;
+          // Responsive layout: two boxes (profile info + settings). Vertical on narrow, horizontal on wide.
+          final isWide = MediaQuery.of(context).size.width >= 700;
 
-        Widget profileBox = _ProfileInfoBox(
-          username: username,
-          name: name,
-          surname: surname,
-          email: email,
-          phone: phone?.toString(),
-          picture: picture,
-          localizations: localizations,
-          onEditPicture: () => _showChangePictureDialog(localizations, username),
-          stacked: !isWide, // pass layout info
-        );
+          Widget profileBox = _ProfileInfoBox(
+            username: username,
+            name: name,
+            surname: surname,
+            email: email,
+            phone: phone?.toString(),
+            picture: picture,
+            localizations: localizations,
+            onEditPicture: () => _showChangePictureDialog(localizations, username),
+            stacked: !isWide, // pass layout info
+          );
 
-        return LayoutBuilder(builder: (ctx, constraints) {
-          // Common top-right controls (language + theme dropdowns)
-          Widget topRightControls = Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              // Lingua (icona)
-              Tooltip(
-                message: localizations.translate('language'),
-                child: PopupMenuButton<Locale>(
+          return LayoutBuilder(builder: (ctx, constraints) {
+            // Common top-right controls (language + theme dropdowns)
+            Widget topRightControls = Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Lingua (icona)
+                PopupMenuButton<Locale>(
+                  tooltip: localizations.translate('change_language'),
                   icon: const Icon(Icons.language),
                   onSelected: (loc) => _saveLanguagePreference(loc),
                   itemBuilder: (ctx) => [
@@ -119,12 +121,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 4),
-              // Tema (icona)
-              Tooltip(
-                message: localizations.translate('theme'),
-                child: ValueListenableBuilder<ThemeMode>(
+                const SizedBox(width: 2), // era 4, ora più stretto
+                // Tema (icona)
+                ValueListenableBuilder<ThemeMode>(
                   valueListenable: appTheme,
                   builder: (context, mode, _) {
                     IconData icon;
@@ -140,11 +139,10 @@ class _ProfilePageState extends State<ProfilePage> {
                         break;
                     }
                     return PopupMenuButton<ThemeMode>(
+                      tooltip: localizations.translate('change_theme'),
                       icon: Icon(icon),
                       onSelected: (m) {
-                        int idx = m == ThemeMode.light
-                            ? 0
-                            : (m == ThemeMode.dark ? 1 : 2);
+                        int idx = m == ThemeMode.light ? 0 : (m == ThemeMode.dark ? 1 : 2);
                         _saveThemePreference(idx);
                       },
                       itemBuilder: (ctx) => [
@@ -182,117 +180,128 @@ class _ProfilePageState extends State<ProfilePage> {
                     );
                   },
                 ),
-              ),
-            ],
-          );
-
-          // Bottom action buttons: equal width, edges aligned; wrap on very narrow
-          const double gap = 12;
-          const double targetWidth = 200; // larghezza desiderata massima
-          const double minBtnWidth = 130; // larghezza minima prima di andare a wrap
-          const double horizontalPadding = 32; // padding totale (16 + 16)
-          final double effectiveWidth = constraints.maxWidth - horizontalPadding;
-          final double available = effectiveWidth - gap;
-          double btnWidth = targetWidth;
-            if (available < targetWidth * 2) {
-              btnWidth = available / 2; // si adatta
-            }
-          final bool wrapLayout = (available / 2) < minBtnWidth; // troppo stretto per due affiancati
-
-          List<Widget> buildButtons(double width) => [
-                SizedBox(
-                  width: width,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.restart_alt),
-                    onPressed: () => _resetOnboarding(context, localizations),
-                    label: Text(
-                      localizations.translate('reset_onboarding'),
-                      softWrap: true,
-                      maxLines: 2,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: width,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.logout),
-                    onPressed: () async {
-                      await FirebaseAuth.instance.signOut();
-                      GoRouter.of(context).go('/login');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
-                    label: Text(
-                      localizations.translate('logout'),
-                      softWrap: true,
-                      maxLines: 2,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ];
-
-          Widget bottomActions;
-          if (wrapLayout) {
-            final buttons = buildButtons(double.infinity);
-            bottomActions = Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                buttons[0],
-                const SizedBox(height: gap),
-                buttons[1],
               ],
             );
-          } else {
-            final btns = buildButtons(btnWidth);
-            bottomActions = Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: btns,
-            );
-          }
 
-          if (isWide) {
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
+            // Bottom action buttons: equal width, edges aligned; wrap on very narrow
+            const double gap = 12;
+            const double targetWidth = 200; // larghezza desiderata massima
+            const double minBtnWidth = 130; // larghezza minima prima di andare a wrap
+            const double horizontalPadding = 32; // padding totale (16 + 16)
+            final double effectiveWidth = constraints.maxWidth - horizontalPadding;
+            final double available = effectiveWidth - gap;
+            double btnWidth = targetWidth;
+              if (available < targetWidth * 2) {
+                btnWidth = available / 2; // si adatta
+              }
+            final bool wrapLayout = (available / 2) < minBtnWidth; // troppo stretto per due affiancati
+
+            List<Widget> buildButtons(double width) => [
+                  SizedBox(
+                    width: width,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.restart_alt),
+                      onPressed: () => _resetOnboarding(context, localizations),
+                      label: Text(
+                        localizations.translate('reset_onboarding'),
+                        softWrap: true,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: width,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.logout),
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+                        GoRouter.of(context).go('/login');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      label: Text(
+                        localizations.translate('logout'),
+                        softWrap: true,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ];
+
+            Widget bottomActions;
+            if (wrapLayout) {
+              final buttons = buildButtons(double.infinity);
+              bottomActions = Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  topRightControls,
-                  const SizedBox(height: 16),
-                  profileBox,
-                  const SizedBox(height: 16),
-                  bottomActions,
+                  buttons[0],
+                  const SizedBox(height: gap),
+                  buttons[1],
                 ],
+              );
+            } else {
+              final btns = buildButtons(btnWidth);
+              bottomActions = Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: btns,
+              );
+            }
+
+            if (isWide) {
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: LayoutBuilder(
+                  builder: (ctx, constraints) {
+                    return SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            topRightControls,
+                            const SizedBox(height: 16),
+                            profileBox,
+                            const SizedBox(height: 16),
+                            bottomActions,
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            }
+
+            // Narrow layout scrollable
+            final content = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                topRightControls,
+                const SizedBox(height: 4), // era 16, ora più stretto
+                profileBox,
+                const SizedBox(height: 16),
+                bottomActions,
+              ],
+            );
+
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
+                  child: content,
+                ),
               ),
             );
-          }
-
-          // Narrow layout scrollable
-          final content = Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              topRightControls,
-              const SizedBox(height: 16),
-              profileBox,
-              const SizedBox(height: 16),
-              bottomActions,
-            ],
-          );
-
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
-                child: content,
-              ),
-            ),
-          );
-        });
-      },
+          });
+        },
+      ),
     );
   }
 }
@@ -336,6 +345,7 @@ class _ProfileInfoBox extends StatelessWidget {
                 lastName: surname,
                 username: username,
                 initialImageUrl: picture is String ? picture : null,
+                ringWidth: 5,
                 onSelection: (sel) async {
                   final user = FirebaseAuth.instance.currentUser;
                   if (user == null) return;
@@ -348,9 +358,6 @@ class _ProfileInfoBox extends StatelessWidget {
                     // Upload picked file (reuse existing method?) For simplicity, delegate to outer handler
                     // Not implemented here to avoid duplicating upload logic; could be extended.
                   }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(AppLocalizations.of(context).translate('saved'))),
-                  );
                 },
                 size: 120,
               ),
@@ -734,9 +741,6 @@ void _showEditPhoneDialog(BuildContext context, AppLocalizations l, String curre
                   await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'phone': e164});
                 }
                 Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l.translate('saved'))),
-                );
               },
               child: Text(l.translate('save')),
             ),
@@ -793,10 +797,7 @@ void _showEditSimpleFieldDialog(
     if (user != null) {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({fieldKey: raw});
     }
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.translate('saved'))),
-    );
+  Navigator.of(context).pop();
   }
 
 

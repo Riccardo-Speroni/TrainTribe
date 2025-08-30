@@ -5,6 +5,7 @@ class ProfilePicture extends StatelessWidget {
   final double size; // radius
   final VoidCallback? onTap;
   final bool showEditIcon;
+  final int ringWidth; // >0 draws green ring of this thickness
   // Fallback sources for initials if picture is null/empty or removed
   final String? firstName;
   final String? lastName;
@@ -19,13 +20,14 @@ class ProfilePicture extends StatelessWidget {
     this.firstName,
     this.lastName,
     this.username,
+    this.ringWidth = 0,
   });
 
   @override
   Widget build(BuildContext context) {
   final bool hasNetwork = picture != null && picture!.startsWith('http');
     final String initials = _buildInitials();
-    final avatar = CircleAvatar(
+    final avatarCore = CircleAvatar(
       radius: size,
       backgroundColor: Colors.teal,
       foregroundImage: hasNetwork ? NetworkImage(picture!) : null,
@@ -37,13 +39,23 @@ class ProfilePicture extends StatelessWidget {
                 initials,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: size, // larger, FittedBox scales
+                  fontSize: size,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
                 ),
               ),
             ),
     );
+
+    final avatar = ringWidth > 0
+        ? Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Theme.of(context).colorScheme.primary, width: ringWidth.toDouble()),
+            ),
+            child: ClipOval(child: avatarCore),
+          )
+        : avatarCore;
 
     return Stack(
       clipBehavior: Clip.none,
