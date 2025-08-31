@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/calendar_event.dart';
+import '../../models/calendar_event.dart';
 
 class CalendarEventWidget extends StatelessWidget {
   final double left;

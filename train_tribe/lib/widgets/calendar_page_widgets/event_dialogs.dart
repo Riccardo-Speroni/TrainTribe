@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../l10n/app_localizations.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/calendar_event.dart';
-import '../utils/calendar_functions.dart';
+import '../../models/calendar_event.dart';
+import '../../utils/calendar_functions.dart';
 
 const double stationListMaxHeight = 290;
 
