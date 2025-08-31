@@ -123,7 +123,7 @@ class CalendarDayColumn extends StatelessWidget {
           int eventStartIndex = overlappingEvent.hour - hours.first;
 
           // Font size scales with event box width
-          double eventFontSize = widthFactor * 0.10;
+          double eventFontSize = widthFactor * 0.09;
           if (eventFontSize < 8) eventFontSize = 8; // minimum font size
 
           eventWidgets.add(
