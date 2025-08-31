@@ -75,7 +75,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         actions: [
-          // Show language dropdown only on first page, else show Skip
+          // First page: language selector
           if (_currentPage == 0)
             Padding(
               padding: const EdgeInsets.only(right: 4.0),
@@ -100,6 +100,17 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     child: const Text('Italiano'),
                   ),
                 ],
+              ),
+            )
+          else if (isMobile)
+            TextButton(
+              onPressed: _currentPage == onboardingData.length - 1
+                  ? completeOnboarding
+                  : skipOnboarding,
+              child: Text(
+                localizations.translate(
+                    _currentPage == onboardingData.length - 1 ? 'finish' : 'skip'),
+                style: TextStyle(color: Theme.of(context).colorScheme.primary),
               ),
             )
           else
@@ -200,11 +211,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           ? localizations.translate('finish')
                           : localizations.translate('next'),
                     ),
-                  )
-                else if (_currentPage == onboardingData.length - 1)
-                  TextButton(
-                    onPressed: completeOnboarding,
-                    child: Text(localizations.translate('finish')),
                   )
                 else
                   const SizedBox(width: 64),

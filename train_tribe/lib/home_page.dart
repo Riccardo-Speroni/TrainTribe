@@ -138,6 +138,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 31),
               Text(localizations.translate(selectedMoodQuestionKey),
                   style: const TextStyle(fontSize: 24)),
+              const SizedBox(height: 24),
               SizedBox(
                 width: 260,
                 child: AnimatedToggleSwitch<bool>.dual(

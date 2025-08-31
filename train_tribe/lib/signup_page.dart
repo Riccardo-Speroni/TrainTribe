@@ -9,6 +9,7 @@ import 'utils/firebase_exception_handler.dart';
 import 'utils/loading_indicator.dart';
 import 'widgets/user_details_page.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'widgets/logo_pattern_background.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -167,10 +168,14 @@ class _SignUpPageState extends State<SignUpPage> {
     final localizations = AppLocalizations.of(context);
     final bool isWideScreen =
         kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
-
-    return Stack(
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+  // Build main signup content stack (form + loading overlay)
+  final Widget contentStack = Stack(
       children: [
-        Scaffold(
+    Scaffold(
+      backgroundColor: isWideScreen
+        ? Colors.transparent
+        : (isDark ? Colors.black : Colors.white),
           body: Center(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
@@ -179,47 +184,51 @@ class _SignUpPageState extends State<SignUpPage> {
                       constraints: const BoxConstraints(maxWidth: 500),
                       child: Card(
                         elevation: 2,
+                        shadowColor: Theme.of(context).colorScheme.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
-                          side: const BorderSide(
-                            color: Colors.green,
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
                             width: 2,
                           ),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 32.0, horizontal: 32.0),
-                          child: SingleChildScrollView(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Mostra solo la pagina corrente, niente PageView/Expanded
-                                if (_currentPage == 0)
-                                  _buildEmailPage(context, localizations)
-                                else if (_currentPage == 1)
-                                  _buildPasswordPage(localizations)
-                                else if (_currentPage == 2)
-                                  _buildUserDetailsPage(localizations),
-                                if (_currentPage == 0)
-                                  Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        GoRouter.of(context).go('/login');
-                                      },
-                                      child: Text(
-                                        localizations
-                                            .translate('already_have_account'),
-                                        style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary,
-                                          fontWeight: FontWeight.bold,
+                        child: SizedBox(
+                          width: 500,
+                          height: _currentPage < 2 ? 560 : null,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 32.0, horizontal: 32.0),
+                            child: SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_currentPage == 0)
+                                    _buildEmailPage(context, localizations)
+                                  else if (_currentPage == 1)
+                                    _buildPasswordPage(localizations)
+                                  else if (_currentPage == 2)
+                                    _buildUserDetailsPage(localizations),
+                                  if (_currentPage == 0)
+                                    Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          GoRouter.of(context).go('/login');
+                                        },
+                                        child: Text(
+                                          localizations
+                                              .translate('already_have_account'),
+                                          style: TextStyle(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -238,22 +247,22 @@ class _SignUpPageState extends State<SignUpPage> {
                             ],
                           ),
                         ),
-                        if (_currentPage == 0)
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: GestureDetector(
-                              onTap: () {
-                                GoRouter.of(context).go('/login');
-                              },
-                              child: Text(
-                                localizations.translate('already_have_account'),
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                        Padding(
+                          padding: const EdgeInsets.only(left:16,right:16,bottom:24, top: 8),
+                          child: GestureDetector(
+                            onTap: () {
+                              GoRouter.of(context).go('/login');
+                            },
+                            child: Text(
+                              localizations.translate('already_have_account'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
+                        ),
                       ],
                     ),
             ),
@@ -262,31 +271,34 @@ class _SignUpPageState extends State<SignUpPage> {
         if (_isLoading) const LoadingIndicator(), // Show loading indicator
       ],
     );
+    // Apply pattern background only on desktop/web (non mobile)
+    if (isWideScreen) {
+      return LogoPatternBackground(child: contentStack);
+    }
+    return contentStack;
   }
 
   Widget _buildEmailPage(BuildContext context, AppLocalizations localizations) {
     final textColor = Theme.of(context).brightness == Brightness.dark
         ? Colors.white
         : Colors.black;
-    return Center(
-      child: ConstrainedBox(
+    final bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
+    final content = ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 500),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: 180,
-                child: Image.asset('images/logo.png', height: 200),
-              ),
+              Image.asset('images/logo.png', height: 100),
               const SizedBox(height: 20),
               Text(localizations.translate('enter_email'),
                   style: const TextStyle(
                       fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
               SizedBox(
-                width: 350,
+                width: 320,
                 child: TextField(
                   controller: emailController,
                   onChanged: (_) => _validateEmail(),
@@ -302,7 +314,7 @@ class _SignUpPageState extends State<SignUpPage> {
               ),
               const SizedBox(height: 30),
               SizedBox(
-                width: 350,
+                width: 320,
                 height: 40,
                 child: ElevatedButton(
                   onPressed: isEmailValid ? _nextPage : null,
@@ -318,14 +330,16 @@ class _SignUpPageState extends State<SignUpPage> {
             ],
           ),
         ),
-      ),
-    );
+      );
+    if (isWideScreen) return Center(child: content);
+    return Align(alignment: Alignment.topCenter, child: content);
   }
 
   Widget _buildPasswordPage(AppLocalizations localizations) {
     final textColor = Theme.of(context).brightness == Brightness.dark
         ? Colors.white
         : Colors.black;
+    final bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
     final password = passwordController.text.trim();
     final confirmPassword = confirmPasswordController.text.trim();
 
@@ -345,13 +359,13 @@ class _SignUpPageState extends State<SignUpPage> {
           passwordsMatch;
     });
 
-    return Center(
-      child: ConstrainedBox(
+  final content = ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 500),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
             children: [
               Align(
                 alignment: Alignment.topLeft,
@@ -369,14 +383,17 @@ class _SignUpPageState extends State<SignUpPage> {
                     const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
-              TextField(
-                controller: passwordController,
-                obscureText: true,
-                onChanged: (_) => setState(() {}),
-                style: TextStyle(color: textColor),
-                decoration: InputDecoration(
-                  labelText: localizations.translate('password'),
-                  border: const OutlineInputBorder(),
+              SizedBox(
+                width: 320,
+                child: TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  onChanged: (_) => setState(() {}),
+                  style: TextStyle(color: textColor),
+                  decoration: InputDecoration(
+                    labelText: localizations.translate('password'),
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -406,19 +423,22 @@ class _SignUpPageState extends State<SignUpPage> {
                 ],
               ),
               const SizedBox(height: 20),
-              TextField(
-                controller: confirmPasswordController,
-                obscureText: true,
-                onChanged: (_) => setState(() {}),
-                style: TextStyle(color: textColor),
-                decoration: InputDecoration(
-                  labelText: localizations.translate('confirm_password'),
-                  border: const OutlineInputBorder(),
+              SizedBox(
+                width: 320,
+                child: TextField(
+                  controller: confirmPasswordController,
+                  obscureText: true,
+                  onChanged: (_) => setState(() {}),
+                  style: TextStyle(color: textColor),
+                  decoration: InputDecoration(
+                    labelText: localizations.translate('confirm_password'),
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
               ),
               const SizedBox(height: 30),
               SizedBox(
-                width: 350,
+                width: 320,
                 height: 40,
                 child: ElevatedButton(
                   onPressed: arePasswordsValid ? _nextPage : null,
@@ -436,8 +456,9 @@ class _SignUpPageState extends State<SignUpPage> {
             ],
           ),
         ),
-      ),
-    );
+      );
+    if (isWideScreen) return Center(child: content);
+    return Align(alignment: Alignment.topCenter, child: content);
   }
 
   Widget _buildPasswordCondition(String text, bool condition) {

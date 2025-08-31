@@ -667,13 +667,20 @@ class FriendsSearchContainer extends StatelessWidget {
                       user['username'] ?? '',
                       overflow: TextOverflow.ellipsis,
                     ),
-                    trailing: sentRequests.contains(user['uid'])
-                        ? const Icon(Icons.check, color: Colors.green)
-                        : IconButton(
-                            icon: const Icon(Icons.add, color: Colors.green),
-                            tooltip: localizations.translate('add_friend'),
-                            onPressed: () => onSendFriendRequest(user['uid']),
-                          ),
+                    trailing: IconButton(
+                      icon: Icon(
+                        sentRequests.contains(user['uid'])
+                            ? Icons.check
+                            : Icons.add,
+                        color: Colors.green,
+                      ),
+                      tooltip: sentRequests.contains(user['uid'])
+                          ? localizations.translate('friend_request_sent')
+                          : localizations.translate('add_friend'),
+                      onPressed: sentRequests.contains(user['uid'])
+                          ? null
+                          : () => onSendFriendRequest(user['uid']),
+                    ),
                   ),
                 )),
           ],

@@ -299,7 +299,7 @@ class _RootPageState extends State<RootPage> {
   Widget build(BuildContext context) {
     final titles = pageTitles(context);
     final width = MediaQuery.of(context).size.width;
-    const railThreshold = 800.0;   // da questa larghezza in su mostra la rail
+    const railThreshold = 600.0;   // da questa larghezza in su mostra la rail
     final bool useRail = width >= railThreshold;
     // Stato extended determinato solo dal toggle manuale ora
     final bool extended = railExpanded;
