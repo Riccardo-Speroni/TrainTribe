@@ -17,7 +17,8 @@ import 'dart:convert';
 import 'utils/station_names.dart' as default_data;
 
 class CalendarPage extends StatefulWidget {
-  const CalendarPage({super.key});
+  final bool railExpanded;
+  const CalendarPage({super.key, required this.railExpanded});
 
   @override
   _CalendarPageState createState() => _CalendarPageState();
@@ -410,10 +411,12 @@ class _CalendarPageState extends State<CalendarPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     List<CalendarEvent> loadedEvents = await fetchEventsFromFirebase(user.uid);
-    setState(() {
-      events.clear();
-      events.addAll(loadedEvents);
-    });
+    if (mounted) {
+      setState(() {
+        events.clear();
+        events.addAll(loadedEvents);
+      });
+    }
   }
 
   Future<void> _loadStationNames(bool download) async {
@@ -606,7 +609,8 @@ class _CalendarPageState extends State<CalendarPage> {
                                         onLongPressEnd: _handleLongPressEnd,
                                         scrollController: _dayColumnsController,
                                         pageIndex: pageIndex,
-                                        isPastDay: isPastDay, // <--- AGGIUNGI QUESTA RIGA
+                                        isPastDay: isPastDay,
+                                        isRailExpanded: widget.railExpanded,
                                       ),
                                     );
                                   }).toList(),

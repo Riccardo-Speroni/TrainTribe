@@ -122,48 +122,53 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
 
-    return Center(
-      child: Column(
-        children: [
-          const Spacer(flex: 1),
-          Image.asset(
-            'images/logo.png',
-            height: 300,
-            width: 300,
-          ),
-          const Spacer(flex: 2),
-          Text(localizations.translate(selectedMoodQuestionKey),
-              style: const TextStyle(fontSize: 24)),
-          SizedBox(
-            width: 260, // larghezza aumentata
-            child: AnimatedToggleSwitch<bool>.dual(
-              current: isSwitch,
-              first: false,
-              second: true,
-              spacing: 100.0, // maggiore distanza per rendere il toggle più largo
-              style: ToggleStyle(
-                indicatorColor: const Color.fromARGB(255, 255, 255, 255),
-                backgroundColor: _bgIsOn
-                    ? Theme.of(context).colorScheme.primary.withOpacity(0.18)
-                    : Theme.of(context).colorScheme.error.withOpacity(0.18),
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 24),
+              Image.asset(
+                'images/logo.png',
+                height: 300,
+                width: 300,
               ),
-              borderWidth: 4.0,
-              customIconBuilder: (context, local, global) {
-                final value = local.value;
-                return Icon(
-                  value ? Icons.groups : Icons.person_outline,
-                  color: value ? Colors.green : Colors.red,
-                  size: 34,
-                );
-              },
-              height: 70,
-              onChanged: (b) => _onToggle(b),
-              animationCurve: Curves.easeInOut,
-              animationDuration: const Duration(milliseconds: 300),
-            ),
+              const SizedBox(height: 32),
+              Text(localizations.translate(selectedMoodQuestionKey),
+                  style: const TextStyle(fontSize: 24)),
+              SizedBox(
+                width: 260,
+                child: AnimatedToggleSwitch<bool>.dual(
+                  current: isSwitch,
+                  first: false,
+                  second: true,
+                  spacing: 100.0,
+                  style: ToggleStyle(
+                    indicatorColor: const Color.fromARGB(255, 255, 255, 255),
+                    backgroundColor: _bgIsOn
+                        ? Theme.of(context).colorScheme.primary.withOpacity(0.18)
+                        : Theme.of(context).colorScheme.error.withOpacity(0.18),
+                  ),
+                  borderWidth: 4.0,
+                  customIconBuilder: (context, local, global) {
+                    final value = local.value;
+                    return Icon(
+                      value ? Icons.groups : Icons.person_outline,
+                      color: value ? Colors.green : Colors.red,
+                      size: 34,
+                    );
+                  },
+                  height: 70,
+                  onChanged: (b) => _onToggle(b),
+                  animationCurve: Curves.easeInOut,
+                  animationDuration: const Duration(milliseconds: 300),
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
           ),
-          const Spacer(flex: 2),
-        ],
+        ),
       ),
     );
   }

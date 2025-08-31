@@ -281,14 +281,6 @@ class RootPage extends StatefulWidget {
 
 class _RootPageState extends State<RootPage> {
   int currentPage = 0;
-  List<Widget> pages = const [
-    HomePage(),
-    FriendsPage(),
-    TrainsPage(),
-    CalendarPage(),
-    ProfilePage(),
-  ];
-
   // Stato per l'espansione manuale della rail quando non si è ancora nella soglia extended
   bool railExpanded = false;
 
@@ -311,6 +303,14 @@ class _RootPageState extends State<RootPage> {
     final bool useRail = width >= railThreshold;
     // Stato extended determinato solo dal toggle manuale ora
     final bool extended = railExpanded;
+
+    List<Widget> pages = [
+      const HomePage(),
+      const FriendsPage(),
+      const TrainsPage(),
+      CalendarPage(railExpanded: railExpanded),
+      const ProfilePage(),
+    ];
 
     if (useRail) {
       // Rail personalizzata sempre comprimibile/espandibile
