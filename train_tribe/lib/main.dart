@@ -29,9 +29,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
 
-  // Imposta la dimensione minima della finestra solo su piattaforme desktop
+  // Set the minimum window size only on desktop platforms
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    setWindowMinSize(const Size(400, 600)); // Dimensione minima: 400x600
+    setWindowMinSize(const Size(800, 500));
   }
 
   final String? languageCode = prefs.getString('language_code');
@@ -281,14 +281,6 @@ class RootPage extends StatefulWidget {
 
 class _RootPageState extends State<RootPage> {
   int currentPage = 0;
-  List<Widget> pages = const [
-    HomePage(),
-    FriendsPage(),
-    TrainsPage(),
-    CalendarPage(),
-    ProfilePage(),
-  ];
-
   // Stato per l'espansione manuale della rail quando non si è ancora nella soglia extended
   bool railExpanded = false;
 
@@ -311,6 +303,14 @@ class _RootPageState extends State<RootPage> {
     final bool useRail = width >= railThreshold;
     // Stato extended determinato solo dal toggle manuale ora
     final bool extended = railExpanded;
+
+    List<Widget> pages = [
+      const HomePage(),
+      const FriendsPage(),
+      const TrainsPage(),
+      CalendarPage(railExpanded: railExpanded),
+      const ProfilePage(),
+    ];
 
     if (useRail) {
       // Rail personalizzata sempre comprimibile/espandibile

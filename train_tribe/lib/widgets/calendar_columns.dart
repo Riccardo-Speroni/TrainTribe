@@ -20,7 +20,8 @@ class CalendarDayColumn extends StatelessWidget {
   final void Function(DateTime) onLongPressEnd;
   final ScrollController scrollController;
   final int pageIndex;
-  final bool isPastDay; // <--- AGGIUNTO
+  final bool isPastDay;
+  final bool isRailExpanded;
 
   const CalendarDayColumn({
     super.key,
@@ -40,7 +41,8 @@ class CalendarDayColumn extends StatelessWidget {
     required this.onLongPressEnd,
     required this.scrollController,
     required this.pageIndex,
-    required this.isPastDay, // <--- AGGIUNTO
+    required this.isPastDay,
+    required this.isRailExpanded,
   });
 
   @override
@@ -50,6 +52,11 @@ class CalendarDayColumn extends StatelessWidget {
     int index = 0;
 
     int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
+    
+    int correctionFactor = isRailExpanded
+        ? (MediaQuery.of(context).size.width > 600 ? 38 : 30)
+        : (MediaQuery.of(context).size.width > 600 ? 24 : 30);
+
     double cellWidth = MediaQuery.of(context).size.width / daysToShow;
 
     List<CalendarEvent> dayEvents = events
@@ -106,15 +113,18 @@ class CalendarDayColumn extends StatelessWidget {
         }).toList();
 
         int totalOverlapping = overlappingEvents.isNotEmpty ? overlappingEvents.length : 1;
-        int correctionFactor = MediaQuery.of(context).size.width > 600 ? 12 : 30;
         double widthFactor = (cellWidth - correctionFactor) / totalOverlapping;
 
         for (int i = 0; i < overlappingEvents.length; i++) {
           CalendarEvent overlappingEvent = overlappingEvents[i];
           bool isBeingDragged = draggedEvent == overlappingEvent;
 
-          // Calcola l'indice di inizio slot per l'evento
+          // Calculate the start slot index for the event
           int eventStartIndex = overlappingEvent.hour - hours.first;
+
+          // Font size scales with event box width
+          double eventFontSize = widthFactor * 0.10;
+          if (eventFontSize < 8) eventFontSize = 8; // minimum font size
 
           eventWidgets.add(
             Positioned(
@@ -165,9 +175,9 @@ class CalendarDayColumn extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      '${overlappingEvent.departureStation} - ${overlappingEvent.arrivalStation}',
+                      '${overlappingEvent.departureStation}\n-\n${overlappingEvent.arrivalStation}',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: eventFontSize,
                         color: Theme.of(context).brightness == Brightness.dark
                             ? Colors.white
                             : Colors.white,
