@@ -29,9 +29,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
 
-  // Imposta la dimensione minima della finestra solo su piattaforme desktop
+  // Set the minimum window size only on desktop platforms
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    setWindowMinSize(const Size(400, 600)); // Dimensione minima: 400x600
+    setWindowMinSize(const Size(800, 500));
   }
 
   final String? languageCode = prefs.getString('language_code');
