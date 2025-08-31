@@ -127,11 +127,10 @@ class _HomePageState extends State<HomePage> {
         children: [
           const Spacer(flex: 1),
           Image.asset(
-            'images/logo.png',
-            height: 300,
+            'images/complete_logo.png',
             width: 300,
           ),
-          const Spacer(flex: 2),
+          const Spacer(flex: 1),
           Text(localizations.translate(selectedMoodQuestionKey),
               style: const TextStyle(fontSize: 24)),
           SizedBox(
