@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/calendar_event.dart';
+import '../../models/calendar_event.dart';
 import 'calendar_cells.dart';
-import '../utils/calendar_functions.dart';
+import '../../utils/calendar_functions.dart';
 import 'calendar_event_widget.dart';
 
 class CalendarDayColumn extends StatelessWidget {

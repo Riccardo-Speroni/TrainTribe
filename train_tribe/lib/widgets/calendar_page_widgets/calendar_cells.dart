@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/calendar_event.dart';
-import '../utils/calendar_functions.dart';
+import '../../models/calendar_event.dart';
+import '../../utils/calendar_functions.dart';
 
 class CalendarEmptyCell extends StatelessWidget {
   final int cellIndex;
