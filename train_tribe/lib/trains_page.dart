@@ -289,7 +289,7 @@ class _TrainsPageState extends State<TrainsPage> {
                             // Departure/arrival time: time the user boards/alights (match stop_id with 'from'/'to')
                             String departureTime = '';
                             String arrivalTime = '';
-                            String _toHHmm(dynamic t) {
+                            String toHHmm(dynamic t) {
                               final s = (t ?? '').toString();
                               return s.length >= 5 ? s.substring(0, 5) : s;
                             }
@@ -309,14 +309,14 @@ class _TrainsPageState extends State<TrainsPage> {
                                   (s) => ((s as Map)['stop_id'] ?? '').toString() == firstFromId,
                                   orElse: () => firstStops.first,
                                 )) as Map<String, dynamic>;
-                                departureTime = _toHHmm(boardStop['departure_time'] ?? boardStop['arrival_time']);
+                                departureTime = toHHmm(boardStop['departure_time'] ?? boardStop['arrival_time']);
                               }
                               if (lastStops.isNotEmpty) {
                                 final Map<String, dynamic> alightStop = (lastStops.firstWhere(
                                   (s) => ((s as Map)['stop_id'] ?? '').toString() == lastToId,
                                   orElse: () => lastStops.last,
                                 )) as Map<String, dynamic>;
-                                arrivalTime = _toHHmm(alightStop['arrival_time'] ?? alightStop['departure_time']);
+                                arrivalTime = toHHmm(alightStop['arrival_time'] ?? alightStop['departure_time']);
                               }
                             }
                             // isDirect: only one leg

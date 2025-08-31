@@ -18,6 +18,8 @@ class _HomePageState extends State<HomePage> {
   bool isSwitch = false;
   // loading removed
   Timer? _debounceTimer;
+  Timer? _colorChangeTimer; // timer to delay bg color swap until animation end
+  bool _bgIsOn = false; // background color state applied after animation
 
   final List<String> moodQuestionsKeys = [
     'mood_question_1',
@@ -83,6 +85,12 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       isSwitch = value;
     });
+    // Delay visual background color change until animation completes (300ms)
+    _colorChangeTimer?.cancel();
+    _colorChangeTimer = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() => _bgIsOn = value);
+    });
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
       try {
@@ -106,6 +114,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
+  _colorChangeTimer?.cancel();
     super.dispose();
   }
 
@@ -132,8 +141,11 @@ class _HomePageState extends State<HomePage> {
               first: false,
               second: true,
               spacing: 100.0, // maggiore distanza per rendere il toggle più largo
-              style: const ToggleStyle(
-                indicatorColor: Color.fromARGB(255, 255, 255, 255),
+              style: ToggleStyle(
+                indicatorColor: const Color.fromARGB(255, 255, 255, 255),
+                backgroundColor: _bgIsOn
+                    ? Theme.of(context).colorScheme.primary.withOpacity(0.18)
+                    : Theme.of(context).colorScheme.error.withOpacity(0.18),
               ),
               borderWidth: 4.0,
               customIconBuilder: (context, local, global) {

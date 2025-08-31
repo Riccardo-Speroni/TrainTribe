@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:timelines_plus/timelines_plus.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import '../utils/profile_picture_widget.dart';

@@ -8,7 +8,6 @@ import 'l10n/app_localizations.dart';
 import 'utils/firebase_exception_handler.dart';
 import 'utils/loading_indicator.dart';
 import 'widgets/user_details_page.dart';
-import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class SignUpPage extends StatefulWidget {

@@ -298,7 +298,7 @@ class _ProfilePicturePickerState extends State<ProfilePicturePicker> {
       hoverColor: Colors.transparent,
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
-      overlayColor: MaterialStateProperty.all(Colors.transparent),
+      overlayColor: WidgetStateProperty.all(Colors.transparent),
       customBorder: const CircleBorder(),
       child: Stack(
         alignment: Alignment.bottomRight,
