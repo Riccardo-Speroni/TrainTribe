@@ -36,6 +36,8 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     selectedMoodQuestionKey =
         moodQuestionsKeys[Random().nextInt(moodQuestionsKeys.length)];
+  // Ensure background matches initial switch value.
+  _bgIsOn = isSwitch;
     _loadMood();
   }
 
@@ -53,6 +55,7 @@ class _HomePageState extends State<HomePage> {
         if (mounted) {
           setState(() {
             isSwitch = mood == null ? true : (mood as bool);
+            _bgIsOn = isSwitch; // keep background in sync on load
           });
         }
         // Create field if missing
@@ -71,6 +74,7 @@ class _HomePageState extends State<HomePage> {
         if (mounted) {
           setState(() {
             isSwitch = true;
+            _bgIsOn = true;
           });
         }
       }
@@ -82,14 +86,10 @@ class _HomePageState extends State<HomePage> {
   void _onToggle(bool value) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    // Update switch and background immediately to avoid desync.
     setState(() {
       isSwitch = value;
-    });
-    // Delay visual background color change until animation completes (300ms)
-    _colorChangeTimer?.cancel();
-    _colorChangeTimer = Timer(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      setState(() => _bgIsOn = value);
+      _bgIsOn = value;
     });
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
@@ -101,6 +101,7 @@ class _HomePageState extends State<HomePage> {
       } catch (e) {
         if (mounted) {
           setState(() => isSwitch = !value); // revert
+          _bgIsOn = isSwitch; // keep bg consistent on revert
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text(AppLocalizations.of(context)
@@ -154,10 +155,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                   borderWidth: 4.0,
                   customIconBuilder: (context, local, global) {
-                    final value = local.value;
                     return Icon(
-                      value ? Icons.groups : Icons.person_outline,
-                      color: value ? Colors.green : Colors.red,
+                      isSwitch ? Icons.groups : Icons.person_outline,
+                      color: isSwitch ? Colors.green : Colors.red,
                       size: 34,
                     );
                   },
