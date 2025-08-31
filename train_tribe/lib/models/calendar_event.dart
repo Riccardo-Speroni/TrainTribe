@@ -30,7 +30,7 @@ class CalendarEvent {
     this.recurrenceEndDate,
   }) : id = id ?? const Uuid().v4(); // Generate a unique ID if not provided
 
-  // Factory per creare un evento da un documento Firebase
+  // Factory to create an event from a Firebase document
   factory CalendarEvent.fromFirestore(String id, Map<String, dynamic> data) {
     final DateTime start = (data['event_start'] as Timestamp).toDate();
     final DateTime end = (data['event_end'] as Timestamp).toDate();
