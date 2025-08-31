@@ -416,17 +416,21 @@ class _SignUpPageState extends State<SignUpPage> {
                   border: const OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: arePasswordsValid ? _nextPage : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: arePasswordsValid
-                      ? Theme.of(context).colorScheme.primary
-                      : Colors.grey,
-                ),
-                child: Text(
-                  localizations.translate('next'),
-                  style: TextStyle(color: Colors.white),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: 350,
+                height: 40,
+                child: ElevatedButton(
+                  onPressed: arePasswordsValid ? _nextPage : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: arePasswordsValid
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.grey,
+                  ),
+                  child: Text(
+                    localizations.translate('next'),
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
             ],

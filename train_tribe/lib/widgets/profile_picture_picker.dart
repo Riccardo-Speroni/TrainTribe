@@ -92,7 +92,14 @@ class _ProfilePicturePickerState extends State<ProfilePicturePicker> {
   }
 
   Future<void> _generateAvatars({bool nextPage = false}) async {
-    final base = (widget.seedOverride ?? widget.username ?? widget.firstName ?? 'user').trim();
+    final base = (widget.seedOverride?.isNotEmpty ?? false
+        ? widget.seedOverride!
+        : (widget.username?.isNotEmpty ?? false
+            ? widget.username!
+            : (widget.firstName?.isNotEmpty ?? false
+                ? widget.firstName!
+                : 'user')))
+        .trim();
     if (base.isEmpty) return; // nothing to seed with
     setState(() { _loadingAvatars = true; if (!nextPage) _avatarUrls = []; });
     await Future.delayed(const Duration(milliseconds: 50));
