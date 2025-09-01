@@ -44,7 +44,7 @@ class _LoginPageState extends State<LoginPage>
     _opacityAnimation =
         Tween<double>(begin: 0.5, end: 1.0).animate(_animationController);
 
-  // Particles generated inside LayoutBuilder for actual size (to avoid overlaps)
+    // Particles generated inside LayoutBuilder for actual size (to avoid overlaps)
   }
 
   bool _isValidEmail(String email) {
@@ -215,37 +215,63 @@ class _LoginPageState extends State<LoginPage>
     final localizations = AppLocalizations.of(context);
 
     // Imposta la larghezza massima su desktop/web
-    final bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
+    final bool isWideScreen =
+        kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
     final double maxFormWidth = isWideScreen ? 400.0 : double.infinity;
-  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     final contentStack = Stack(
       children: [
-    Scaffold(
-      backgroundColor: isWideScreen
-        ? Colors.transparent // pattern shows on desktop/web
-        : (isDark ? Colors.black : Colors.white),
-            body: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: isWideScreen
-                    ? Card(
-                        elevation: 2,
-                        shadowColor: Theme.of(context).colorScheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2,
+        Scaffold(
+          backgroundColor: isWideScreen
+              ? Colors.transparent // pattern shows on desktop/web
+              : (isDark ? Colors.black : Colors.white),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: isWideScreen
+                  ? Card(
+                      elevation: 2,
+                      shadowColor: Theme.of(context).colorScheme.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                      child: SizedBox(
+                        width: 500,
+                        height: 560,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 32.0, horizontal: 32.0),
+                          child: SingleChildScrollView(
+                            child: _LoginForm(
+                              localizations: localizations,
+                              emailController: emailController,
+                              passwordController: passwordController,
+                              showEmailError: showEmailError,
+                              isButtonEnabled: isButtonEnabled,
+                              opacityAnimation: _opacityAnimation,
+                              loginWithEmailAndPassword:
+                                  _loginWithEmailAndPassword,
+                              loginWithGoogle: _loginWithGoogle,
+                              loginWithFacebook: _loginWithFacebook,
+                              isWideScreen: isWideScreen,
+                            ),
                           ),
                         ),
-                        child: SizedBox(
-                          width: 500,
-                          height: 560,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 32.0, horizontal: 32.0),
-                            child: SingleChildScrollView(
+                      ),
+                    )
+                  : SafeArea(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: maxFormWidth,
+                        ),
+                        child: Column(
+                          children: [
+                            Expanded(
                               child: _LoginForm(
                                 localizations: localizations,
                                 emailController: emailController,
@@ -253,43 +279,20 @@ class _LoginPageState extends State<LoginPage>
                                 showEmailError: showEmailError,
                                 isButtonEnabled: isButtonEnabled,
                                 opacityAnimation: _opacityAnimation,
-                                loginWithEmailAndPassword: _loginWithEmailAndPassword,
+                                loginWithEmailAndPassword:
+                                    _loginWithEmailAndPassword,
                                 loginWithGoogle: _loginWithGoogle,
                                 loginWithFacebook: _loginWithFacebook,
                                 isWideScreen: isWideScreen,
                               ),
                             ),
-                          ),
-                        ),
-                      )
-                    : SafeArea(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: maxFormWidth,
-                          ),
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: _LoginForm(
-                                  localizations: localizations,
-                                  emailController: emailController,
-                                  passwordController: passwordController,
-                                  showEmailError: showEmailError,
-                                  isButtonEnabled: isButtonEnabled,
-                                  opacityAnimation: _opacityAnimation,
-                                  loginWithEmailAndPassword: _loginWithEmailAndPassword,
-                                  loginWithGoogle: _loginWithGoogle,
-                                  loginWithFacebook: _loginWithFacebook,
-                                  isWideScreen: isWideScreen,
-                                ),
-                              ),
-                            ],
-                          ),
+                          ],
                         ),
                       ),
-              ),
+                    ),
             ),
           ),
+        ),
         if (_isLoading) const LoadingIndicator(),
       ],
     );
@@ -331,9 +334,8 @@ class _LoginForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isWideScreen = this.isWideScreen;
-    final Color? cardTextColor = isWideScreen
-        ? Theme.of(context).colorScheme.onPrimary
-        : null;
+    final Color? cardTextColor =
+        isWideScreen ? Theme.of(context).colorScheme.onPrimary : null;
 
     final double maxFormWidth = isWideScreen ? 400.0 : double.infinity;
 
@@ -346,7 +348,9 @@ class _LoginForm extends StatelessWidget {
       return SingleChildScrollView(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxFormWidth),
-          child: _buildFormContent(context, localizations, inputTextColor, cardTextColor, includeSocial: false, includeSignupLink: true),
+          child: _buildFormContent(
+              context, localizations, inputTextColor, cardTextColor,
+              includeSocial: false, includeSignupLink: true),
         ),
       );
     }
@@ -358,7 +362,9 @@ class _LoginForm extends StatelessWidget {
           child: SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxFormWidth),
-              child: _buildFormContent(context, localizations, inputTextColor, cardTextColor, includeSocial: true, includeSignupLink: false),
+              child: _buildFormContent(
+                  context, localizations, inputTextColor, cardTextColor,
+                  includeSocial: true, includeSignupLink: false),
             ),
           ),
         ),
@@ -404,9 +410,12 @@ class _LoginForm extends StatelessWidget {
                 labelText: localizations.translate('email'),
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.person),
-                errorText: showEmailError ? localizations.translate('invalid_email') : null,
+                errorText: showEmailError
+                    ? localizations.translate('invalid_email')
+                    : null,
                 isDense: false,
-                contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
               ),
               style: TextStyle(color: inputTextColor),
             ),
@@ -423,9 +432,12 @@ class _LoginForm extends StatelessWidget {
               border: const OutlineInputBorder(),
               prefixIcon: const Icon(Icons.lock),
               isDense: false,
-              contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
             ),
-            onSubmitted: (_) { if (isButtonEnabled) loginWithEmailAndPassword(); },
+            onSubmitted: (_) {
+              if (isButtonEnabled) loginWithEmailAndPassword();
+            },
             style: TextStyle(color: inputTextColor),
           ),
         ),
@@ -434,16 +446,21 @@ class _LoginForm extends StatelessWidget {
           animation: opacityAnimation,
           builder: (context, child) => Opacity(
             opacity: opacityAnimation.value,
-      child: ElevatedButton(
-              onPressed: isButtonEnabled ? loginWithEmailAndPassword : null,
-              style: ElevatedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 50),
-        backgroundColor: Theme.of(ctx).colorScheme.primary,
-                elevation: isButtonEnabled ? 4 : 0,
-              ),
-              child: Text(
-                localizations.translate('login'),
-                style: cardTextColor != null ? const TextStyle(color: Colors.white) : null,
+            child: SizedBox(
+              width: isWideScreen ? 320 : double.infinity,
+              child: ElevatedButton(
+                onPressed: isButtonEnabled ? loginWithEmailAndPassword : null,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: Theme.of(ctx).colorScheme.primary,
+                  elevation: isButtonEnabled ? 4 : 0,
+                ),
+                child: Text(
+                  localizations.translate('login'),
+                  style: cardTextColor != null
+                      ? const TextStyle(color: Colors.white)
+                      : null,
+                ),
               ),
             ),
           ),
@@ -475,11 +492,11 @@ class _LoginForm extends StatelessWidget {
         ],
         if (includeSignupLink)
           GestureDetector(
-      onTap: () => GoRouter.of(ctx).go('/signup'),
+            onTap: () => GoRouter.of(ctx).go('/signup'),
             child: Text(
               localizations.translate('dont_have_account'),
               style: TextStyle(
-        color: Theme.of(ctx).colorScheme.primary,
+                color: Theme.of(ctx).colorScheme.primary,
                 fontWeight: FontWeight.bold,
               ),
             ),

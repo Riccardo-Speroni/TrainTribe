@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:async';
 import 'l10n/app_localizations.dart';
 import 'widgets/mood_toggle.dart';
-// Removed loading overlay
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
