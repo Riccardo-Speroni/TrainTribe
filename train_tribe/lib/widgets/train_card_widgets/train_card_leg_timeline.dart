@@ -1,6 +1,6 @@
 part of train_card;
 
-class _LegTimeline extends StatelessWidget {
+class _LegTimeline extends StatefulWidget {
   final List<Map<String, String>> stops;
   final List<Map<String, String>> userAvatars;
   final List<String> stopIds;
@@ -20,19 +20,28 @@ class _LegTimeline extends StatelessWidget {
     this.forceShowThumb = false,
   });
 
+  @override
+  State<_LegTimeline> createState() => _LegTimelineState();
+}
+
+class _LegTimelineState extends State<_LegTimeline> {
+  bool _collapsed = true;
+
   List<Map<String, String>> usersAtStop(String stopId) {
-    final idx = stopIds.indexOf(stopId);
+    final idx = widget.stopIds.indexOf(stopId);
     if (idx == -1) return [];
-    return userAvatars.where((user) {
+    return widget.userAvatars.where((user) {
       final from = user['from'];
       final to = user['to'];
       if (from == null || to == null) return false;
-      final fromIdx = stopIds.indexOf(from);
-      final toIdx = stopIds.indexOf(to);
+      final fromIdx = widget.stopIds.indexOf(from);
+      final toIdx = widget.stopIds.indexOf(to);
       if (fromIdx == -1 || toIdx == -1) return false;
       return fromIdx <= idx && idx <= toIdx;
     }).toList();
   }
+
+  void _toggleCollapsed() => setState(() => _collapsed = !_collapsed);
 
   @override
   Widget build(BuildContext context) {
@@ -41,9 +50,13 @@ class _LegTimeline extends StatelessWidget {
         final theme = Theme.of(context);
         final primary = theme.colorScheme.primary;
         final bool forceVerticalByWidth = constraints.maxWidth < 520; // narrow phone
+        final stops = widget.stops;
+        final stopIds = widget.stopIds;
+        final userFrom = widget.userFrom;
+        final userTo = widget.userTo;
         final double targetCell = (constraints.maxWidth / (stops.length.clamp(3, 8))).clamp(110.0, 170.0);
         final double stopWidth = targetCell;
-        final double horizontalTotalWidth = stops.length * stopWidth;
+        // horizontalTotalWidth replaced by dynamic displayedWidth after displayStops computation
         final useHorizontal = !forceVerticalByWidth;
         final shouldBeVertical = !useHorizontal;
 
@@ -55,6 +68,34 @@ class _LegTimeline extends StatelessWidget {
 
         final fromIdx = userFrom.isNotEmpty ? stopIds.indexOf(userFrom) : -1;
         final toIdx = userTo.isNotEmpty ? stopIds.indexOf(userTo) : -1;
+
+        // (local reference to outer helper class declared below)
+
+        List<_DisplayStop> computeDisplayStops() {
+          // Show everything if expanded, user segment undefined, or list already short.
+          if (!_collapsed || fromIdx == -1 || toIdx == -1 || stops.length <= 5) {
+            return [for (int i = 0; i < stops.length; i++) _DisplayStop.real(stops[i], i)];
+          }
+          // Visible window = one before user's first and one after user's last (clamped)
+          int start = (fromIdx - 1).clamp(0, fromIdx);
+          // ensure we don't go past user's start
+          int end = (toIdx + 1).clamp(toIdx, stops.length - 1);
+          final hiddenLeft = start; // indices [0, start-1]
+          final hiddenRight = (stops.length - 1) - end; // indices [end+1, last]
+          final List<_DisplayStop> result = [];
+          if (hiddenLeft > 0) {
+            result.add(_DisplayStop.ellipsis(hiddenLeft, prefix: true));
+          }
+          for (int i = start; i <= end; i++) {
+            result.add(_DisplayStop.real(stops[i], i));
+          }
+          if (hiddenRight > 0) {
+            result.add(_DisplayStop.ellipsis(hiddenRight, prefix: false));
+          }
+          return result;
+        }
+
+        final displayStops = computeDisplayStops();
 
         Widget buildDot(int idx, String stopId) {
           final iconData = stopIconData(stopId);
@@ -138,7 +179,7 @@ class _LegTimeline extends StatelessWidget {
                     runSpacing: 4,
                     children: users.map((user) {
                       final avatar = ProfilePicture(picture: user['image'], size: 11.0);
-                      final wrapped = confirmedWrapper != null ? confirmedWrapper!(user, child: avatar) : avatar;
+                      final wrapped = widget.confirmedWrapper != null ? widget.confirmedWrapper!(user, child: avatar) : avatar;
                       return Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [wrapped, const SizedBox(width: 3), Text(user['name'] ?? '', style: const TextStyle(fontSize: 11))]);
@@ -161,20 +202,40 @@ class _LegTimeline extends StatelessWidget {
             ),
             builder: TimelineTileBuilder.connected(
               connectionDirection: ConnectionDirection.before,
-              itemCount: stops.length,
-              indicatorBuilder: (context, index) => buildDot(index, stops[index]['id'] ?? ''),
-              connectorBuilder: (context, index, type) => SolidLineConnector(color: connectorColor(index)),
-              contentsBuilder: (context, index) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 12.0),
-                child: buildStopContents(index, stops[index], compact: false),
-              ),
+              itemCount: displayStops.length,
+              indicatorBuilder: (context, index) {
+                final ds = displayStops[index];
+                if (ds.isEllipsis) return _ellipsisIndicator(theme, ds.hiddenCount, vertical: true);
+                return buildDot(ds.originalIndex!, ds.stop!['id'] ?? '');
+              },
+              connectorBuilder: (context, index, type) {
+                if (index == 0) return const SizedBox.shrink();
+                final prev = displayStops[index - 1];
+                final cur = displayStops[index];
+                final dashed = prev.isEllipsis || cur.isEllipsis;
+                if (dashed) {
+                  final neutral = theme.brightness == Brightness.dark
+                      ? theme.colorScheme.outlineVariant.withOpacity(0.35)
+                      : theme.colorScheme.outlineVariant.withOpacity(0.55);
+                  return _DashedConnector(color: neutral, axis: Axis.vertical);
+                }
+                return SolidLineConnector(color: connectorColor(cur.originalIndex!));
+              },
+              contentsBuilder: (context, index) {
+                final ds = displayStops[index];
+                if (ds.isEllipsis) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 12.0),
+                  child: buildStopContents(ds.originalIndex!, ds.stop!, compact: false),
+                );
+              },
             ),
           );
           final scrollController = ScrollController();
           final bool enableInternalScroll = estimatedHeight > maxHeight;
-          return AnimatedSize(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOut,
+          final verticalTimelineCore = AnimatedSize(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
             child: ConstrainedBox(
               constraints: BoxConstraints(maxHeight: enableInternalScroll ? maxHeight : estimatedHeight),
               child: enableInternalScroll
@@ -186,44 +247,57 @@ class _LegTimeline extends StatelessWidget {
                         child: _ProgressScrollArea(
                           controller: scrollController,
                           axis: Axis.vertical,
-                          forceVisible: forceShowThumb,
-                          child: SingleChildScrollView(
-                            controller: scrollController,
-                            physics: const ClampingScrollPhysics(),
-                            padding: const EdgeInsets.only(right: 4),
-                            child: Stack(children: [
-                              child,
-                              Positioned(
-                                  left: 0,
-                                  right: 0,
-                                  top: 0,
-                                  height: 18,
-                                  child: IgnorePointer(
-                                      child: DecoratedBox(
-                                          decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                  begin: Alignment.topCenter,
-                                                  end: Alignment.bottomCenter,
-                                                  colors: [theme.cardColor, theme.cardColor.withOpacity(0.0)]))))),
-                              Positioned(
-                                  left: 0,
-                                  right: 0,
-                                  bottom: 0,
-                                  height: 22,
-                                  child: IgnorePointer(
-                                      child: DecoratedBox(
-                                          decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                  begin: Alignment.bottomCenter,
-                                                  end: Alignment.topCenter,
-                                                  colors: [theme.cardColor, theme.cardColor.withOpacity(0.0)]))))),
-                            ]),
-                          ),
+                          forceVisible: widget.forceShowThumb,
+                          child: LayoutBuilder(builder: (context, innerConstraints) {
+                            return ShaderMask(
+                              shaderCallback: (rect) {
+                                // Slightly larger & stronger fade (mobile) so top/bottom content blends more gradually.
+                                return const LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Color(0xD8000000), // stronger alpha (≈85%) for start fade
+                                    Color(0x00000000),
+                                    Color(0x00000000),
+                                    Color(0xD8000000),
+                                  ],
+                                  // Expanded fade regions from 7%->8.5% top and bottom (mirrored)
+                                  stops: [0.0, 0.085, 0.915, 1.0],
+                                ).createShader(rect);
+                              },
+                              blendMode: BlendMode.dstOut,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 10, bottom: 12, right: 4),
+                                child: SingleChildScrollView(
+                                  controller: scrollController,
+                                  physics: const ClampingScrollPhysics(),
+                                  child: child,
+                                ),
+                              ),
+                            );
+                          }),
                         ),
                       ),
                     )
-                  : child,
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10.0),
+                      child: child,
+                    ),
             ),
+          );
+          final verticalTimeline = AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: KeyedSubtree(
+              key: ValueKey(_collapsed),
+              child: verticalTimelineCore,
+            ),
+          );
+          return _ExpandableTimelineWrapper(
+            collapsed: _collapsed,
+            onTap: _toggleCollapsed,
+            child: verticalTimeline,
           );
         }
 
@@ -232,22 +306,52 @@ class _LegTimeline extends StatelessWidget {
           direction: Axis.horizontal,
           builder: TimelineTileBuilder.connected(
             connectionDirection: ConnectionDirection.before,
-            itemCount: stops.length,
-            indicatorBuilder: (context, index) => buildDot(index, stops[index]['id'] ?? ''),
-            connectorBuilder: (context, index, type) => SolidLineConnector(color: connectorColor(index)),
-            contentsBuilder: (context, index) => SizedBox(
-              width: stopWidth,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
-                child: buildStopContents(index, stops[index], align: TextAlign.center, compact: true),
-              ),
-            ),
+            itemCount: displayStops.length,
+            indicatorBuilder: (context, index) {
+              final ds = displayStops[index];
+              if (ds.isEllipsis) return _ellipsisIndicator(theme, ds.hiddenCount, vertical: false);
+              return buildDot(ds.originalIndex!, ds.stop!['id'] ?? '');
+            },
+            connectorBuilder: (context, index, type) {
+              if (index == 0) return const SizedBox.shrink();
+              final prev = displayStops[index - 1];
+              final cur = displayStops[index];
+              // For desktop (horizontal) view prefer a clean solid connector even across ellipsis boundaries.
+              // Use neutral color (same as non-user segment) for consistency.
+              final neutral = theme.brightness == Brightness.dark
+                  ? theme.colorScheme.outlineVariant.withOpacity(0.35)
+                  : theme.colorScheme.outlineVariant.withOpacity(0.55);
+              if (prev.isEllipsis || cur.isEllipsis) {
+                return SolidLineConnector(color: neutral);
+              }
+              return SolidLineConnector(color: connectorColor(cur.originalIndex!));
+            },
+            contentsBuilder: (context, index) {
+              final ds = displayStops[index];
+              final width = ds.isEllipsis ? 78.0 : stopWidth;
+              if (ds.isEllipsis) {
+                // Provide spacing only; indicator already rendered via indicatorBuilder to avoid duplicate ellipsis.
+                return SizedBox(width: width);
+              }
+              return SizedBox(
+                width: width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+                  child: buildStopContents(ds.originalIndex!, ds.stop!, align: TextAlign.center, compact: true),
+                ),
+              );
+            },
           ),
         );
 
-        final needsScroll = horizontalTotalWidth > constraints.maxWidth;
+        double displayedWidth = 0;
+        for (final ds in displayStops) {
+          displayedWidth += ds.isEllipsis ? 78.0 : stopWidth;
+        }
+
+        final needsScroll = displayedWidth > constraints.maxWidth;
         final horizontalController = ScrollController();
-        return SizedBox(
+        final horizontalTimelineCore = SizedBox(
           height: 210,
           child: Stack(children: [
             if (needsScroll)
@@ -260,19 +364,20 @@ class _LegTimeline extends StatelessWidget {
                   child: _ProgressScrollArea(
                     controller: horizontalController,
                     axis: Axis.horizontal,
-                    forceVisible: forceShowThumb,
+                    forceVisible: widget.forceShowThumb,
                     child: SingleChildScrollView(
                       controller: horizontalController,
                       scrollDirection: Axis.horizontal,
                       physics: const ClampingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      // Extra padding so ellipsis at start/end sits fully before gradient fade.
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
                       child: timeline,
                     ),
                   ),
                 ),
               ))
             else
-              Center(child: SizedBox(width: horizontalTotalWidth, child: timeline)),
+              Center(child: SizedBox(width: displayedWidth, child: timeline)),
             if (needsScroll)
               Positioned(
                   left: 0,
@@ -280,12 +385,15 @@ class _LegTimeline extends StatelessWidget {
                   bottom: 6,
                   child: IgnorePointer(
                       child: Container(
-                          width: 28,
+                          width: 20, // reduced fade distance
                           decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                  colors: [theme.cardColor, theme.cardColor.withOpacity(0.0)]))))),
+                              gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [
+                            theme.cardColor,
+                            theme.cardColor.withOpacity(0.0),
+                          ], stops: const [
+                            0.0,
+                            1.0
+                          ]))))),
             if (needsScroll)
               Positioned(
                   right: 0,
@@ -293,15 +401,170 @@ class _LegTimeline extends StatelessWidget {
                   bottom: 6,
                   child: IgnorePointer(
                       child: Container(
-                          width: 28,
+                          width: 20, // reduced fade distance
                           decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                  begin: Alignment.centerRight,
-                                  end: Alignment.centerLeft,
-                                  colors: [theme.cardColor, theme.cardColor.withOpacity(0.0)]))))),
+                              gradient: LinearGradient(begin: Alignment.centerRight, end: Alignment.centerLeft, colors: [
+                            theme.cardColor,
+                            theme.cardColor.withOpacity(0.0),
+                          ], stops: const [
+                            0.0,
+                            1.0
+                          ]))))),
           ]),
         );
+        final horizontalTimeline = AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          child: KeyedSubtree(
+            key: ValueKey(_collapsed),
+            child: horizontalTimelineCore,
+          ),
+        );
+        return _ExpandableTimelineWrapper(
+          collapsed: _collapsed,
+          onTap: _toggleCollapsed,
+          child: horizontalTimeline,
+        );
       },
+    );
+  }
+}
+
+// Helper model for collapsed/expanded stop rendering
+class _DisplayStop {
+  final Map<String, String>? stop;
+  final int? originalIndex; // null for ellipsis
+  final bool isEllipsis;
+  final int hiddenCount;
+  final bool prefix; // leading side indicator
+  const _DisplayStop.ellipsis(this.hiddenCount, {required this.prefix})
+      : stop = null,
+        originalIndex = null,
+        isEllipsis = true;
+  const _DisplayStop.real(this.stop, this.originalIndex)
+      : isEllipsis = false,
+        hiddenCount = 0,
+        prefix = false;
+}
+
+// Dashed connector (custom since timelines_plus may not provide one)
+class _DashedConnector extends StatelessWidget {
+  final Color color;
+  final Axis axis;
+  const _DashedConnector({required this.color, required this.axis});
+  @override
+  Widget build(BuildContext context) {
+    const double t = 3; // thickness
+    return CustomPaint(
+      size: axis == Axis.vertical ? const Size(3, double.infinity) : const Size(double.infinity, 3),
+      painter: _DashedLinePainter(color: color, axis: axis, dash: 6, gap: 4, thickness: t),
+    );
+  }
+}
+
+class _DashedLinePainter extends CustomPainter {
+  final Color color;
+  final Axis axis;
+  final double dash;
+  final double gap;
+  final double thickness;
+  _DashedLinePainter({required this.color, required this.axis, required this.dash, required this.gap, required this.thickness});
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = thickness
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    double pos = 0.0;
+    final double length = axis == Axis.vertical ? size.height : size.width;
+    while (pos < length) {
+      final double end = (pos + dash).clamp(0, length);
+      if (axis == Axis.vertical) {
+        canvas.drawLine(Offset(size.width / 2, pos), Offset(size.width / 2, end), paint);
+      } else {
+        canvas.drawLine(Offset(pos, size.height / 2), Offset(end, size.height / 2), paint);
+      }
+      pos += dash + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedLinePainter old) =>
+      old.color != color || old.axis != axis || old.dash != dash || old.gap != gap || old.thickness != thickness;
+}
+
+Widget _ellipsisIndicator(ThemeData theme, int hidden, {required bool vertical}) {
+  final neutralBase = theme.colorScheme.outlineVariant;
+  final neutral = neutralBase.withOpacity(theme.brightness == Brightness.dark ? 0.30 : 0.34);
+  final bg = theme.brightness == Brightness.dark
+      ? theme.colorScheme.surfaceVariant.withOpacity(0.12)
+      : theme.colorScheme.surfaceVariant.withOpacity(0.10);
+  final txt = theme.textTheme.bodySmall?.color?.withOpacity(0.50) ?? Colors.black54;
+  final dots = Row(
+    mainAxisSize: MainAxisSize.min,
+    children: List.generate(
+        3,
+        (i) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 0.9),
+            child: Container(width: 3.6, height: 3.6, decoration: BoxDecoration(color: txt.withOpacity(0.55), shape: BoxShape.circle)))),
+  );
+  final label = Text('+$hidden', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: txt));
+  final content = Row(mainAxisSize: MainAxisSize.min, children: [dots, const SizedBox(width: 4), label]);
+  return AnimatedContainer(
+    duration: const Duration(milliseconds: 180),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
+    decoration: BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(26),
+      border: Border.all(color: neutral.withOpacity(0.55), width: 0.8),
+      boxShadow: [
+        BoxShadow(
+            color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? 0.14 : 0.05),
+            blurRadius: 2.5,
+            offset: const Offset(0, 1)),
+      ],
+    ),
+    child: content,
+  );
+}
+
+class _ExpandableTimelineWrapper extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  final bool collapsed;
+  const _ExpandableTimelineWrapper({required this.child, required this.onTap, required this.collapsed});
+  @override
+  State<_ExpandableTimelineWrapper> createState() => _ExpandableTimelineWrapperState();
+}
+
+class _ExpandableTimelineWrapperState extends State<_ExpandableTimelineWrapper> {
+  bool _hover = false;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final highlight = theme.colorScheme.primary.withOpacity(theme.brightness == Brightness.dark ? 0.05 : 0.05);
+    final borderColor = theme.colorScheme.outlineVariant.withOpacity(theme.brightness == Brightness.dark ? 0.18 : 0.22);
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          decoration: _hover
+              ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: borderColor, width: 0.9),
+                  color: highlight,
+                )
+              : null,
+          child: widget.child,
+        ),
+      ),
     );
   }
 }

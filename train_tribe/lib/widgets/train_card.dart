@@ -461,19 +461,23 @@ class TrainCard extends StatelessWidget {
           final userFrom = leg['userFrom'] as String? ?? '';
           final userTo = leg['userTo'] as String? ?? '';
           final friendsForLeg = friendsPerLeg[i];
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10.0),
-            child: _LegTimeline(
-              stops: stops,
-              userAvatars: friendsForLeg,
-              stopIds: stopIds,
-              isVertical: anyVertical,
-              userFrom: userFrom,
-              userTo: userTo,
-              confirmedWrapper: _confirmedAvatarWrapper,
-              forceShowThumb: isExpanded, // ensure thumb visible while expanded
-            ),
-          );
+          return Builder(builder: (context) {
+            // Extra spacing between lists on narrow (mobile) layouts to avoid visual crowding / gradient overlap.
+            final bool isNarrow = MediaQuery.of(context).size.width < 520;
+            return Padding(
+              padding: EdgeInsets.symmetric(vertical: isNarrow ? 14.0 : 10.0),
+              child: _LegTimeline(
+                stops: stops,
+                userAvatars: friendsForLeg,
+                stopIds: stopIds,
+                isVertical: anyVertical,
+                userFrom: userFrom,
+                userTo: userTo,
+                confirmedWrapper: _confirmedAvatarWrapper,
+                forceShowThumb: isExpanded, // ensure thumb visible while expanded
+              ),
+            );
+          });
         }),
       ],
     );
