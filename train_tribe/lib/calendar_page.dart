@@ -75,10 +75,39 @@ class _CalendarPageState extends State<CalendarPage> {
 
   // Returns the event that starts in the slot for the specified day and time, if it exists.
   CalendarEvent? _getEventForCell(DateTime day, int hour) {
+    // Cerca tra gli eventi principali
     for (var event in events) {
       if (isSameDay(event.date, day) && event.hour == hour) {
         return event;
       }
+    }
+    // Cerca tra le copie ricorrenti (solo per drag)
+    List<CalendarEvent> recurrentCopies = [];
+    for (var event in events) {
+      if (event.isRecurrent && event.recurrenceEndDate != null) {
+        DateTime current = event.date;
+        while (!current.isAfter(event.recurrenceEndDate!)) {
+          if (isSameDay(current, day) && event.hour == hour) {
+            // Crea una copia temporanea per il drag
+            CalendarEvent copy = CalendarEvent(
+              id: '${event.id}_${current.toIso8601String()}',
+              generatedBy: event.id,
+              date: current,
+              hour: event.hour,
+              endHour: event.endHour,
+              departureStation: event.departureStation,
+              arrivalStation: event.arrivalStation,
+              isRecurrent: true,
+              recurrenceEndDate: event.recurrenceEndDate,
+            );
+            recurrentCopies.add(copy);
+          }
+          current = current.add(const Duration(days: 1));
+        }
+      }
+    }
+    if (recurrentCopies.isNotEmpty) {
+      return recurrentCopies.first;
     }
     return null;
   }
@@ -125,13 +154,14 @@ class _CalendarPageState extends State<CalendarPage> {
       int safeIndex = cellIndex.clamp(0, hours.length - 1);
       CalendarEvent? event = _getEventForCell(day, hours[safeIndex]);
       if (event != null) {
-        // Caso: drag su evento esistente
+        // Caso: drag su evento esistente o copia ricorrente
         _draggedEvent = event;
+        _draggedEvent!.isBeingDragged = true;
         _dragStartIndex = safeIndex;
         _dragEndIndex = safeIndex;
         _dragStartDay = day;
         _dragStartLocalY = null;
-        _dragStartPageIndex = null; // verrà impostato nel primo move update
+        _dragStartPageIndex = null;
       } else {
         // Caso: drag su cella vuota
         _draggedEvent = null;
@@ -155,15 +185,12 @@ class _CalendarPageState extends State<CalendarPage> {
         int hoveredIndex = (absoluteY / cellHeight).floor().clamp(0, hours.length - 1);
 
         if (_draggedEvent != null) {
-          // Drag evento esistente: calcola nuovo giorno e ora
           _dragStartLocalY ??= absoluteY;
           _dragStartPageIndex ??= pageIndex;
 
-          // Calcola lo shift verticale (slot) e orizzontale (giorno)
           int deltaCells = ((absoluteY - _dragStartLocalY!) / cellHeight).round();
           int newStartIndex = (_dragStartIndex! + deltaCells).clamp(0, hours.length - 1);
 
-          // Calcola il nuovo giorno in base allo spostamento di pagina
           int deltaDays = pageIndex - _dragStartPageIndex!;
           DateTime newDay = _dragStartDay!.add(Duration(days: deltaDays));
 
@@ -176,9 +203,27 @@ class _CalendarPageState extends State<CalendarPage> {
 
           if (getAvailableEndHours(newDay, newStartHour, _draggedEvent)
               .contains(newEndHour)) {
-            _draggedEvent!.hour = newStartHour;
-            _draggedEvent!.endHour = newEndHour;
-            _draggedEvent!.date = newDay;
+            // Se è una copia ricorrente, aggiorna solo orario/durata nel generatore
+            if (_draggedEvent!.generatedBy != null) {
+              CalendarEvent? generatorEvent = events.cast<CalendarEvent?>().firstWhere(
+                (e) => e?.id == _draggedEvent!.generatedBy,
+                orElse: () => null,
+              );
+              if (generatorEvent != null) {
+                generatorEvent.hour = newStartHour;
+                generatorEvent.endHour = newEndHour;
+                // NON aggiornare generatorEvent.date!
+              }
+              // Aggiorna solo la visualizzazione della copia trascinata
+              _draggedEvent!.hour = newStartHour;
+              _draggedEvent!.endHour = newEndHour;
+              _draggedEvent!.date = newDay;
+            } else {
+              // Evento non ricorrente o generatore
+              _draggedEvent!.hour = newStartHour;
+              _draggedEvent!.endHour = newEndHour;
+              _draggedEvent!.date = newDay;
+            }
 
             // Ensure the relative position of overlapping events remains consistent
             List<CalendarEvent> overlappingEvents = events.where((e) {
@@ -192,22 +237,9 @@ class _CalendarPageState extends State<CalendarPage> {
               overlappingEvents[i].alignment = Alignment(-1.0 + (2.0 / overlappingEvents.length) * i, 0.0);
               overlappingEvents[i].widthFactor = 1.0 / overlappingEvents.length;
             }
-
-            // Update the generator event if the dragged event is a copy
-            if (_draggedEvent!.generatedBy != null) {
-              CalendarEvent? generatorEvent = events.cast<CalendarEvent?>().firstWhere(
-                (e) => e?.id == _draggedEvent!.generatedBy,
-                orElse: () => null,
-              );
-              if (generatorEvent != null) {
-                generatorEvent.hour = newStartHour;
-                generatorEvent.endHour = newEndHour;
-                generatorEvent.date = newDay;
-              }
-            }
           }
           _dragEndIndex = newStartIndex;
-          _dragStartDay = newDay; // aggiorna il giorno per la visualizzazione
+          _dragStartDay = newDay;
         } else {
           // Caso: selezione multipla per creazione evento
           // Salva la posizione iniziale del drag la prima volta che si entra qui
@@ -284,28 +316,53 @@ class _CalendarPageState extends State<CalendarPage> {
       int newEndHour = newStartHour + eventDuration;
 
       setState(() {
-        // Update the dragged event's start hour and day
-        _draggedEvent!.hour = newStartHour;
-        _draggedEvent!.endHour = newEndHour;
-        _draggedEvent!.date = day;
+        // Se è una copia ricorrente, aggiorna solo orario/durata nel generatore
+        if (_draggedEvent!.generatedBy != null) {
+          CalendarEvent? generatorEvent = events.cast<CalendarEvent?>().firstWhere(
+            (e) => e?.id == _draggedEvent!.generatedBy,
+            orElse: () => null,
+          );
+          if (generatorEvent != null) {
+            generatorEvent.hour = newStartHour;
+            generatorEvent.endHour = newEndHour;
+            // NON aggiornare generatorEvent.date!
+          }
+          // Aggiorna solo la visualizzazione della copia trascinata
+          _draggedEvent!.hour = newStartHour;
+          _draggedEvent!.endHour = newEndHour;
+          _draggedEvent!.date = day;
+        } else {
+          // Evento non ricorrente o generatore
+          _draggedEvent!.hour = newStartHour;
+          _draggedEvent!.endHour = newEndHour;
+          _draggedEvent!.date = day;
+        }
 
-        // Adjust overlapping events dynamically
         _adjustOverlappingEvents(day);
       });
 
       // Aggiorna su Firestore nel path corretto
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
+        String eventIdToUpdate = _draggedEvent!.generatedBy ?? _draggedEvent!.id;
         final eventDoc = FirebaseFirestore.instance
             .collection('users/${user.uid}/events')
-            .doc(_draggedEvent!.id);
+            .doc(eventIdToUpdate);
+        // La data da salvare è quella del generatore, non della copia
+        CalendarEvent? generatorEvent = _draggedEvent!.generatedBy != null
+            ? events.cast<CalendarEvent?>().firstWhere(
+                (e) => e?.id == _draggedEvent!.generatedBy,
+                orElse: () => null,
+              )
+            : null;
+        DateTime baseDate = generatorEvent?.date ?? day;
         final eventStart = DateTime(
-          day.year, day.month, day.day,
+          baseDate.year, baseDate.month, baseDate.day,
           6 + (newStartHour ~/ 4),
           (newStartHour % 4) * 15,
         );
         final eventEnd = DateTime(
-          day.year, day.month, day.day,
+          baseDate.year, baseDate.month, baseDate.day,
           6 + (newEndHour ~/ 4),
           (newEndHour % 4) * 15,
         );
@@ -315,7 +372,7 @@ class _CalendarPageState extends State<CalendarPage> {
         });
       }
     }
-    _resetDragState(); // Reset the drag state
+    _resetDragState();
   }
 
   // Reset the drag state after handling the drag event

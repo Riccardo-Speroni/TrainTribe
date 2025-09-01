@@ -54,14 +54,14 @@ class CalendarEventWidget extends StatelessWidget {
                     ? Colors.grey[800]
                     : Colors.grey
                 : isBeingDragged
-                    ? event.isRecurrent
+                    ? event.isRecurrent || event.generatedBy != null
                         ? Theme.of(context).brightness == Brightness.dark
                             ? Colors.deepPurpleAccent.withOpacity(0.7)
                             : Colors.purpleAccent.withOpacity(0.7)
                         : Theme.of(context).brightness == Brightness.dark
                             ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
                             : Theme.of(context).colorScheme.primary.withOpacity(0.7)
-                    : event.isRecurrent
+                    : event.isRecurrent || event.generatedBy != null
                         ? Theme.of(context).brightness == Brightness.dark
                             ? Colors.deepPurpleAccent
                             : Colors.purpleAccent
