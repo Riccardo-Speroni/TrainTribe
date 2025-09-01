@@ -9,6 +9,7 @@ import 'l10n/app_localizations.dart';
 import 'widgets/train_card.dart';
 import 'widgets/train_card_widgets/responsive_card_list.dart';
 import 'utils/train_confirmation.dart';
+import 'widgets/legend_dialog.dart';
 
 class TrainsPage extends StatefulWidget {
   const TrainsPage({super.key});
@@ -193,7 +194,35 @@ class _TrainsPageState extends State<TrainsPage> {
             IconButton(
               tooltip: localizations.translate('train_confirm_legend_title'),
               icon: const Icon(Icons.info_outline),
-              onPressed: () => _showLegendDialog(context, localizations),
+              onPressed: () {
+                showLegendDialog(
+                  context: context,
+                  title: localizations.translate('train_confirm_legend_title'),
+                  okLabel: localizations.translate('ok'),
+                  infoText: localizations.translate('train_confirm_info'),
+                  items: [
+                    LegendItem(
+                      ringColor: Colors.green,
+                      glowColor: Colors.greenAccent,
+                      label: localizations.translate('train_confirm_legend_you'),
+                      isUser: true,
+                    ),
+                    LegendItem(
+                      ringColor: Colors.amber,
+                      glowColor: Colors.amberAccent,
+                      label: localizations.translate('train_confirm_legend_friend'),
+                      showCheck: true,
+                    ),
+                    LegendItem(
+                      ringColor: Colors.grey,
+                      glowColor: Colors.transparent,
+                      label: localizations.translate('train_confirm_legend_unconfirmed'),
+                      backgroundColor: Colors.grey,
+                      iconColor: Colors.white,
+                    ),
+                  ],
+                );
+              },
             ),
           ],
           bottom: PreferredSize(
@@ -665,133 +694,4 @@ class _ConfirmButtonState extends State<_ConfirmButton> {
   }
 }
 
-void _showLegendDialog(BuildContext context, AppLocalizations loc) {
-  showDialog(
-    context: context,
-    builder: (ctx) {
-      final theme = Theme.of(ctx);
-      final subtleTextColor = theme.brightness == Brightness.dark
-          ? theme.colorScheme.onSurfaceVariant.withOpacity(0.92)
-          : theme.colorScheme.onSurfaceVariant.withOpacity(0.78);
-      return AlertDialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-        title: Padding(
-          padding: const EdgeInsets.only(bottom: 4.0),
-          child: Text(
-            loc.translate('train_confirm_legend_title'),
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-          ),
-        ),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 300, maxWidth: 420),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12), // extra space after title
-              _legendRow(
-                ringColor: Colors.green,
-                glow: Colors.greenAccent,
-                label: loc.translate('train_confirm_legend_you'),
-                isUser: true,
-              ),
-              const SizedBox(height: 14),
-              _legendRow(
-                ringColor: Colors.amber,
-                glow: Colors.amberAccent,
-                label: loc.translate('train_confirm_legend_friend'),
-                showCheck: true,
-              ),
-              const SizedBox(height: 14),
-              _legendRow(
-                ringColor: Colors.grey,
-                glow: Colors.transparent,
-                label: loc.translate('train_confirm_legend_unconfirmed'),
-                backgroundColor: Colors.grey,
-                iconColor: Colors.white,
-              ),
-              const SizedBox(height: 28), // increased distance before info text
-              Text(
-                loc.translate('train_confirm_info'),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 13,
-                  height: 1.35,
-                  color: subtleTextColor,
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: 0.15,
-                ),
-              ),
-            ],
-          ),
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            style: TextButton.styleFrom(
-              foregroundColor: theme.colorScheme.primary,
-              textStyle: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            child: Text(loc.translate('ok')),
-          )
-        ],
-      );
-    },
-  );
-}
-
-Widget _legendRow({
-  required Color ringColor,
-  required Color glow,
-  required String label,
-  bool showCheck = false,
-  bool isUser = false,
-  Color? backgroundColor,
-  Color? iconColor,
-}) {
-  return Row(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: [
-      Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: ringColor, width: 2),
-              boxShadow: [
-                if (glow != Colors.transparent) BoxShadow(color: glow.withOpacity(0.6), blurRadius: 6, spreadRadius: 1),
-              ],
-              color: backgroundColor ?? Colors.white,
-            ),
-            child: Icon(Icons.person, size: 16, color: iconColor ?? Colors.grey),
-          ),
-          if (showCheck)
-            Positioned(
-              bottom: -3,
-              right: -3,
-              child: Container(
-                width: 14,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: ringColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(color: ringColor.withOpacity(0.5), blurRadius: 4, spreadRadius: 0.5),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(Icons.check, size: 9, color: Colors.white),
-                ),
-              ),
-            ),
-        ],
-      ),
-      const SizedBox(width: 12),
-      Expanded(child: Text(label)),
-    ],
-  );
-}
+// Legend dialog extracted to widgets/legend_dialog.dart

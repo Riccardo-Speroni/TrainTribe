@@ -105,7 +105,7 @@ class AppLocalizations {
       'at': 'at',
       'save': 'Save',
       'cancel': 'Cancel',
-  'delete': 'Delete',
+      'delete': 'Delete',
       'departure': 'Departure Station',
       'arrival': 'Arrival Station',
       'day': 'Day',
@@ -162,6 +162,12 @@ class AppLocalizations {
       'train_confirm_legend_friend': 'Amber ring + check: friend confirmed',
       'train_confirm_legend_unconfirmed': 'Plain avatar: not confirmed',
       'train_confirm_info': 'You can confirm only one train per event. Re-confirming moves your selection.',
+      // Friends ghost legend
+      'friends_ghost_legend_title': 'Visibility / Ghost legend',
+      'friends_ghost_legend_visible': 'Eye icon: friend is visible to you and can see you (if you allow visibility globally).',
+      'friends_ghost_legend_ghosted': 'Eye-off icon: you ghosted this friend; they cannot see your trains even if you are visible.',
+      'friends_ghost_legend_info':
+          'Ghosting hides you from a specific friend. It does not affect other friends. You can toggle it anytime with the visibility (eye) button next to their name.',
 
       // Error Messages
       'error': 'Error',
@@ -282,7 +288,7 @@ class AppLocalizations {
       'at': 'alle',
       'save': 'Salva',
       'cancel': 'Annulla',
-  'delete': 'Elimina',
+      'delete': 'Elimina',
       'departure': 'Stazione di Partenza',
       'arrival': 'Stazione di Arrivo',
       'day': 'Giorno',
@@ -339,6 +345,12 @@ class AppLocalizations {
       'train_confirm_legend_friend': 'Bordo ambra + check: amico che ha confermato',
       'train_confirm_legend_unconfirmed': 'Avatar semplice: non confermato',
       'train_confirm_info': 'Puoi confermare solo un treno per evento. Riconfermare sposta la tua selezione.',
+      // Friends ghost legend
+      'friends_ghost_legend_title': 'Legenda visibilità / ghost',
+      'friends_ghost_legend_visible': 'Icona occhio: amico visibile e può vederti (se sei visibile globalmente).',
+      'friends_ghost_legend_ghosted': 'Icona occhio sbarrato: hai ghostato questo amico; non può vedere i tuoi treni.',
+      'friends_ghost_legend_info':
+          'Ghostare nasconde i tuoi treni solo a quell\'amico. Non influisce sugli altri. Puoi attivare o disattivare in qualsiasi momento col pulsante occhio accanto al suo nome.',
 
       // Error Messages
       'error': 'Errore',
