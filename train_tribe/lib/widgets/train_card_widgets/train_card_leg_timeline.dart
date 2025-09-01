@@ -26,6 +26,16 @@ class _LegTimeline extends StatefulWidget {
 
 class _LegTimelineState extends State<_LegTimeline> {
   bool _collapsed = true;
+  final ScrollController _verticalController = ScrollController();
+  final ScrollController _horizontalController = ScrollController();
+  bool _pendingCenterOnExpand = false; // flag to adjust scroll after expanding
+
+  @override
+  void dispose() {
+    _verticalController.dispose();
+    _horizontalController.dispose();
+    super.dispose();
+  }
 
   List<Map<String, String>> usersAtStop(String stopId) {
     final idx = widget.stopIds.indexOf(stopId);
@@ -41,7 +51,23 @@ class _LegTimelineState extends State<_LegTimeline> {
     }).toList();
   }
 
-  void _toggleCollapsed() => setState(() => _collapsed = !_collapsed);
+  void _toggleCollapsed() {
+    if (_collapsed) {
+      // About to expand: mark to center after build.
+      _pendingCenterOnExpand = true;
+    }
+    setState(() => _collapsed = !_collapsed);
+  }
+
+  void _centerOnUser({required bool vertical, required int fromIdx, required double perItemExtent, required int totalStops}) {
+    if (fromIdx < 0) return;
+    final controller = vertical ? _verticalController : _horizontalController;
+    if (!controller.hasClients) return;
+    final double anchorIndex = ((fromIdx - 1).clamp(0, totalStops) as num).toDouble(); // show one before similar to collapsed window
+    final desiredOffset = (anchorIndex * perItemExtent).clamp(0.0, controller.position.maxScrollExtent);
+    controller.jumpTo(desiredOffset); // jump first to avoid long animate from 0
+    controller.animateTo(desiredOffset, duration: const Duration(milliseconds: 280), curve: Curves.easeOutCubic);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -231,7 +257,6 @@ class _LegTimelineState extends State<_LegTimeline> {
               },
             ),
           );
-          final scrollController = ScrollController();
           final bool enableInternalScroll = estimatedHeight > maxHeight;
           final verticalTimelineCore = AnimatedSize(
             duration: const Duration(milliseconds: 240),
@@ -241,35 +266,31 @@ class _LegTimelineState extends State<_LegTimeline> {
               child: enableInternalScroll
                   ? _DesktopDragScroll(
                       axis: Axis.vertical,
-                      controller: scrollController,
+                      controller: _verticalController,
                       child: ScrollConfiguration(
                         behavior: _NoGlowScrollBehavior(),
                         child: _ProgressScrollArea(
-                          controller: scrollController,
+                          controller: _verticalController,
                           axis: Axis.vertical,
                           forceVisible: widget.forceShowThumb,
                           child: LayoutBuilder(builder: (context, innerConstraints) {
                             return ShaderMask(
-                              shaderCallback: (rect) {
-                                // Slightly larger & stronger fade (mobile) so top/bottom content blends more gradually.
-                                return const LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Color(0xD8000000), // stronger alpha (≈85%) for start fade
-                                    Color(0x00000000),
-                                    Color(0x00000000),
-                                    Color(0xD8000000),
-                                  ],
-                                  // Expanded fade regions from 7%->8.5% top and bottom (mirrored)
-                                  stops: [0.0, 0.085, 0.915, 1.0],
-                                ).createShader(rect);
-                              },
+                              shaderCallback: (rect) => const LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Color(0xD8000000),
+                                  Color(0x00000000),
+                                  Color(0x00000000),
+                                  Color(0xD8000000),
+                                ],
+                                stops: [0.0, 0.085, 0.915, 1.0],
+                              ).createShader(rect),
                               blendMode: BlendMode.dstOut,
                               child: Padding(
                                 padding: const EdgeInsets.only(top: 10, bottom: 12, right: 4),
                                 child: SingleChildScrollView(
-                                  controller: scrollController,
+                                  controller: _verticalController,
                                   physics: const ClampingScrollPhysics(),
                                   child: child,
                                 ),
@@ -285,15 +306,17 @@ class _LegTimelineState extends State<_LegTimeline> {
                     ),
             ),
           );
-          final verticalTimeline = AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            child: KeyedSubtree(
-              key: ValueKey(_collapsed),
-              child: verticalTimelineCore,
-            ),
-          );
+          // Schedule centering after expand frame (vertical)
+          if (_pendingCenterOnExpand && !_collapsed) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (enableInternalScroll) {
+                final perItem = estimatedHeight / widget.stops.length; // approx 72
+                _centerOnUser(vertical: true, fromIdx: fromIdx, perItemExtent: perItem, totalStops: widget.stops.length);
+              }
+              _pendingCenterOnExpand = false; // reset after vertical centering
+            });
+          }
+          final Widget verticalTimeline = verticalTimelineCore; // removed AnimatedSwitcher to avoid duplicate scroll attachments
           return _ExpandableTimelineWrapper(
             collapsed: _collapsed,
             onTap: _toggleCollapsed,
@@ -350,7 +373,6 @@ class _LegTimelineState extends State<_LegTimeline> {
         }
 
         final needsScroll = displayedWidth > constraints.maxWidth;
-        final horizontalController = ScrollController();
         final horizontalTimelineCore = SizedBox(
           height: 210,
           child: Stack(children: [
@@ -358,15 +380,15 @@ class _LegTimelineState extends State<_LegTimeline> {
               Positioned.fill(
                   child: _DesktopDragScroll(
                 axis: Axis.horizontal,
-                controller: horizontalController,
+                controller: _horizontalController,
                 child: ScrollConfiguration(
                   behavior: _NoGlowScrollBehavior(),
                   child: _ProgressScrollArea(
-                    controller: horizontalController,
+                    controller: _horizontalController,
                     axis: Axis.horizontal,
                     forceVisible: widget.forceShowThumb,
                     child: SingleChildScrollView(
-                      controller: horizontalController,
+                      controller: _horizontalController,
                       scrollDirection: Axis.horizontal,
                       physics: const ClampingScrollPhysics(),
                       // Extra padding so ellipsis at start/end sits fully before gradient fade.
@@ -412,15 +434,17 @@ class _LegTimelineState extends State<_LegTimeline> {
                           ]))))),
           ]),
         );
-        final horizontalTimeline = AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          switchInCurve: Curves.easeOut,
-          switchOutCurve: Curves.easeIn,
-          child: KeyedSubtree(
-            key: ValueKey(_collapsed),
-            child: horizontalTimelineCore,
-          ),
-        );
+        final Widget horizontalTimeline = horizontalTimelineCore; // removed AnimatedSwitcher to avoid controller duplication
+        // Schedule centering after expand frame (horizontal)
+        if (_pendingCenterOnExpand && !_collapsed) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (needsScroll) {
+              final perItem = stopWidth; // constant cell width
+              _centerOnUser(vertical: false, fromIdx: fromIdx, perItemExtent: perItem, totalStops: widget.stops.length);
+            }
+          });
+          _pendingCenterOnExpand = false; // reset once scheduled for both orientations
+        }
         return _ExpandableTimelineWrapper(
           collapsed: _collapsed,
           onTap: _toggleCollapsed,
