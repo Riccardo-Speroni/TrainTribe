@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/calendar_event.dart';
+import '../../models/calendar_event.dart';
 import 'calendar_cells.dart';
-import '../utils/calendar_functions.dart';
+import '../../utils/calendar_functions.dart';
+import 'calendar_event_widget.dart';
 
 class CalendarDayColumn extends StatelessWidget {
   final DateTime day;
@@ -16,11 +17,14 @@ class CalendarDayColumn extends StatelessWidget {
   final void Function(CalendarEvent) onEditEvent;
   final void Function(DateTime, int, [int?]) onAddEvent;
   final void Function(int, DateTime) onLongPressStart;
-  final void Function(LongPressMoveUpdateDetails, BuildContext, ScrollController, int) onLongPressMoveUpdate;
+  final void Function(
+          LongPressMoveUpdateDetails, BuildContext, ScrollController, int)
+      onLongPressMoveUpdate;
   final void Function(DateTime) onLongPressEnd;
   final ScrollController scrollController;
   final int pageIndex;
-  final bool isPastDay; // <--- AGGIUNTO
+  final bool isPastDay;
+  final bool isRailExpanded;
 
   const CalendarDayColumn({
     super.key,
@@ -40,7 +44,8 @@ class CalendarDayColumn extends StatelessWidget {
     required this.onLongPressEnd,
     required this.scrollController,
     required this.pageIndex,
-    required this.isPastDay, // <--- AGGIUNTO
+    required this.isPastDay,
+    required this.isRailExpanded,
   });
 
   @override
@@ -50,11 +55,15 @@ class CalendarDayColumn extends StatelessWidget {
     int index = 0;
 
     int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
+
+    int correctionFactor = isRailExpanded
+        ? (MediaQuery.of(context).size.width > 600 ? 38 : 30)
+        : (MediaQuery.of(context).size.width > 600 ? 24 : 30);
+
     double cellWidth = MediaQuery.of(context).size.width / daysToShow;
 
-    List<CalendarEvent> dayEvents = events
-        .where((event) => isSameDay(event.date, day))
-        .toList();
+    List<CalendarEvent> dayEvents =
+        events.where((event) => isSameDay(event.date, day)).toList();
 
     if (additionalEvents != null) {
       dayEvents.addAll(additionalEvents!
@@ -105,79 +114,43 @@ class CalendarDayColumn extends StatelessWidget {
           return (e.hour < event.endHour && e.endHour > event.hour);
         }).toList();
 
-        int totalOverlapping = overlappingEvents.isNotEmpty ? overlappingEvents.length : 1;
-        int correctionFactor = MediaQuery.of(context).size.width > 600 ? 12 : 30;
+        int totalOverlapping =
+            overlappingEvents.isNotEmpty ? overlappingEvents.length : 1;
         double widthFactor = (cellWidth - correctionFactor) / totalOverlapping;
 
         for (int i = 0; i < overlappingEvents.length; i++) {
           CalendarEvent overlappingEvent = overlappingEvents[i];
           bool isBeingDragged = draggedEvent == overlappingEvent;
 
-          // Calcola l'indice di inizio slot per l'evento
+          // Calculate the start slot index for the event
           int eventStartIndex = overlappingEvent.hour - hours.first;
 
+          // Font size scales with event box width
+          double eventFontSize = widthFactor * 0.09;
+          if (eventFontSize < 8) eventFontSize = 8; // minimum font size
+
           eventWidgets.add(
-            Positioned(
+            CalendarEventWidget(
               left: widthFactor * i,
               top: cellHeight * (overlappingEvent.hour - hours.first),
               width: widthFactor,
-              height: cellHeight * (overlappingEvent.endHour - overlappingEvent.hour),
-              child: GestureDetector(
-                onTap: isPastDay ? null : () => onEditEvent(overlappingEvent),
-                onLongPressStart: isPastDay ? null : (_) => onLongPressStart(eventStartIndex, day),
-                onLongPressMoveUpdate: isPastDay ? null : (details) => onLongPressMoveUpdate(
-                    details, context, scrollController, pageIndex),
-                onLongPressEnd: isPastDay ? null : (_) => onLongPressEnd(day),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 50),
-                  margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: isPastDay
-                        ? Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey[800]
-                            : Colors.grey
-                        : isBeingDragged
-                            ? overlappingEvent.isRecurrent
-                                ? Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.deepPurpleAccent.withOpacity(0.7)
-                                    : Colors.purpleAccent.withOpacity(0.7)
-                                : Theme.of(context).brightness == Brightness.dark
-                                    ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
-                                    : Theme.of(context).colorScheme.primary.withOpacity(0.7)
-                            : overlappingEvent.isRecurrent
-                                ? Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.deepPurpleAccent
-                                    : Colors.purpleAccent
-                                : Theme.of(context).brightness == Brightness.dark
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).colorScheme.primary,
-                    borderRadius: BorderRadius.circular(8.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.black.withOpacity(0.3)
-                            : Colors.grey.withOpacity(0.5),
-                        spreadRadius: 2,
-                        blurRadius: 5,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${overlappingEvent.departureStation} - ${overlappingEvent.arrivalStation}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white
-                            : Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ),
+              height: cellHeight *
+                  (overlappingEvent.endHour - overlappingEvent.hour),
+              event: overlappingEvent,
+              isBeingDragged: isBeingDragged,
+              isPastDay: isPastDay,
+              eventFontSize: eventFontSize,
+              onEditEvent:
+                  isPastDay ? null : () => onEditEvent(overlappingEvent),
+              onLongPressStart: isPastDay
+                  ? null
+                  : () => onLongPressStart(eventStartIndex, day),
+              onLongPressMoveUpdate: isPastDay
+                  ? null
+                  : (details) => onLongPressMoveUpdate(
+                      details, context, scrollController, pageIndex),
+              onLongPressEnd: isPastDay ? null : () => onLongPressEnd(day),
+              context: context,
             ),
           );
         }

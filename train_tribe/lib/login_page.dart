@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/firebase_exception_handler.dart';
 import 'utils/loading_indicator.dart';
+import 'widgets/logo_pattern_background.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -25,6 +26,8 @@ class _LoginPageState extends State<LoginPage>
   bool showEmailError = false;
   bool _isLoading = false; // State to control loading indicator
 
+  // Background pattern moved to reusable widget
+
   late AnimationController _animationController;
   late Animation<double> _opacityAnimation;
 
@@ -40,6 +43,8 @@ class _LoginPageState extends State<LoginPage>
     );
     _opacityAnimation =
         Tween<double>(begin: 0.5, end: 1.0).animate(_animationController);
+
+  // Particles generated inside LayoutBuilder for actual size (to avoid overlaps)
   }
 
   bool _isValidEmail(String email) {
@@ -212,53 +217,35 @@ class _LoginPageState extends State<LoginPage>
     // Imposta la larghezza massima su desktop/web
     final bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
     final double maxFormWidth = isWideScreen ? 400.0 : double.infinity;
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Stack(
+    final contentStack = Stack(
       children: [
-        Scaffold(
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: isWideScreen
-                  ? Card(
-                      elevation: 2,
-                      shadowColor: Theme.of(context).colorScheme.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 32.0, horizontal: 32.0),
-                        child: IntrinsicWidth(
-                          child: IntrinsicHeight(
-                            child: _LoginForm(
-                              localizations: localizations,
-                              emailController: emailController,
-                              passwordController: passwordController,
-                              showEmailError: showEmailError,
-                              isButtonEnabled: isButtonEnabled,
-                              opacityAnimation: _opacityAnimation,
-                              loginWithEmailAndPassword: _loginWithEmailAndPassword,
-                              loginWithGoogle: _loginWithGoogle,
-                              loginWithFacebook: _loginWithFacebook,
-                              isWideScreen: isWideScreen,
-                            ),
+    Scaffold(
+      backgroundColor: isWideScreen
+        ? Colors.transparent // pattern shows on desktop/web
+        : (isDark ? Colors.black : Colors.white),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: isWideScreen
+                    ? Card(
+                        elevation: 2,
+                        shadowColor: Theme.of(context).colorScheme.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2,
                           ),
                         ),
-                      ),
-                    )
-                  : SafeArea(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: maxFormWidth,
-                        ),
-                        child: Column(
-                          children: [
-                            Expanded(
+                        child: SizedBox(
+                          width: 500,
+                          height: 560,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 32.0, horizontal: 32.0),
+                            child: SingleChildScrollView(
                               child: _LoginForm(
                                 localizations: localizations,
                                 emailController: emailController,
@@ -272,16 +259,46 @@ class _LoginPageState extends State<LoginPage>
                                 isWideScreen: isWideScreen,
                               ),
                             ),
-                          ],
+                          ),
+                        ),
+                      )
+                    : SafeArea(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: maxFormWidth,
+                          ),
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: _LoginForm(
+                                  localizations: localizations,
+                                  emailController: emailController,
+                                  passwordController: passwordController,
+                                  showEmailError: showEmailError,
+                                  isButtonEnabled: isButtonEnabled,
+                                  opacityAnimation: _opacityAnimation,
+                                  loginWithEmailAndPassword: _loginWithEmailAndPassword,
+                                  loginWithGoogle: _loginWithGoogle,
+                                  loginWithFacebook: _loginWithFacebook,
+                                  isWideScreen: isWideScreen,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+              ),
             ),
           ),
-        ),
-        if (_isLoading) const LoadingIndicator(), // Show loading indicator
+        if (_isLoading) const LoadingIndicator(),
       ],
     );
+
+    // Apply pattern background only on desktop/web (non mobile)
+    if (isWideScreen) {
+      return LogoPatternBackground(child: contentStack);
+    }
+    return contentStack;
   }
 }
 
@@ -324,150 +341,150 @@ class _LoginForm extends StatelessWidget {
         ? Colors.white
         : Colors.black;
 
-    return SingleChildScrollView(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: maxFormWidth,
+    // Desktop/web layout unchanged (scrollable single column)
+    if (isWideScreen) {
+      return SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxFormWidth),
+          child: _buildFormContent(context, localizations, inputTextColor, cardTextColor, includeSocial: false, includeSignupLink: true),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'images/logo.png',
-              height: 100,
-            ),
-            const SizedBox(height: 40),
+      );
+    }
 
-            // Username Field
-            SizedBox(
-              width: isWideScreen ? 320 : double.infinity,
-              child: Focus(
-                onFocusChange: (hasFocus) {
-                  if (!hasFocus) {
-                    // ignore: invalid_use_of_protected_member
-                    (context as Element).markNeedsBuild();
-                  }
-                },
-                child: TextField(
-                  controller: emailController,
-                  decoration: InputDecoration(
-                    labelText: localizations.translate('email'),
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.person),
-                    errorText: showEmailError
-                        ? localizations.translate('invalid_email')
-                        : null,
-                    isDense: false,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-                  ),
-                  style: TextStyle(color: inputTextColor),
-                ),
+    // Mobile: pin signup link at bottom.
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxFormWidth),
+              child: _buildFormContent(context, localizations, inputTextColor, cardTextColor, includeSocial: true, includeSignupLink: false),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 24),
+          child: GestureDetector(
+            onTap: () => GoRouter.of(context).go('/signup'),
+            child: Text(
+              localizations.translate('dont_have_account'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
               ),
             ),
+          ),
+        ),
+      ],
+    );
+  }
 
-            const SizedBox(height: 20),
-
-            // Password Field
-            SizedBox(
-              width: isWideScreen ? 320 : double.infinity,
-              child: TextField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: localizations.translate('password'),
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.lock),
-                  isDense: false,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-                ),
-                onSubmitted: (_) {
-                  if (isButtonEnabled) {
-                    loginWithEmailAndPassword();
-                  }
-                },
-                style: TextStyle(color: inputTextColor),
+  Widget _buildFormContent(
+    BuildContext ctx,
+    AppLocalizations localizations,
+    Color inputTextColor,
+    Color? cardTextColor, {
+    required bool includeSocial,
+    required bool includeSignupLink,
+  }) {
+    final bool isWideScreen = this.isWideScreen;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Image.asset('images/logo.png', height: 100),
+        const SizedBox(height: 40),
+        SizedBox(
+          width: isWideScreen ? 320 : double.infinity,
+          child: Focus(
+            child: TextField(
+              controller: emailController,
+              decoration: InputDecoration(
+                labelText: localizations.translate('email'),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.person),
+                errorText: showEmailError ? localizations.translate('invalid_email') : null,
+                isDense: false,
+                contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
               ),
+              style: TextStyle(color: inputTextColor),
             ),
-            const SizedBox(height: 20),
-
-            // Login Button
-            AnimatedBuilder(
-              animation: opacityAnimation,
-              builder: (context, child) {
-                return Opacity(
-                  opacity: opacityAnimation.value,
-                  child: ElevatedButton(
-                    onPressed: isButtonEnabled
-                        ? loginWithEmailAndPassword
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize:
-                          const Size(double.infinity, 50), // Full width
-                      backgroundColor:
-                          isWideScreen
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).colorScheme.primary,
-                      foregroundColor: isWideScreen
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onPrimary,
-                      elevation: isButtonEnabled ? 4 : 0,
-                    ),
-                    child: Text(
-                      localizations.translate('login'),
-                      style: cardTextColor != null
-                            ? TextStyle(color: Colors.white)
-                          : null,
-                    ),
-                  ),
-                );
-              },
+          ),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: isWideScreen ? 320 : double.infinity,
+          child: TextField(
+            controller: passwordController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: localizations.translate('password'),
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.lock),
+              isDense: false,
+              contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
             ),
-            const SizedBox(height: 40), // ridotto da 60
-
-            // Other login options (Google, Facebook) available only for mobile
-            if (!isWideScreen) ...[
-              ElevatedButton.icon(
-                onPressed: loginWithGoogle,
-                icon: const Icon(Icons.login),
-                label: Text(localizations.translate('login_google')),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
+            onSubmitted: (_) { if (isButtonEnabled) loginWithEmailAndPassword(); },
+            style: TextStyle(color: inputTextColor),
+          ),
+        ),
+        const SizedBox(height: 20),
+        AnimatedBuilder(
+          animation: opacityAnimation,
+          builder: (context, child) => Opacity(
+            opacity: opacityAnimation.value,
+      child: ElevatedButton(
+              onPressed: isButtonEnabled ? loginWithEmailAndPassword : null,
+              style: ElevatedButton.styleFrom(
+        minimumSize: const Size(double.infinity, 50),
+        backgroundColor: Theme.of(ctx).colorScheme.primary,
+                elevation: isButtonEnabled ? 4 : 0,
               ),
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                onPressed: loginWithFacebook,
-                icon: const Icon(Icons.facebook),
-                label: Text(localizations.translate('login_facebook')),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 60),
-            ],
-
-            // Signup Redirection
-            GestureDetector(
-              onTap: () {
-                GoRouter.of(context)
-                    .go('/signup'); // Navigate to Signup Page
-              },
               child: Text(
-                localizations.translate('dont_have_account'),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
+                localizations.translate('login'),
+                style: cardTextColor != null ? const TextStyle(color: Colors.white) : null,
               ),
             ),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(height: 40),
+        if (includeSocial) ...[
+          ElevatedButton.icon(
+            onPressed: loginWithGoogle,
+            icon: const Icon(Icons.login),
+            label: Text(localizations.translate('login_google')),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 50),
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            onPressed: loginWithFacebook,
+            icon: const Icon(Icons.facebook),
+            label: Text(localizations.translate('login_facebook')),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 50),
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+        if (includeSignupLink)
+          GestureDetector(
+      onTap: () => GoRouter.of(ctx).go('/signup'),
+            child: Text(
+              localizations.translate('dont_have_account'),
+              style: TextStyle(
+        color: Theme.of(ctx).colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

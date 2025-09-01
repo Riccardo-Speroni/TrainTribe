@@ -1,4 +1,5 @@
 /// Phone number utilities for sanitization, validation and composition.
+library;
 
 const String kItalyPrefix = '+39';
 const int kItalyNumberLen = 10;

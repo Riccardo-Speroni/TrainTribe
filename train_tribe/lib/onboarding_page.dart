@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'utils/app_globals.dart';
 import 'package:go_router/go_router.dart';
 import 'l10n/app_localizations.dart';
+import 'widgets/locale_theme_selector.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -75,31 +75,21 @@ class _OnboardingPageState extends State<OnboardingPage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         actions: [
-          // Show language dropdown only on first page, else show Skip
+          // First page: language selector
           if (_currentPage == 0)
-            Padding(
-              padding: const EdgeInsets.only(right: 4.0),
-              child: PopupMenuButton<String>(
-                tooltip: localizations.translate('language'),
-                icon: Icon(Icons.language, color: Theme.of(context).colorScheme.primary),
-                onSelected: (val) async {
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setString('language_code', val);
-                  appLocale.value = Locale(val);
-                  setState(() {});
-                },
-                itemBuilder: (context) => [
-                  CheckedPopupMenuItem(
-                    value: 'en',
-                    checked: appLocale.value.languageCode == 'en',
-                    child: const Text('English'),
-                  ),
-                  CheckedPopupMenuItem(
-                    value: 'it',
-                    checked: appLocale.value.languageCode == 'it',
-                    child: const Text('Italiano'),
-                  ),
-                ],
+            const Padding(
+              padding: EdgeInsets.only(right: 4.0),
+              child: LocaleThemeSelector(),
+            )
+          else if (isMobile)
+            TextButton(
+              onPressed: _currentPage == onboardingData.length - 1
+                  ? completeOnboarding
+                  : skipOnboarding,
+              child: Text(
+                localizations.translate(
+                    _currentPage == onboardingData.length - 1 ? 'finish' : 'skip'),
+                style: TextStyle(color: Theme.of(context).colorScheme.primary),
               ),
             )
           else
@@ -200,11 +190,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           ? localizations.translate('finish')
                           : localizations.translate('next'),
                     ),
-                  )
-                else if (_currentPage == onboardingData.length - 1)
-                  TextButton(
-                    onPressed: completeOnboarding,
-                    child: Text(localizations.translate('finish')),
                   )
                 else
                   const SizedBox(width: 64),
