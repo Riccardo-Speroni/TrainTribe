@@ -10,16 +10,17 @@ import 'l10n/app_localizations.dart';
 import 'utils/firebase_exception_handler.dart';
 import 'utils/loading_indicator.dart';
 import 'widgets/logo_pattern_background.dart';
+import 'utils/auth_adapter.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final AuthAdapter? authAdapter; // for testing injection
+  const LoginPage({super.key, this.authAdapter});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
-    with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isButtonEnabled = false;
@@ -41,8 +42,7 @@ class _LoginPageState extends State<LoginPage>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _opacityAnimation =
-        Tween<double>(begin: 0.5, end: 1.0).animate(_animationController);
+    _opacityAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(_animationController);
 
     // Particles generated inside LayoutBuilder for actual size (to avoid overlaps)
   }
@@ -53,9 +53,8 @@ class _LoginPageState extends State<LoginPage>
   }
 
   void _updateButtonState() {
-    final shouldEnable = emailController.text.trim().isNotEmpty &&
-        passwordController.text.trim().isNotEmpty &&
-        _isValidEmail(emailController.text.trim());
+    final shouldEnable =
+        emailController.text.trim().isNotEmpty && passwordController.text.trim().isNotEmpty && _isValidEmail(emailController.text.trim());
 
     if (shouldEnable != isButtonEnabled) {
       setState(() {
@@ -78,24 +77,19 @@ class _LoginPageState extends State<LoginPage>
         return; // User canceled the login
       }
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final userCredential =
-          await FirebaseAuth.instance.signInWithCredential(credential);
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
       final user = userCredential.user;
 
       if (user != null) {
         // Check if user exists in Firestore
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
         if (userDoc.exists) {
           // User exists, proceed to the main app
@@ -112,8 +106,7 @@ class _LoginPageState extends State<LoginPage>
         }
       }
     } catch (e) {
-      _showErrorDialog(
-          AppLocalizations.of(context).translate('login_error_generic'));
+      _showErrorDialog(AppLocalizations.of(context).translate('login_error_generic'));
     } finally {
       setState(() => _isLoading = false); // Hide loading indicator
     }
@@ -128,19 +121,14 @@ class _LoginPageState extends State<LoginPage>
         return; // Login failed or accessToken is null
       }
 
-      final OAuthCredential credential =
-          FacebookAuthProvider.credential(result.accessToken!.tokenString);
+      final OAuthCredential credential = FacebookAuthProvider.credential(result.accessToken!.tokenString);
 
-      final userCredential =
-          await FirebaseAuth.instance.signInWithCredential(credential);
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
       final user = userCredential.user;
 
       if (user != null) {
         // Check if user exists in Firestore
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
         if (userDoc.exists) {
           // User exists, proceed to the main app
@@ -157,8 +145,7 @@ class _LoginPageState extends State<LoginPage>
         }
       }
     } catch (e) {
-      _showErrorDialog(
-          AppLocalizations.of(context).translate('login_error_generic'));
+      _showErrorDialog(AppLocalizations.of(context).translate('login_error_generic'));
     } finally {
       setState(() => _isLoading = false); // Hide loading indicator
     }
@@ -169,18 +156,14 @@ class _LoginPageState extends State<LoginPage>
     try {
       final email = emailController.text.trim();
       final password = passwordController.text.trim();
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final adapter = widget.authAdapter ?? FirebaseAuthAdapter();
+      await adapter.signInWithEmailAndPassword(email: email, password: password);
       GoRouter.of(context).go('/root');
     } on FirebaseAuthException catch (e) {
-      final errorMessage =
-          FirebaseExceptionHandler.logInErrorMessage(context, e.code);
+      final errorMessage = FirebaseExceptionHandler.logInErrorMessage(context, e.code);
       _showErrorDialog(errorMessage);
     } catch (e) {
-      _showErrorDialog(
-          AppLocalizations.of(context).translate('login_error_generic'));
+      _showErrorDialog(AppLocalizations.of(context).translate('login_error_generic'));
     } finally {
       setState(() => _isLoading = false); // Hide loading indicator
     }
@@ -215,8 +198,7 @@ class _LoginPageState extends State<LoginPage>
     final localizations = AppLocalizations.of(context);
 
     // Imposta la larghezza massima su desktop/web
-    final bool isWideScreen =
-        kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
+    final bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
     final double maxFormWidth = isWideScreen ? 400.0 : double.infinity;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -244,8 +226,7 @@ class _LoginPageState extends State<LoginPage>
                         width: 500,
                         height: 560,
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 32.0, horizontal: 32.0),
+                          padding: const EdgeInsets.symmetric(vertical: 32.0, horizontal: 32.0),
                           child: SingleChildScrollView(
                             child: _LoginForm(
                               localizations: localizations,
@@ -254,8 +235,7 @@ class _LoginPageState extends State<LoginPage>
                               showEmailError: showEmailError,
                               isButtonEnabled: isButtonEnabled,
                               opacityAnimation: _opacityAnimation,
-                              loginWithEmailAndPassword:
-                                  _loginWithEmailAndPassword,
+                              loginWithEmailAndPassword: _loginWithEmailAndPassword,
                               loginWithGoogle: _loginWithGoogle,
                               loginWithFacebook: _loginWithFacebook,
                               isWideScreen: isWideScreen,
@@ -279,8 +259,7 @@ class _LoginPageState extends State<LoginPage>
                                 showEmailError: showEmailError,
                                 isButtonEnabled: isButtonEnabled,
                                 opacityAnimation: _opacityAnimation,
-                                loginWithEmailAndPassword:
-                                    _loginWithEmailAndPassword,
+                                loginWithEmailAndPassword: _loginWithEmailAndPassword,
                                 loginWithGoogle: _loginWithGoogle,
                                 loginWithFacebook: _loginWithFacebook,
                                 isWideScreen: isWideScreen,
@@ -334,23 +313,18 @@ class _LoginForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isWideScreen = this.isWideScreen;
-    final Color? cardTextColor =
-        isWideScreen ? Theme.of(context).colorScheme.onPrimary : null;
+    final Color? cardTextColor = isWideScreen ? Theme.of(context).colorScheme.onPrimary : null;
 
     final double maxFormWidth = isWideScreen ? 400.0 : double.infinity;
 
-    final Color inputTextColor = Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
+    final Color inputTextColor = Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black;
 
     // Desktop/web layout unchanged (scrollable single column)
     if (isWideScreen) {
       return SingleChildScrollView(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxFormWidth),
-          child: _buildFormContent(
-              context, localizations, inputTextColor, cardTextColor,
-              includeSocial: false, includeSignupLink: true),
+          child: _buildFormContent(context, localizations, inputTextColor, cardTextColor, includeSocial: false, includeSignupLink: true),
         ),
       );
     }
@@ -362,9 +336,8 @@ class _LoginForm extends StatelessWidget {
           child: SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxFormWidth),
-              child: _buildFormContent(
-                  context, localizations, inputTextColor, cardTextColor,
-                  includeSocial: true, includeSignupLink: false),
+              child:
+                  _buildFormContent(context, localizations, inputTextColor, cardTextColor, includeSocial: true, includeSignupLink: false),
             ),
           ),
         ),
@@ -406,16 +379,14 @@ class _LoginForm extends StatelessWidget {
           child: Focus(
             child: TextField(
               controller: emailController,
+              key: const Key('emailField'),
               decoration: InputDecoration(
                 labelText: localizations.translate('email'),
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.person),
-                errorText: showEmailError
-                    ? localizations.translate('invalid_email')
-                    : null,
+                errorText: showEmailError ? localizations.translate('invalid_email') : null,
                 isDense: false,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
               ),
               style: TextStyle(color: inputTextColor),
             ),
@@ -427,13 +398,13 @@ class _LoginForm extends StatelessWidget {
           child: TextField(
             controller: passwordController,
             obscureText: true,
+            key: const Key('passwordField'),
             decoration: InputDecoration(
               labelText: localizations.translate('password'),
               border: const OutlineInputBorder(),
               prefixIcon: const Icon(Icons.lock),
               isDense: false,
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+              contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
             ),
             onSubmitted: (_) {
               if (isButtonEnabled) loginWithEmailAndPassword();
@@ -449,6 +420,7 @@ class _LoginForm extends StatelessWidget {
             child: SizedBox(
               width: isWideScreen ? 320 : double.infinity,
               child: ElevatedButton(
+                key: const Key('loginButton'),
                 onPressed: isButtonEnabled ? loginWithEmailAndPassword : null,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
