@@ -45,7 +45,7 @@ class _CompleteSignUpPageState extends State<CompleteSignUpPage> {
         'surname': surnameController.text.trim(),
         'username': usernameController.text.trim(),
         'phone': phoneController.text.trim(),
-        'profilePicture': widget.profilePicture,
+        'picture': widget.profilePicture,
       });
 
       // Navigate to the main app
@@ -90,6 +90,7 @@ class _CompleteSignUpPageState extends State<CompleteSignUpPage> {
         phoneController: phoneController,
         onAction: () => _saveUserToDatabase(context),
         actionButtonText: localizations.translate('save'),
+        profilePicture: widget.profilePicture,
       ),
     );
   }
