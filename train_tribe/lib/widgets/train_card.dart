@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:timelines_plus/timelines_plus.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import '../utils/profile_picture_widget.dart';
+import 'package:flutter/foundation.dart';
 
 part 'train_card_widgets/train_card_hoverable.dart';
 part 'train_card_widgets/train_card_scrolling.dart';
@@ -47,6 +48,12 @@ class TrainCard extends StatelessWidget {
         theme.brightness == Brightness.dark ? theme.colorScheme.outlineVariant.withOpacity(0.4) : Colors.grey.withOpacity(0.15);
     final borderColor =
         userConfirmed ? (theme.colorScheme.brightness == Brightness.dark ? theme.colorScheme.primary : Colors.green) : baseBorderColor;
+    // Light mode: give cards a slightly more distinct background vs scaffold and a richer multi-layer shadow.
+    final bool isLight = theme.brightness == Brightness.light;
+    final Color effectiveCardColor = isLight
+        // Blend a touch of surface tint & white to differentiate from pure white backgrounds without looking gray.
+        ? Color.alphaBlend(theme.colorScheme.primary.withOpacity(0.015), theme.cardColor.withOpacity(0.985))
+        : theme.cardColor;
     final gradient = userConfirmed
         ? LinearGradient(
             colors: theme.colorScheme.brightness == Brightness.dark
@@ -67,18 +74,26 @@ class TrainCard extends StatelessWidget {
             transform: hovering ? (Matrix4.identity()..translate(0.0, -2.0)) : Matrix4.identity(),
             margin: const EdgeInsets.symmetric(vertical: 10.0),
             decoration: BoxDecoration(
-              color: theme.cardColor,
+              color: effectiveCardColor,
               borderRadius: BorderRadius.circular(14.0),
               border: Border.all(color: borderColor, width: 1.6),
               boxShadow: [
-                if (theme.brightness == Brightness.light)
+                if (isLight) ...[
+                  // Subtle base lift
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.035 + hoverElevation * 0.6),
+                    blurRadius: 5 + (hovering ? 2 : 0),
+                    spreadRadius: 0.5,
+                    offset: const Offset(0, 1),
+                  ),
+                  // Softer ambient shadow
                   BoxShadow(
                     color: Colors.black.withOpacity(0.06 + hoverElevation),
-                    blurRadius: 14 + (hovering ? 4 : 0),
-                    spreadRadius: 1,
-                    offset: const Offset(0, 4),
-                  )
-                else
+                    blurRadius: 18 + (hovering ? 6 : 2),
+                    spreadRadius: 1.2,
+                    offset: const Offset(0, 8),
+                  ),
+                ] else
                   BoxShadow(
                     color: theme.colorScheme.primary.withOpacity(hovering ? 0.12 : 0.07),
                     blurRadius: 10,
