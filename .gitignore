@@ -3,3 +3,4 @@ trains-api-tools/*.json
 trains-api-tools/*.txt
 train_tribe/macos/Runner/GoogleService-Info.plist
 .vscode
+train_tribe/traintribe-release.keystore
