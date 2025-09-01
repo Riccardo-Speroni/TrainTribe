@@ -457,9 +457,10 @@ class _LoginForm extends StatelessWidget {
                 ),
                 child: Text(
                   localizations.translate('login'),
-                  style: cardTextColor != null
-                      ? const TextStyle(color: Colors.white)
-                      : null,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
