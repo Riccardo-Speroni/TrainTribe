@@ -9,6 +9,7 @@ class UserDetailsPage extends StatefulWidget {
   final String? prefilledSurname;
   final String? prefilledUsername;
   final String? prefilledPhone;
+  final String? profilePicture;
   final VoidCallback? onBack;
   final VoidCallback onAction;
   final String actionButtonText;
@@ -26,13 +27,14 @@ class UserDetailsPage extends StatefulWidget {
     this.prefilledUsername,
     this.prefilledPhone,
     this.onBack,
+    this.profilePicture,
     required this.onAction,
     required this.actionButtonText,
     required this.nameController,
     required this.surnameController,
     required this.usernameController,
     required this.phoneController,
-  this.onProfileImageSelected,
+    this.onProfileImageSelected,
     super.key,
   });
 
@@ -80,9 +82,9 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
       return;
     }
 
-  final prefixOk = validatePrefix(dialRaw);
-  final numberDigitsOnly = validateNumberDigits(numRaw);
-  final lengthOk = validateNumberLength(numRaw, dialRaw, minLen: kGenericMinLen, maxLen: kGenericMaxLen);
+    final prefixOk = validatePrefix(dialRaw);
+    final numberDigitsOnly = validateNumberDigits(numRaw);
+    final lengthOk = validateNumberLength(numRaw, dialRaw, minLen: kGenericMinLen, maxLen: kGenericMaxLen);
 
     setState(() {
       _prefixError = prefixOk ? null : localizations.translate('invalid');
@@ -100,9 +102,9 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
       _phoneError = null;
       return '';
     }
-  final prefixOk = validatePrefix(dialRaw);
-  final numberDigitsOnly = validateNumberDigits(numRaw);
-  final lengthOk = validateNumberLength(numRaw, dialRaw, minLen: kGenericMinLen, maxLen: kGenericMaxLen);
+    final prefixOk = validatePrefix(dialRaw);
+    final numberDigitsOnly = validateNumberDigits(numRaw);
+    final lengthOk = validateNumberLength(numRaw, dialRaw, minLen: kGenericMinLen, maxLen: kGenericMaxLen);
 
     if (!(prefixOk && numberDigitsOnly && lengthOk)) {
       setState(() {
@@ -111,8 +113,8 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
       });
       return null;
     }
-  final e164 = composeE164(dialRaw, numRaw, allowEmpty: false, minLen: kGenericMinLen, maxLen: kGenericMaxLen);
-  return e164;
+    final e164 = composeE164(dialRaw, numRaw, allowEmpty: false, minLen: kGenericMinLen, maxLen: kGenericMaxLen);
+    return e164;
   }
 
   Future<void> _checkUsernameUniqueness(String username) async {
@@ -157,6 +159,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                 firstName: widget.nameController.text,
                 lastName: widget.surnameController.text,
                 username: widget.usernameController.text,
+                initialImageUrl: widget.profilePicture is String ? widget.profilePicture : null,
                 size: 110,
                 ringWidth: 5,
                 autoUpload: false, // defer upload until after user document creation
@@ -272,8 +275,8 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                       contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
                       labelText: localizations.translate('phone_number'),
                       border: const OutlineInputBorder(),
-                        helperText: localizations.translate('phone_number_note'),
-                        helperMaxLines: 3,
+                      helperText: localizations.translate('phone_number_note'),
+                      helperMaxLines: 3,
                       errorText: _phoneError,
                     ),
                   ),
@@ -283,9 +286,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
             const SizedBox(height: 30),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: areMandatoryFieldsFilled && isUsernameUnique
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey,
+                backgroundColor: areMandatoryFieldsFilled && isUsernameUnique ? Theme.of(context).colorScheme.primary : Colors.grey,
               ),
               onPressed: areMandatoryFieldsFilled && isUsernameUnique
                   ? () {
