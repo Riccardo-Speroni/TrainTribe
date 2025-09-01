@@ -5,6 +5,13 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+// Load keystore credentials (NOT committed) from android/keystore.properties
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.example.train_tribe"
     // Use API 35 as recommended by flutter_local_notifications
@@ -33,17 +40,29 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
+    signingConfigs {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            // Will use release keystore only if keystore.properties exists.
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            } else {
+                // Fallback to debug signing to allow `flutter run --release` during early dev
+                println "[WARN] keystore.properties not found - using debug signing for release build."
+            }
         }
     }
-}
 
-dependencies {
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    buildTypes {
+        release {
+            // Use release signing if available, else (early dev) Gradle will still pick debug.
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
 }
 
 flutter {
@@ -51,8 +70,12 @@ flutter {
 }
 
 dependencies {
-    // Required for core library desugaring
+    // Core library desugaring (keep only one version; removed older duplicate)
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+    // (Optional) Add Firebase BoM / play-services-auth here if not already elsewhere:
+    // implementation platform('com.google.firebase:firebase-bom:33.3.0')
+    // implementation 'com.google.firebase:firebase-auth'
+    // implementation 'com.google.android.gms:play-services-auth:21.2.0'
 }
 
 apply plugin: 'com.google.gms.google-services' // Applica il plugin Google Services
