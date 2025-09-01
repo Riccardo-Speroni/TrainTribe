@@ -399,7 +399,22 @@ class _LegTimelineState extends State<_LegTimeline> {
                 ),
               ))
             else
-              Center(child: SizedBox(width: displayedWidth, child: timeline)),
+              // Use a non-scrollable SingleChildScrollView to give the internal Row unbounded width
+              // along the horizontal axis, preventing minor rounding overflows when timeline width
+              // is very close to maxWidth. Disable scrolling/drag; just center the content.
+              Positioned.fill(
+                child: ScrollConfiguration(
+                  behavior: _NoGlowScrollBehavior(),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const NeverScrollableScrollPhysics(),
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: SizedBox(width: displayedWidth, child: timeline),
+                    ),
+                  ),
+                ),
+              ),
             if (needsScroll)
               Positioned(
                   left: 0,
