@@ -120,7 +120,21 @@ class CalendarDayColumn extends StatelessWidget {
 
         for (int i = 0; i < overlappingEvents.length; i++) {
           CalendarEvent overlappingEvent = overlappingEvents[i];
-          bool isBeingDragged = draggedEvent == overlappingEvent;
+          // Migliora il controllo per il drag anche sulle copie ricorrenti
+          bool isBeingDragged = false;
+          if (draggedEvent != null) {
+            if (draggedEvent == overlappingEvent) {
+              isBeingDragged = true;
+            } else if (
+              // Se sono copie ricorrenti, confronta id, generatedBy e data
+              draggedEvent?.generatedBy != null &&
+              overlappingEvent.generatedBy != null &&
+              draggedEvent?.generatedBy == overlappingEvent.generatedBy &&
+              draggedEvent?.date == overlappingEvent.date
+            ) {
+              isBeingDragged = true;
+            }
+          }
 
           // Calculate the start slot index for the event
           int eventStartIndex = overlappingEvent.hour - hours.first;
