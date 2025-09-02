@@ -10,8 +10,6 @@ from zoneinfo import ZoneInfo
 from bucket_manager import upload_to_bucket
 from full_legs_builder import build_full_info_maps_legs
 
-#TODO: create a request every 15 minutes from the start of the event up to the end of the event, save each response to params["maps_path"] + "_" + str(i) + ".json"
-
 endpoint = 'https://maps.googleapis.com/maps/api/directions/json?'
 
 def ask_maps(params):
