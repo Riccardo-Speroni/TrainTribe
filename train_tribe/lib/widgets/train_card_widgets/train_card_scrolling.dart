@@ -73,7 +73,7 @@ class _ProgressScrollAreaState extends State<_ProgressScrollArea> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final barColor = theme.colorScheme.secondary.withOpacity(theme.brightness == Brightness.dark ? 0.3 : 0.35);
+  final barColor = theme.colorScheme.secondary.withValues(alpha: theme.brightness == Brightness.dark ? 0.3 : 0.35);
     final thickness = 3.0; // thumb thickness only
     final minThumb = 20.0; // ensure always visible
     return Stack(

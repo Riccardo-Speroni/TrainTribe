@@ -41,7 +41,7 @@ Future<void> showAddEventDialog({
             borderRadius: BorderRadius.circular(20),
           ),
           elevation: 8,
-          backgroundColor: Theme.of(context).dialogBackgroundColor,
+          backgroundColor: Theme.of(context).dialogTheme.backgroundColor ?? Theme.of(context).colorScheme.surfaceContainer,
           title: Row(
             children: [
               Icon(Icons.event, color: Theme.of(context).colorScheme.primary),
@@ -399,7 +399,7 @@ Future<void> showAddEventDialog({
                       recurrenceEndDate: recurrenceEndDate,
                     ));
                   }
-
+                  if (!context.mounted) return;
                   Navigator.pop(context);
                 },
                 label: Text(localizations.translate('save')),
@@ -447,7 +447,7 @@ Future<void> showEditEventDialog({
             borderRadius: BorderRadius.circular(20),
           ),
           elevation: 8,
-          backgroundColor: Theme.of(context).dialogBackgroundColor,
+          backgroundColor: Theme.of(context).dialogTheme.backgroundColor ?? Theme.of(context).colorScheme.surfaceContainer,
           title: Row(
             children: [
               Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
@@ -819,7 +819,7 @@ Future<void> showEditEventDialog({
                     'recurrent': isRecurrent,
                   });
                 }
-
+                if (!context.mounted) return;
                 Navigator.pop(context);
               },
               label: Text(localizations.translate('save')),
@@ -862,7 +862,7 @@ Future<void> showEditEventDialog({
                         .doc(generatorEvent.id)
                         .delete();
                   }
-                  Navigator.pop(context);
+                  if (context.mounted) Navigator.pop(context);
                 }
               },
               label: Text(localizations.translate('delete')),

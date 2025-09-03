@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'utils/loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/services.dart';
 import 'widgets/locale_theme_selector.dart';
 import 'widgets/profile_info_box.dart';
 
@@ -27,9 +26,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
 
   Future<void> _resetOnboarding(BuildContext context, AppLocalizations l) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_complete', false);
-    GoRouter.of(context).go('/onboarding');
+  final router = GoRouter.of(context); // capture before await
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('onboarding_complete', false);
+  if (!mounted) return;
+  router.go('/onboarding');
   }
 
   @override
@@ -110,8 +111,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.logout),
                       onPressed: () async {
+                        final router = GoRouter.of(context); // capture
                         await FirebaseAuth.instance.signOut();
-                        GoRouter.of(context).go('/login');
+                        if (!mounted) return;
+                        router.go('/login');
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,

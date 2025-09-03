@@ -56,11 +56,11 @@ class CalendarEventWidget extends StatelessWidget {
                 : isBeingDragged
                     ? event.isRecurrent || event.generatedBy != null
                         ? Theme.of(context).brightness == Brightness.dark
-                            ? Colors.deepPurpleAccent.withOpacity(0.7)
-                            : Colors.purpleAccent.withOpacity(0.7)
+                            ? Colors.deepPurpleAccent.withValues(alpha: 0.7)
+                            : Colors.purpleAccent.withValues(alpha: 0.7)
                         : Theme.of(context).brightness == Brightness.dark
-                            ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
-                            : Theme.of(context).colorScheme.primary.withOpacity(0.7)
+                            ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)
+                            : Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)
                     : event.isRecurrent || event.generatedBy != null
                         ? Theme.of(context).brightness == Brightness.dark
                             ? Colors.deepPurpleAccent
@@ -72,8 +72,8 @@ class CalendarEventWidget extends StatelessWidget {
             boxShadow: [
               BoxShadow(
                 color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.black.withOpacity(0.3)
-                    : Colors.grey.withOpacity(0.5),
+                    ? Colors.black.withValues(alpha: 0.3)
+                    : Colors.grey.withValues(alpha: 0.5),
                 spreadRadius: 2,
                 blurRadius: 5,
                 offset: const Offset(0, 3),

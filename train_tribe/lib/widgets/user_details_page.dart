@@ -39,10 +39,10 @@ class UserDetailsPage extends StatefulWidget {
   });
 
   @override
-  _UserDetailsPageState createState() => _UserDetailsPageState();
+  UserDetailsPageState createState() => UserDetailsPageState();
 }
 
-class _UserDetailsPageState extends State<UserDetailsPage> {
+class UserDetailsPageState extends State<UserDetailsPage> {
   bool isUsernameUnique = true;
   bool areMandatoryFieldsFilled = false;
   // Editable prefix with +39 default

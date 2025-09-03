@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
@@ -230,7 +229,7 @@ class _TrainsPageState extends State<TrainsPage> {
             child: Builder(builder: (context) {
               final theme = Theme.of(context);
               final selColor = theme.colorScheme.primary;
-              final unselectedText = theme.brightness == Brightness.dark ? theme.colorScheme.onSurface.withOpacity(0.60) : Colors.black87;
+              final unselectedText = theme.brightness == Brightness.dark ? theme.colorScheme.onSurface.withValues(alpha: 0.60) : Colors.black87;
               return LayoutBuilder(builder: (ctx, constraints) {
                 final useShort = _shouldUseShortDayLabels(ctx, constraints.maxWidth);
                 final labels = useShort ? daysOfWeekShort : daysOfWeekFull;
@@ -253,15 +252,15 @@ class _TrainsPageState extends State<TrainsPage> {
                                 color: selected
                                     ? selColor
                                     : (theme.brightness == Brightness.dark
-                                        ? theme.colorScheme.surfaceVariant.withOpacity(0.15)
+                                        ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.15)
                                         : Colors.transparent),
                                 borderRadius: BorderRadius.circular(20.0),
                                 border: Border.all(
                                   color: selected
                                       ? selColor
                                       : (theme.brightness == Brightness.dark
-                                          ? theme.colorScheme.outlineVariant.withOpacity(0.4)
-                                          : Colors.grey.withOpacity(0.3)),
+                                          ? theme.colorScheme.outlineVariant.withValues(alpha: 0.4)
+                                          : Colors.grey.withValues(alpha: 0.3)),
                                 ),
                               ),
                               child: Center(
@@ -374,7 +373,7 @@ class _TrainsPageState extends State<TrainsPage> {
                               // Departure/arrival time: time the user boards/alights (match stop_id with 'from'/'to')
                               String departureTime = '';
                               String arrivalTime = '';
-                              String _toHHmm(dynamic t) {
+                              String toHHmm(dynamic t) {
                                 final s = (t ?? '').toString();
                                 return s.length >= 5 ? s.substring(0, 5) : s;
                               }
@@ -394,14 +393,14 @@ class _TrainsPageState extends State<TrainsPage> {
                                     (s) => ((s as Map)['stop_id'] ?? '').toString() == firstFromId,
                                     orElse: () => firstStops.first,
                                   )) as Map<String, dynamic>;
-                                  departureTime = _toHHmm(boardStop['departure_time'] ?? boardStop['arrival_time']);
+                                  departureTime = toHHmm(boardStop['departure_time'] ?? boardStop['arrival_time']);
                                 }
                                 if (lastStops.isNotEmpty) {
                                   final Map<String, dynamic> alightStop = (lastStops.firstWhere(
                                     (s) => ((s as Map)['stop_id'] ?? '').toString() == lastToId,
                                     orElse: () => lastStops.last,
                                   )) as Map<String, dynamic>;
-                                  arrivalTime = _toHHmm(alightStop['arrival_time'] ?? alightStop['departure_time']);
+                                  arrivalTime = toHHmm(alightStop['arrival_time'] ?? alightStop['departure_time']);
                                 }
                               }
                               // isDirect: only one leg
@@ -562,9 +561,9 @@ class _TrainsPageState extends State<TrainsPage> {
     final bool dark = theme.brightness == Brightness.dark;
 
     // Revert to earlier solid confirmed style (no glow later handled in widget).
-    final Color bg = confirmed ? basePrimary : (dark ? basePrimary.withOpacity(0.18) : basePrimary.withOpacity(0.12));
-    final Color border = confirmed ? baseSwatch[700]! : (dark ? basePrimary.withOpacity(0.45) : basePrimary.withOpacity(0.55));
-    final Color fg = confirmed ? Colors.white : (dark ? basePrimary.withOpacity(0.95) : baseSwatch[800]!);
+  final Color bg = confirmed ? basePrimary : (dark ? basePrimary.withValues(alpha: 0.18) : basePrimary.withValues(alpha: 0.12));
+  final Color border = confirmed ? baseSwatch[700]! : (dark ? basePrimary.withValues(alpha: 0.45) : basePrimary.withValues(alpha: 0.55));
+  final Color fg = confirmed ? Colors.white : (dark ? basePrimary.withValues(alpha: 0.95) : baseSwatch[800]!);
 
     return _ConfirmButton(
       label: label,
@@ -663,7 +662,7 @@ class _ConfirmButtonState extends State<_ConfirmButton> {
             boxShadow: [
               if (!widget.confirmed && elevation > 0)
                 BoxShadow(
-                  color: widget.border.withOpacity(dark ? 0.30 : 0.22),
+                  color: widget.border.withValues(alpha: dark ? 0.30 : 0.22),
                   blurRadius: 6 + elevation * 2,
                   spreadRadius: 0.3,
                   offset: Offset(0, elevation),

@@ -120,9 +120,9 @@ class _MoodToggleState extends State<MoodToggle> {
               spacing: 100.0,
               style: ToggleStyle(
                 indicatorColor: Colors.white,
-                backgroundColor: _value
-                    ? Theme.of(context).colorScheme.primary.withOpacity(0.18)
-                    : Theme.of(context).colorScheme.error.withOpacity(0.18),
+        backgroundColor: _value
+          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.18)
+          : Theme.of(context).colorScheme.error.withValues(alpha: 0.18),
               ),
               borderWidth: 4.0,
               customIconBuilder: (context, local, global) {

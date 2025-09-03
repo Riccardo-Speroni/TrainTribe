@@ -43,6 +43,7 @@ Future<void> showEditSimpleFieldDialog(
     if (user != null) {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({fieldKey: raw});
     }
+    if (!context.mounted) return;
     Navigator.of(context).pop();
   }
 
@@ -195,6 +196,7 @@ Future<void> showEditPhoneDialog(BuildContext context, AppLocalizations l, Strin
                 if (user != null) {
                   await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'phone': e164});
                 }
+                if (!ctx.mounted) return;
                 Navigator.of(ctx).pop();
               },
               child: Text(l.translate('save')),

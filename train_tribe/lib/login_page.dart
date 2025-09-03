@@ -74,7 +74,7 @@ class _LoginPageState extends State<LoginPage>
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) {
-        setState(() => _isLoading = false); // Hide loading indicator
+        if (mounted) setState(() => _isLoading = false); // Hide loading indicator
         return; // User canceled the login
       }
 
@@ -97,6 +97,7 @@ class _LoginPageState extends State<LoginPage>
             .doc(user.uid)
             .get();
 
+        if (!mounted) return; // ensure context still valid
         if (userDoc.exists) {
           // User exists, proceed to the main app
           if (mounted) GoRouter.of(context).go('/root');
@@ -112,8 +113,10 @@ class _LoginPageState extends State<LoginPage>
         }
       }
     } catch (e) {
-      _showErrorDialog(
-          AppLocalizations.of(context).translate('login_error_generic'));
+  if (mounted) {
+    _showErrorDialog(
+    AppLocalizations.of(context).translate('login_error_generic'));
+  }
     } finally {
       setState(() => _isLoading = false); // Hide loading indicator
     }
@@ -124,7 +127,7 @@ class _LoginPageState extends State<LoginPage>
     try {
       final LoginResult result = await FacebookAuth.instance.login();
       if (result.status != LoginStatus.success || result.accessToken == null) {
-        setState(() => _isLoading = false); // Hide loading indicator
+        if (mounted) setState(() => _isLoading = false); // Hide loading indicator
         return; // Login failed or accessToken is null
       }
 
@@ -142,6 +145,7 @@ class _LoginPageState extends State<LoginPage>
             .doc(user.uid)
             .get();
 
+        if (!mounted) return;
         if (userDoc.exists) {
           // User exists, proceed to the main app
           if (mounted) GoRouter.of(context).go('/root');
@@ -157,32 +161,36 @@ class _LoginPageState extends State<LoginPage>
         }
       }
     } catch (e) {
-      _showErrorDialog(
-          AppLocalizations.of(context).translate('login_error_generic'));
+  if (mounted) {
+    _showErrorDialog(
+    AppLocalizations.of(context).translate('login_error_generic'));
+  }
     } finally {
       setState(() => _isLoading = false); // Hide loading indicator
     }
   }
 
   Future<void> _loginWithEmailAndPassword() async {
-    setState(() => _isLoading = true); // Show loading indicator
+    if (mounted) setState(() => _isLoading = true); // Show loading indicator
     try {
       final email = emailController.text.trim();
       final password = passwordController.text.trim();
+      final router = GoRouter.of(context); // capture before await
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      GoRouter.of(context).go('/root');
+      if (mounted) router.go('/root');
     } on FirebaseAuthException catch (e) {
-      final errorMessage =
-          FirebaseExceptionHandler.logInErrorMessage(context, e.code);
+      if (!mounted) return;
+      final errorMessage = FirebaseExceptionHandler.logInErrorMessage(context, e.code);
       _showErrorDialog(errorMessage);
     } catch (e) {
-      _showErrorDialog(
-          AppLocalizations.of(context).translate('login_error_generic'));
+      if (mounted) {
+        _showErrorDialog(AppLocalizations.of(context).translate('login_error_generic'));
+      }
     } finally {
-      setState(() => _isLoading = false); // Hide loading indicator
+      if (mounted) setState(() => _isLoading = false); // Hide loading indicator
     }
   }
 
