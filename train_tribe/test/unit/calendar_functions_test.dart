@@ -76,5 +76,51 @@ void main() {
       // None should be same day as base
       expect(generated.any((e) => isSameDay(e.date, base.date)), false);
     });
+
+    test('generateRecurrentEvents returns empty when recurrence end before start', () {
+      final base = CalendarEvent(
+        date: DateTime(2025, 1, 10),
+        hour: 0,
+        endHour: 4,
+        departureStation: 'A',
+        arrivalStation: 'B',
+        isRecurrent: true,
+        recurrenceEndDate: DateTime(2025, 1, 5), // end before start
+      );
+      final visible = List.generate(14, (i) => DateTime(2025, 1, 1).add(Duration(days: i)));
+      final generated = generateRecurrentEvents(visible, [base]);
+      expect(generated, isEmpty);
+    });
+
+    test('generateRecurrentEvents ignores events entirely outside visible range', () {
+      final base = CalendarEvent(
+        date: DateTime(2025, 2, 1),
+        hour: 0,
+        endHour: 4,
+        departureStation: 'A',
+        arrivalStation: 'B',
+        isRecurrent: true,
+        recurrenceEndDate: DateTime(2025, 3, 1),
+      );
+      final visible = List.generate(14, (i) => DateTime(2025, 1, 1).add(Duration(days: i)));
+      final generated = generateRecurrentEvents(visible, [base]);
+      expect(generated, isEmpty);
+    });
+
+    test('generateRecurrentEvents includes boundary weeks correctly', () {
+      final base = CalendarEvent(
+        date: DateTime(2025, 1, 29), // near end of visible window
+        hour: 0,
+        endHour: 4,
+        departureStation: 'A',
+        arrivalStation: 'B',
+        isRecurrent: true,
+        recurrenceEndDate: DateTime(2025, 2, 28),
+      );
+      final visible = List.generate(35, (i) => DateTime(2025, 1, 1).add(Duration(days: i))); // through Feb 4
+      final generated = generateRecurrentEvents(visible, [base]);
+      // Next recurrence would be Feb 5 (outside) so none should appear
+      expect(generated, isEmpty);
+    });
   });
 }
