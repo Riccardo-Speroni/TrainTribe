@@ -13,6 +13,7 @@ class SuggestionsSection extends StatelessWidget {
   final void Function(String uid) onAdd;
 
   const SuggestionsSection({
+    super.key,
     required this.title,
     required this.subtitle,
     required this.loading,
@@ -33,7 +34,7 @@ class SuggestionsSection extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -71,7 +72,7 @@ class SuggestionsSection extends StatelessWidget {
                               child: Text(
                                 subtitle!,
                                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                      color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                                      color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
                                     ),
                               ),
                             ),
@@ -194,6 +195,7 @@ class SuggestionCard extends StatelessWidget {
   final bool sent;
 
   const SuggestionCard({
+    super.key,
     required this.username,
     required this.contactName,
     required this.onAdd,

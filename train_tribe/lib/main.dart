@@ -44,13 +44,13 @@ void main() async {
 
   // Initialize Firebase
   try {
-    print('Initializing Firebase...');
+  debugPrint('Initializing Firebase...');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    print('Firebase initialized successfully');
+  debugPrint('Firebase initialized successfully');
   } catch (e) {
-    print('Failed to initialize Firebase: $e');
+  debugPrint('Failed to initialize Firebase: $e');
   }
 
   const useEmulator = false; // Set to true to use Firebase emulators
@@ -163,7 +163,7 @@ class _MyAppState extends State<MyApp> {
 
       // Rule 1: Redirect to onboarding if not completed
       if (!onboardingComplete && state.fullPath != '/onboarding') {
-        print('Redirecting to onboarding page...');
+  debugPrint('Redirecting to onboarding page...');
         return '/onboarding';
       }
 
@@ -172,7 +172,7 @@ class _MyAppState extends State<MyApp> {
         final path = state.fullPath ?? '';
         const allowedUnauthed = ['/onboarding', '/login', '/signup'];
         if (!allowedUnauthed.contains(path)) {
-          print('Unauthenticated, redirecting to login page...');
+          debugPrint('Unauthenticated, redirecting to login page...');
           return '/login';
         }
       }
@@ -182,12 +182,12 @@ class _MyAppState extends State<MyApp> {
         final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
         if (!userDoc.exists || userDoc.data()?['username'] == null) {
           // Redirect to complete_signup if profile is incomplete
-          print('Redirecting to complete_signup page...');
+          debugPrint('Redirecting to complete_signup page...');
           //FirebaseAuth.instance.signOut();  // DEBUG PURPOSES
           return '/complete_signup';
           // Rule 4: Redirect to root if already logged in and on login/signup page
         } else if (state.fullPath == '/login' || state.fullPath == '/signup') {
-          print('Already logged in, redirecting to root page...');
+          debugPrint('Already logged in, redirecting to root page...');
           return '/root';
         }
       }
@@ -253,7 +253,7 @@ ThemeData _buildAppTheme(Brightness brightness) {
   return base.copyWith(
     colorScheme: scheme,
     navigationBarTheme: NavigationBarThemeData(
-      indicatorColor: scheme.primary.withOpacity(0.15),
+  indicatorColor: scheme.primary.withValues(alpha: 0.15),
       backgroundColor: base.navigationBarTheme.backgroundColor, // keep default
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
@@ -317,7 +317,7 @@ class _RootPageState extends State<RootPage> {
       final ColorScheme scheme = Theme.of(context).colorScheme;
       final TextStyle labelStyle = Theme.of(context).textTheme.bodyMedium ?? const TextStyle(fontSize: 14);
 
-      double _computeMaxLabelWidth() {
+      double computeMaxLabelWidth() {
         double maxW = 0;
         final TextDirection textDirection = Directionality.of(context);
         for (final t in titles) {
@@ -334,14 +334,14 @@ class _RootPageState extends State<RootPage> {
       final double collapsedWidth = 72; // larghezza base stile NavigationRail
       final double hPad = 16; // padding orizzontale interno
       final double gap = 12;  // gap tra icona e label
-      final double maxLabelWidth = extended ? _computeMaxLabelWidth() : 0;
+      final double maxLabelWidth = extended ? computeMaxLabelWidth() : 0;
       final double dynamicExtendedWidth = collapsedWidth + (maxLabelWidth > 0 ? (maxLabelWidth + gap + hPad) : 0);
 
       Widget buildDestination(int index) {
         final bool selected = currentPage == index;
         final Color selectedIconColor = scheme.primary;
         final Color unselectedIconColor = scheme.onSurfaceVariant;
-        final Color selectedBg = scheme.primary.withOpacity(0.12);
+  final Color selectedBg = scheme.primary.withValues(alpha: 0.12);
         final iconList = [
           Icons.home,
           Icons.people,
@@ -408,7 +408,7 @@ class _RootPageState extends State<RootPage> {
                             width: 56,
                             height: itemHeight,
                             decoration: BoxDecoration(
-                              color: currentPage == i ? scheme.primary.withOpacity(0.12) : Colors.transparent,
+                              color: currentPage == i ? scheme.primary.withValues(alpha: 0.12) : Colors.transparent,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Icon(
@@ -510,7 +510,7 @@ class _RailToggleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     return Material(
-      color: scheme.surfaceVariant.withOpacity(0.8),
+  color: scheme.surfaceContainerHighest.withValues(alpha: 0.8),
       shape: const CircleBorder(),
       elevation: 1,
       child: InkWell(

@@ -23,7 +23,7 @@ class _LoadingIndicatorState extends State<LoadingIndicator> {
   Widget build(BuildContext context) {
     if (!_show) return const SizedBox.shrink();
     return Container(
-      color: Colors.black.withOpacity(0.5), // Semi-transparent background
+  color: Colors.black.withValues(alpha: 0.5), // Semi-transparent background
       child: const Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),

@@ -15,10 +15,10 @@ class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
 
   @override
-  _SignUpPageState createState() => _SignUpPageState();
+  SignUpPageState createState() => SignUpPageState();
 }
 
-class _SignUpPageState extends State<SignUpPage> {
+class SignUpPageState extends State<SignUpPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   File? _profileImage; // Local picked file (resized & uploaded later)
@@ -122,13 +122,19 @@ class _SignUpPageState extends State<SignUpPage> {
         'picture': profilePictureUrl,
       });
 
-      GoRouter.of(context).go('/root');
+  if (!mounted) return;
+  GoRouter.of(context).go('/root');
     } on FirebaseAuthException catch (e) {
-      final errorMessage = FirebaseExceptionHandler.signInErrorMessage(context, e.code);
-      _showErrorDialog(errorMessage);
+    if (!mounted) return;
+    final errorMessage =
+      FirebaseExceptionHandler.signInErrorMessage(context, e.code);
+    _showErrorDialog(errorMessage);
     } catch (e) {
-      print("Error creating user: $e");
-      _showErrorDialog(AppLocalizations.of(context).translate('unexpected_error'));
+  debugPrint('Error creating user: $e');
+  if (mounted) {
+    _showErrorDialog(
+    AppLocalizations.of(context).translate('unexpected_error'));
+  }
     } finally {
       setState(() => _isLoading = false); // Hide loading indicator
     }

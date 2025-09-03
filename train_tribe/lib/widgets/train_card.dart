@@ -1,5 +1,3 @@
-library train_card;
-
 import 'package:flutter/material.dart';
 import 'package:timelines_plus/timelines_plus.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
@@ -44,20 +42,20 @@ class TrainCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bool userConfirmed = highlightConfirmed; // highlightConfirmed represents current user's confirmation
-    final baseBorderColor =
-        theme.brightness == Brightness.dark ? theme.colorScheme.outlineVariant.withOpacity(0.4) : Colors.grey.withOpacity(0.15);
+  final baseBorderColor =
+    theme.brightness == Brightness.dark ? theme.colorScheme.outlineVariant.withValues(alpha: 0.4) : Colors.grey.withValues(alpha: 0.15);
     final borderColor =
         userConfirmed ? (theme.colorScheme.brightness == Brightness.dark ? theme.colorScheme.primary : Colors.green) : baseBorderColor;
     // Light mode: give cards a slightly more distinct background vs scaffold and a richer multi-layer shadow.
     final bool isLight = theme.brightness == Brightness.light;
     final Color effectiveCardColor = isLight
         // Blend a touch of surface tint & white to differentiate from pure white backgrounds without looking gray.
-        ? Color.alphaBlend(theme.colorScheme.primary.withOpacity(0.015), theme.cardColor.withOpacity(0.985))
+  ? Color.alphaBlend(theme.colorScheme.primary.withValues(alpha: 0.015), theme.cardColor.withValues(alpha: 0.985))
         : theme.cardColor;
     final gradient = userConfirmed
         ? LinearGradient(
             colors: theme.colorScheme.brightness == Brightness.dark
-                ? [theme.colorScheme.primary.withOpacity(0.15), theme.colorScheme.primary.withOpacity(0.05)]
+                ? [theme.colorScheme.primary.withValues(alpha: 0.15), theme.colorScheme.primary.withValues(alpha: 0.05)]
                 : [Colors.green.shade50, Colors.green.shade100],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -81,21 +79,21 @@ class TrainCard extends StatelessWidget {
                 if (isLight) ...[
                   // Subtle base lift
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.035 + hoverElevation * 0.6),
+                    color: Colors.black.withValues(alpha: 0.035 + hoverElevation * 0.6),
                     blurRadius: 5 + (hovering ? 2 : 0),
                     spreadRadius: 0.5,
                     offset: const Offset(0, 1),
                   ),
                   // Softer ambient shadow
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06 + hoverElevation),
+                    color: Colors.black.withValues(alpha: 0.06 + hoverElevation),
                     blurRadius: 18 + (hovering ? 6 : 2),
                     spreadRadius: 1.2,
                     offset: const Offset(0, 8),
                   ),
                 ] else
                   BoxShadow(
-                    color: theme.colorScheme.primary.withOpacity(hovering ? 0.12 : 0.07),
+                    color: theme.colorScheme.primary.withValues(alpha: hovering ? 0.12 : 0.07),
                     blurRadius: 10,
                     spreadRadius: 0,
                     offset: const Offset(0, 1),
@@ -131,7 +129,7 @@ class TrainCard extends StatelessWidget {
         '$departureTime – $arrivalTime',
         style: TextStyle(
           fontSize: 13,
-          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7) ?? Colors.grey,
+          color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7) ?? Colors.grey,
         ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -226,9 +224,9 @@ class TrainCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: confirmed
-            ? (theme.brightness == Brightness.dark ? theme.colorScheme.primary.withOpacity(0.25) : Colors.green.withOpacity(0.15))
-            : theme.colorScheme.secondaryContainer.withOpacity(theme.brightness == Brightness.dark ? 0.3 : 0.5),
+    color: confirmed
+      ? (theme.brightness == Brightness.dark ? theme.colorScheme.primary.withValues(alpha: 0.25) : Colors.green.withValues(alpha: 0.15))
+      : theme.colorScheme.secondaryContainer.withValues(alpha: theme.brightness == Brightness.dark ? 0.3 : 0.5),
       ),
       child: Text(
         title, // full title preserved
@@ -283,8 +281,8 @@ class TrainCard extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: borderColor, width: 3),
             boxShadow: [
-              if (!dark) BoxShadow(color: glowColor.withOpacity(0.45), blurRadius: 5, spreadRadius: 0.6),
-              if (dark) BoxShadow(color: borderColor.withOpacity(0.22), blurRadius: 3, spreadRadius: 0.3),
+              if (!dark) BoxShadow(color: glowColor.withValues(alpha: 0.45), blurRadius: 5, spreadRadius: 0.6),
+              if (dark) BoxShadow(color: borderColor.withValues(alpha: 0.22), blurRadius: 3, spreadRadius: 0.3),
             ],
           ),
           child: child,
@@ -303,8 +301,8 @@ class TrainCard extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: borderColor, width: 2),
               boxShadow: [
-                if (!dark) BoxShadow(color: glowColor.withOpacity(0.42), blurRadius: 4, spreadRadius: 0.6),
-                if (dark) BoxShadow(color: borderColor.withOpacity(0.18), blurRadius: 2.5, spreadRadius: 0.25),
+                if (!dark) BoxShadow(color: glowColor.withValues(alpha: 0.42), blurRadius: 4, spreadRadius: 0.6),
+                if (dark) BoxShadow(color: borderColor.withValues(alpha: 0.18), blurRadius: 2.5, spreadRadius: 0.25),
               ],
             ),
             child: child,
@@ -321,7 +319,7 @@ class TrainCard extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 1.5),
               boxShadow: [
-                BoxShadow(color: borderColor.withOpacity(0.5), blurRadius: 4, spreadRadius: 0.5),
+                BoxShadow(color: borderColor.withValues(alpha: 0.5), blurRadius: 4, spreadRadius: 0.5),
               ],
             ),
             child: const Center(
@@ -345,7 +343,7 @@ class TrainCard extends StatelessWidget {
       '$departureTime – $arrivalTime',
       style: TextStyle(
         fontSize: 13,
-        color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7) ?? Colors.grey,
+  color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7) ?? Colors.grey,
       ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,

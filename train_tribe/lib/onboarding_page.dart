@@ -51,9 +51,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
     ];
 
     Future<void> completeOnboarding() async {
+      final router = GoRouter.of(context); // capture before await
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_complete', true);
-      GoRouter.of(context).go('/root');
+      if (!mounted) return;
+      router.go('/root');
     }
 
     void goToNextPage() {

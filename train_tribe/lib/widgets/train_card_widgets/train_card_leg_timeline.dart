@@ -1,4 +1,4 @@
-part of train_card;
+part of '../train_card.dart';
 
 class _LegTimeline extends StatefulWidget {
   final List<Map<String, String>> stops;
@@ -128,9 +128,9 @@ class _LegTimelineState extends State<_LegTimeline> {
           final isInUser = (fromIdx != -1 && toIdx != -1 && idx >= fromIdx && idx <= toIdx);
           final Color dotColor = isInUser
               ? primary
-              : (theme.brightness == Brightness.dark
-                  ? theme.colorScheme.outlineVariant.withOpacity(0.45)
-                  : theme.colorScheme.outlineVariant.withOpacity(0.55));
+        : (theme.brightness == Brightness.dark
+          ? theme.colorScheme.outlineVariant.withValues(alpha: 0.45)
+          : theme.colorScheme.outlineVariant.withValues(alpha: 0.55));
           if (iconData != null) {
             final isUnboarding = userTo.isNotEmpty && stopId == userTo;
             return Stack(
@@ -160,8 +160,8 @@ class _LegTimelineState extends State<_LegTimeline> {
 
         Color connectorColor(int idx) {
           final neutral = theme.brightness == Brightness.dark
-              ? theme.colorScheme.outlineVariant.withOpacity(0.35)
-              : theme.colorScheme.outlineVariant.withOpacity(0.55);
+              ? theme.colorScheme.outlineVariant.withValues(alpha: 0.35)
+              : theme.colorScheme.outlineVariant.withValues(alpha: 0.55);
           if (fromIdx == -1 || toIdx == -1) return neutral;
           if (idx > fromIdx && idx <= toIdx) return primary; // preserve logic
           return neutral;
@@ -176,15 +176,15 @@ class _LegTimelineState extends State<_LegTimeline> {
             fontSize: compact ? 12.5 : 13.5,
             height: 1.2,
             color: isInUser
-                ? (theme.brightness == Brightness.dark ? primary.withOpacity(0.95) : primary.darken())
-                : baseColor.withOpacity(compact ? 0.75 : 0.78),
+                ? (theme.brightness == Brightness.dark ? primary.withValues(alpha: 0.95) : primary.darken())
+                : baseColor.withValues(alpha: compact ? 0.75 : 0.78),
             letterSpacing: 0.15,
           );
           final timeStyle = TextStyle(
             fontSize: compact ? 10.5 : 11.5,
             height: 1.25,
             letterSpacing: 0.2,
-            color: isInUser ? baseColor.withOpacity(0.82) : baseColor.withOpacity(0.55),
+            color: isInUser ? baseColor.withValues(alpha: 0.82) : baseColor.withValues(alpha: 0.55),
           );
           final showAvatars = !compact && users.isNotEmpty;
           return Column(
@@ -241,8 +241,8 @@ class _LegTimelineState extends State<_LegTimeline> {
                 final dashed = prev.isEllipsis || cur.isEllipsis;
                 if (dashed) {
                   final neutral = theme.brightness == Brightness.dark
-                      ? theme.colorScheme.outlineVariant.withOpacity(0.35)
-                      : theme.colorScheme.outlineVariant.withOpacity(0.55);
+                      ? theme.colorScheme.outlineVariant.withValues(alpha: 0.35)
+                      : theme.colorScheme.outlineVariant.withValues(alpha: 0.55);
                   return _DashedConnector(color: neutral, axis: Axis.vertical);
                 }
                 return SolidLineConnector(color: connectorColor(cur.originalIndex!));
@@ -342,8 +342,8 @@ class _LegTimelineState extends State<_LegTimeline> {
               // For desktop (horizontal) view prefer a clean solid connector even across ellipsis boundaries.
               // Use neutral color (same as non-user segment) for consistency.
               final neutral = theme.brightness == Brightness.dark
-                  ? theme.colorScheme.outlineVariant.withOpacity(0.35)
-                  : theme.colorScheme.outlineVariant.withOpacity(0.55);
+                  ? theme.colorScheme.outlineVariant.withValues(alpha: 0.35)
+                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.55);
               if (prev.isEllipsis || cur.isEllipsis) {
                 return SolidLineConnector(color: neutral);
               }
@@ -426,7 +426,7 @@ class _LegTimelineState extends State<_LegTimeline> {
                           decoration: BoxDecoration(
                               gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [
                             theme.cardColor,
-                            theme.cardColor.withOpacity(0.0),
+                            theme.cardColor.withValues(alpha: 0.0),
                           ], stops: const [
                             0.0,
                             1.0
@@ -442,7 +442,7 @@ class _LegTimelineState extends State<_LegTimeline> {
                           decoration: BoxDecoration(
                               gradient: LinearGradient(begin: Alignment.centerRight, end: Alignment.centerLeft, colors: [
                             theme.cardColor,
-                            theme.cardColor.withOpacity(0.0),
+                            theme.cardColor.withValues(alpha: 0.0),
                           ], stops: const [
                             0.0,
                             1.0
@@ -536,18 +536,18 @@ class _DashedLinePainter extends CustomPainter {
 
 Widget _ellipsisIndicator(ThemeData theme, int hidden, {required bool vertical}) {
   final neutralBase = theme.colorScheme.outlineVariant;
-  final neutral = neutralBase.withOpacity(theme.brightness == Brightness.dark ? 0.30 : 0.34);
+  final neutral = neutralBase.withValues(alpha: theme.brightness == Brightness.dark ? 0.30 : 0.34);
   final bg = theme.brightness == Brightness.dark
-      ? theme.colorScheme.surfaceVariant.withOpacity(0.12)
-      : theme.colorScheme.surfaceVariant.withOpacity(0.10);
-  final txt = theme.textTheme.bodySmall?.color?.withOpacity(0.50) ?? Colors.black54;
+  ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.12)
+      : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.10);
+  final txt = theme.textTheme.bodySmall?.color?.withValues(alpha: 0.50) ?? Colors.black54;
   final dots = Row(
     mainAxisSize: MainAxisSize.min,
     children: List.generate(
         3,
         (i) => Padding(
             padding: const EdgeInsets.symmetric(horizontal: 0.9),
-            child: Container(width: 3.6, height: 3.6, decoration: BoxDecoration(color: txt.withOpacity(0.55), shape: BoxShape.circle)))),
+            child: Container(width: 3.6, height: 3.6, decoration: BoxDecoration(color: txt.withValues(alpha: 0.55), shape: BoxShape.circle)))),
   );
   final label = Text('+$hidden', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: txt));
   final content = Row(mainAxisSize: MainAxisSize.min, children: [dots, const SizedBox(width: 4), label]);
@@ -557,10 +557,10 @@ Widget _ellipsisIndicator(ThemeData theme, int hidden, {required bool vertical})
     decoration: BoxDecoration(
       color: bg,
       borderRadius: BorderRadius.circular(26),
-      border: Border.all(color: neutral.withOpacity(0.55), width: 0.8),
+  border: Border.all(color: neutral.withValues(alpha: 0.55), width: 0.8),
       boxShadow: [
         BoxShadow(
-            color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? 0.14 : 0.05),
+            color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.14 : 0.05),
             blurRadius: 2.5,
             offset: const Offset(0, 1)),
       ],
@@ -583,8 +583,8 @@ class _ExpandableTimelineWrapperState extends State<_ExpandableTimelineWrapper> 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final highlight = theme.colorScheme.primary.withOpacity(theme.brightness == Brightness.dark ? 0.05 : 0.05);
-    final borderColor = theme.colorScheme.outlineVariant.withOpacity(theme.brightness == Brightness.dark ? 0.18 : 0.22);
+  final highlight = theme.colorScheme.primary.withValues(alpha: theme.brightness == Brightness.dark ? 0.05 : 0.05);
+  final borderColor = theme.colorScheme.outlineVariant.withValues(alpha: theme.brightness == Brightness.dark ? 0.18 : 0.22);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),

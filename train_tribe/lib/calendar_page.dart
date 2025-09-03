@@ -21,10 +21,10 @@ class CalendarPage extends StatefulWidget {
   const CalendarPage({super.key, required this.railExpanded});
 
   @override
-  _CalendarPageState createState() => _CalendarPageState();
+  CalendarPageState createState() => CalendarPageState();
 }
 
-class _CalendarPageState extends State<CalendarPage> {
+class CalendarPageState extends State<CalendarPage> {
   final double cellHeight = 20.0; // Slot Height
   // Adjust hours to represent 15-minute intervals starting from 6:00 to 00:00
   late final List<int> hours =
@@ -182,7 +182,6 @@ class _CalendarPageState extends State<CalendarPage> {
         Offset localPosition = box.globalToLocal(details.globalPosition);
 
         double absoluteY = localPosition.dy + scrollController.offset;
-        int hoveredIndex = (absoluteY / cellHeight).floor().clamp(0, hours.length - 1);
 
         if (_draggedEvent != null) {
           _dragStartLocalY ??= absoluteY;
@@ -613,8 +612,8 @@ class _CalendarPageState extends State<CalendarPage> {
                                                 ? Colors.grey[900]
                                                 : Colors.grey[300])
                                             : (Theme.of(context).brightness == Brightness.dark
-                                                ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
-                                                : Theme.of(context).colorScheme.primary.withOpacity(0.7))),
+                                                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)
+                                                : Theme.of(context).colorScheme.primary.withValues(alpha: 0.7))),
                                     borderRadius: BorderRadius.circular(8.0),
                                   ),
                                   child: Text(

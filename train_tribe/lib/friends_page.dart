@@ -15,10 +15,10 @@ class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
 
   @override
-  _FriendsPageState createState() => _FriendsPageState();
+  FriendsPageState createState() => FriendsPageState();
 }
 
-class _FriendsPageState extends State<FriendsPage> {
+class FriendsPageState extends State<FriendsPage> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -56,12 +56,13 @@ class _FriendsPageState extends State<FriendsPage> {
   // --- Firestore logic ---
 
   Future<void> _sendFriendRequest(String targetUid) async {
-    final myData = await _db.collection('users').doc(_uid).get();
-    final targetData = await _db.collection('users').doc(targetUid).get();
+  final localizations = AppLocalizations.of(context); // capture early if needed later
+  final myData = await _db.collection('users').doc(_uid).get();
+  final targetData = await _db.collection('users').doc(targetUid).get();
     if (!targetData.exists) return;
 
     // Add to my sent requests
-    await _db.collection('users').doc(_uid).update({
+  await _db.collection('users').doc(_uid).update({
       'sentRequests': FieldValue.arrayUnion([targetUid])
     });
     // Add to target's received requests
@@ -73,15 +74,16 @@ class _FriendsPageState extends State<FriendsPage> {
     final myUsername = myData.data()?['username'] ?? 'Unknown';
     await _db.collection('notifications').add({
       'userId': targetUid,
-      'title': AppLocalizations.of(context).translate('new_friend_request'),
-      'description': '$myUsername ${AppLocalizations.of(context).translate('new_friend_request_body')}',
+      'title': localizations.translate('new_friend_request'),
+      'description': '$myUsername ${localizations.translate('new_friend_request_body')}',
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
   Future<void> _acceptFriendRequest(String requesterUid) async {
-    final myData = await _db.collection('users').doc(_uid).get();
-    final targetData = await _db.collection('users').doc(requesterUid).get();
+  final localizations = AppLocalizations.of(context);
+  final myData = await _db.collection('users').doc(_uid).get();
+  final targetData = await _db.collection('users').doc(requesterUid).get();
 
     if (!targetData.exists) return;
 
@@ -99,11 +101,12 @@ class _FriendsPageState extends State<FriendsPage> {
     final myUsername = myData.data()?['username'] ?? 'Unknown';
     await _db.collection('notifications').add({
       'userId': requesterUid,
-      'title': AppLocalizations.of(context).translate('new_friend'),
-      'description': '$myUsername ${AppLocalizations.of(context).translate('request_accepted')}',
+      'title': localizations.translate('new_friend'),
+      'description': '$myUsername ${localizations.translate('request_accepted')}',
       'timestamp': FieldValue.serverTimestamp(),
     });
 
+    if (!mounted) return;
     setState(() {
       _usersToAdd.removeWhere((u) => u['uid'] == requesterUid);
       _contactSuggestions.removeWhere((u) => u['uid'] == requesterUid);
@@ -129,6 +132,7 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   Future<void> _searchUsers(String query) async {
+    if (!mounted) return;
     setState(() {
       _searching = true;
       _usersToAdd = [];
@@ -156,6 +160,7 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   void _onSearchChanged(String query) {
+    if (!mounted) return;
     setState(() {
       _usersToAdd = <Map<String, dynamic>>[]; // Ensure correct type
     });
@@ -172,13 +177,16 @@ class _FriendsPageState extends State<FriendsPage> {
       return;
     }
     // Require user to have a phone in DB first; otherwise notify and return.
-    final myDocPre = await _db.collection('users').doc(_uid).get();
+  final localizations = AppLocalizations.of(context);
+  final messenger = ScaffoldMessenger.of(context); // capture before awaits
+  final myDocPre = await _db.collection('users').doc(_uid).get();
     final myPhone = (myDocPre.data()?['phone'] ?? '').toString();
     if (myPhone.isEmpty) {
-      final l = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.translate('phone_required_for_suggestions'))),
-      );
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(localizations.translate('phone_required_for_suggestions'))),
+        );
+      }
       return;
     }
     setState(() {
@@ -187,14 +195,15 @@ class _FriendsPageState extends State<FriendsPage> {
       _contactsRequested = true;
       _contactNameByE164.clear();
     });
-    final localizations = AppLocalizations.of(context);
     try {
       final granted = await FlutterContacts.requestPermission(readonly: true);
       if (!granted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(localizations.translate('contacts_permission_denied'))),
-        );
-        setState(() => _loadingContacts = false);
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(content: Text(localizations.translate('contacts_permission_denied'))),
+          );
+          setState(() => _loadingContacts = false);
+        }
         return;
       }
 
@@ -211,7 +220,7 @@ class _FriendsPageState extends State<FriendsPage> {
         }
       }
       if (numbers.isEmpty) {
-        setState(() => _loadingContacts = false);
+    if (mounted) setState(() => _loadingContacts = false);
         return;
       }
 
@@ -246,23 +255,26 @@ class _FriendsPageState extends State<FriendsPage> {
         seen.add(uid);
         unique.add(m);
       }
-      setState(() {
-        _contactSuggestions = unique;
-        _loadingContacts = false;
-      });
+      if (mounted) {
+        setState(() {
+          _contactSuggestions = unique;
+          _loadingContacts = false;
+        });
+      }
     } catch (e) {
-      setState(() => _loadingContacts = false);
+      if (mounted) setState(() => _loadingContacts = false);
     }
   }
 
   // Modifica: recupera anche la foto profilo dell'amico e passala al dialog
   void _showFriendDialog(BuildContext context, String friendUid, String friendName, bool isGhosted, bool hasPhone) async {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(friendUid).get();
+  final doc = await FirebaseFirestore.instance.collection('users').doc(friendUid).get();
     final picture = (doc.data()?['picture'] ?? '').toString();
     // Retrieve first name and surname so we can render two initials consistently
     final firstName = (doc.data()?['name'] ?? '').toString();
     final lastName = (doc.data()?['surname'] ?? '').toString();
     final phone = (doc.data()?['phone'] ?? '').toString();
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) => FriendPopupDialog(
@@ -287,8 +299,7 @@ class _FriendsPageState extends State<FriendsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-
+  final localizations = AppLocalizations.of(context);
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: _userDocStream,
       builder: (context, snapshot) {

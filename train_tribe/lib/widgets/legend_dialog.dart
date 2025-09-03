@@ -37,8 +37,8 @@ Future<void> showLegendDialog({
     builder: (ctx) {
       final theme = Theme.of(ctx);
       final subtleTextColor = theme.brightness == Brightness.dark
-          ? theme.colorScheme.onSurfaceVariant.withOpacity(0.92)
-          : theme.colorScheme.onSurfaceVariant.withOpacity(0.78);
+          ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.92)
+          : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.78);
       return AlertDialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         title: Padding(
@@ -111,7 +111,7 @@ class _LegendRow extends StatelessWidget {
                 border: Border.all(color: item.ringColor, width: 2),
                 boxShadow: [
                   if (item.glowColor != Colors.transparent)
-                    BoxShadow(color: item.glowColor.withOpacity(0.6), blurRadius: 6, spreadRadius: 1),
+                    BoxShadow(color: item.glowColor.withValues(alpha: 0.6), blurRadius: 6, spreadRadius: 1),
                 ],
                 color: item.backgroundColor ?? Colors.white,
               ),
@@ -129,7 +129,7 @@ class _LegendRow extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 1.5),
                     boxShadow: [
-                      BoxShadow(color: item.ringColor.withOpacity(0.5), blurRadius: 4, spreadRadius: 0.5),
+                      BoxShadow(color: item.ringColor.withValues(alpha: 0.5), blurRadius: 4, spreadRadius: 0.5),
                     ],
                   ),
                   child: const Center(
