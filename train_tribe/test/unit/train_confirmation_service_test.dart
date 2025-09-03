@@ -19,6 +19,19 @@ class _MemoryStore implements ConfirmationStore {
   }
 }
 
+class _ThrowingStore implements ConfirmationStore {
+  @override
+  Future<bool> getConfirmation({required String dateStr, required String trainId, required String userId}) async {
+    throw Exception('boom');
+  }
+
+  @override
+  Future<void> setConfirmation(
+      {required String dateStr, required String trainId, required String userId, required bool confirmed, required Timestamp now}) async {
+    throw Exception('boom');
+  }
+}
+
 void main() {
   group('TrainConfirmationService', () {
     test('confirmRoute sets only selected trains confirmed', () async {
@@ -64,6 +77,24 @@ void main() {
       expect(confirmed, 'T9');
       final none = await svc.fetchConfirmedTrain(dateStr: '2025-01-04', userId: 'u4', eventTrainIds: ['Z1']);
       expect(none, isNull);
+    });
+
+    test('confirmRoute surfaces error tuple on store failure', () async {
+      final svc = TrainConfirmationService(store: _ThrowingStore());
+      final (err, status) = await svc.confirmRoute(
+        dateStr: '2025-02-01',
+        selectedRouteTrainIds: ['A'],
+        userId: 'uErr',
+        allEventTrainIds: ['A', 'B'],
+      );
+      expect(err, isNotNull);
+      expect(status, isNotEmpty);
+    });
+
+    test('fetchConfirmedTrainIds returns empty set on store failure', () async {
+      final svc = TrainConfirmationService(store: _ThrowingStore());
+      final set = await svc.fetchConfirmedTrainIds(dateStr: '2025-02-02', userId: 'uErr2', trainIds: ['X', 'Y']);
+      expect(set, isEmpty);
     });
   });
 }

@@ -26,6 +26,14 @@ void main() {
       expect(formatTime(4), '07:00');
     });
 
+    test('formatTime wraps at midnight (slot 72 -> 00:00)', () {
+      expect(formatTime(72), '00:00');
+    });
+
+    test('formatTime wraps after midnight (slot 76 -> 01:00)', () {
+      expect(formatTime(76), '01:00');
+    });
+
     test('getAvailableEndHours returns increasing slots after start', () {
       final list = getAvailableEndHours(DateTime(2025, 1, 1), 10);
       expect(list.first, 11);

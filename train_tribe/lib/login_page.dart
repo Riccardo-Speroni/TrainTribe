@@ -64,7 +64,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         } else {
           _animationController.reverse();
         }
-      });
+        // Ensure any delayed test-driven changes trigger another frame.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() {});
+        });
+  });
     }
   }
 
@@ -107,10 +111,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         }
       }
     } catch (e) {
-  if (mounted) {
-    _showErrorDialog(
-    AppLocalizations.of(context).translate('login_error_generic'));
-  }
+      if (mounted) {
+        _showErrorDialog(AppLocalizations.of(context).translate('login_error_generic'));
+      }
     } finally {
       setState(() => _isLoading = false); // Hide loading indicator
     }
@@ -150,10 +153,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         }
       }
     } catch (e) {
-  if (mounted) {
-    _showErrorDialog(
-    AppLocalizations.of(context).translate('login_error_generic'));
-  }
+      if (mounted) {
+        _showErrorDialog(AppLocalizations.of(context).translate('login_error_generic'));
+      }
     } finally {
       setState(() => _isLoading = false); // Hide loading indicator
     }
@@ -164,9 +166,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     try {
       final email = emailController.text.trim();
       final password = passwordController.text.trim();
-      final router = GoRouter.of(context); // capture before await
       final adapter = widget.authAdapter ?? FirebaseAuthAdapter();
       await adapter.signInWithEmailAndPassword(email: email, password: password);
+  // Obtain router only after successful sign-in so tests without a GoRouter ancestor don't fail early.
+  final router = GoRouter.of(context);
       if (mounted) router.go('/root');
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -208,6 +211,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
+    // Recompute enable state defensively (in addition to listener) to avoid race conditions in tests.
+    final computedEnable =
+        _isValidEmail(emailController.text.trim()) && emailController.text.trim().isNotEmpty && passwordController.text.trim().isNotEmpty;
+    if (computedEnable != isButtonEnabled) {
+      // Keep internal state in sync so animation reflects correct opacity.
+      isButtonEnabled = computedEnable;
+    }
 
     // Imposta la larghezza massima su desktop/web
     final bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
