@@ -128,9 +128,9 @@ class _LegTimelineState extends State<_LegTimeline> {
           final isInUser = (fromIdx != -1 && toIdx != -1 && idx >= fromIdx && idx <= toIdx);
           final Color dotColor = isInUser
               ? primary
-        : (theme.brightness == Brightness.dark
-          ? theme.colorScheme.outlineVariant.withValues(alpha: 0.45)
-          : theme.colorScheme.outlineVariant.withValues(alpha: 0.55));
+              : (theme.brightness == Brightness.dark
+                  ? theme.colorScheme.outlineVariant.withValues(alpha: 0.45)
+                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.55));
           if (iconData != null) {
             final isUnboarding = userTo.isNotEmpty && stopId == userTo;
             return Stack(
@@ -217,8 +217,11 @@ class _LegTimelineState extends State<_LegTimeline> {
         }
 
         if (shouldBeVertical) {
-          final estimatedHeight = stops.length * 72.0;
-          final maxHeight = 420.0;
+          // Use a conservative per-stop height to decide scroll need (upper bound ~90 incl. padding/avatars)
+          const double hardCapHeight = 420.0; // UX cap
+          final double parentMaxH = constraints.maxHeight.isFinite ? constraints.maxHeight : hardCapHeight;
+          final double effectiveMaxHeight = parentMaxH.clamp(0, hardCapHeight);
+          final double estimatedContentHeight = displayStops.length * 90.0 + 24.0; // include top/bottom padding/fade spacing
           final child = FixedTimeline.tileBuilder(
             theme: TimelineThemeData(
               nodePosition: 0.08,
@@ -257,60 +260,55 @@ class _LegTimelineState extends State<_LegTimeline> {
               },
             ),
           );
-          final bool enableInternalScroll = estimatedHeight > maxHeight;
+          final bool needsScroll = estimatedContentHeight > effectiveMaxHeight + 0.5;
           final verticalTimelineCore = AnimatedSize(
             duration: const Duration(milliseconds: 240),
             curve: Curves.easeOutCubic,
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: enableInternalScroll ? maxHeight : estimatedHeight),
-              child: enableInternalScroll
-                  ? _DesktopDragScroll(
-                      axis: Axis.vertical,
-                      controller: _verticalController,
-                      child: ScrollConfiguration(
-                        behavior: _NoGlowScrollBehavior(),
-                        child: _ProgressScrollArea(
-                          controller: _verticalController,
-                          axis: Axis.vertical,
-                          forceVisible: widget.forceShowThumb,
-                          child: LayoutBuilder(builder: (context, innerConstraints) {
-                            return ShaderMask(
-                              shaderCallback: (rect) => const LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Color(0xD8000000),
-                                  Color(0x00000000),
-                                  Color(0x00000000),
-                                  Color(0xD8000000),
-                                ],
-                                stops: [0.0, 0.085, 0.915, 1.0],
-                              ).createShader(rect),
-                              blendMode: BlendMode.dstOut,
-                              child: Padding(
-                                padding: const EdgeInsets.only(top: 10, bottom: 12, right: 4),
-                                child: SingleChildScrollView(
-                                  controller: _verticalController,
-                                  physics: const ClampingScrollPhysics(),
-                                  child: child,
-                                ),
-                              ),
-                            );
-                          }),
+              constraints: BoxConstraints(maxHeight: effectiveMaxHeight),
+              child: _DesktopDragScroll(
+                axis: Axis.vertical,
+                controller: _verticalController,
+                child: ScrollConfiguration(
+                  behavior: _NoGlowScrollBehavior(),
+                  child: _ProgressScrollArea(
+                    controller: _verticalController,
+                    axis: Axis.vertical,
+                    forceVisible: widget.forceShowThumb,
+                    child: LayoutBuilder(builder: (context, inner) {
+                      return ShaderMask(
+                        shaderCallback: (rect) => const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Color(0xD8000000),
+                            Color(0x00000000),
+                            Color(0x00000000),
+                            Color(0xD8000000),
+                          ],
+                          stops: [0.0, 0.085, 0.915, 1.0],
+                        ).createShader(rect),
+                        blendMode: BlendMode.dstOut,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 10, bottom: 12, right: 4),
+                          child: SingleChildScrollView(
+                            controller: _verticalController,
+                            physics: needsScroll ? const ClampingScrollPhysics() : const NeverScrollableScrollPhysics(),
+                            child: child,
+                          ),
                         ),
-                      ),
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10.0),
-                      child: child,
-                    ),
+                      );
+                    }),
+                  ),
+                ),
+              ),
             ),
           );
           // Schedule centering after expand frame (vertical)
           if (_pendingCenterOnExpand && !_collapsed) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (enableInternalScroll) {
-                final perItem = estimatedHeight / widget.stops.length; // approx 72
+              if (needsScroll) {
+                const perItem = 72.0; // anchor estimate
                 _centerOnUser(vertical: true, fromIdx: fromIdx, perItemExtent: perItem, totalStops: widget.stops.length);
               }
               _pendingCenterOnExpand = false; // reset after vertical centering
@@ -538,7 +536,7 @@ Widget _ellipsisIndicator(ThemeData theme, int hidden, {required bool vertical})
   final neutralBase = theme.colorScheme.outlineVariant;
   final neutral = neutralBase.withValues(alpha: theme.brightness == Brightness.dark ? 0.30 : 0.34);
   final bg = theme.brightness == Brightness.dark
-  ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.12)
+      ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.12)
       : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.10);
   final txt = theme.textTheme.bodySmall?.color?.withValues(alpha: 0.50) ?? Colors.black54;
   final dots = Row(
@@ -547,7 +545,8 @@ Widget _ellipsisIndicator(ThemeData theme, int hidden, {required bool vertical})
         3,
         (i) => Padding(
             padding: const EdgeInsets.symmetric(horizontal: 0.9),
-            child: Container(width: 3.6, height: 3.6, decoration: BoxDecoration(color: txt.withValues(alpha: 0.55), shape: BoxShape.circle)))),
+            child:
+                Container(width: 3.6, height: 3.6, decoration: BoxDecoration(color: txt.withValues(alpha: 0.55), shape: BoxShape.circle)))),
   );
   final label = Text('+$hidden', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: txt));
   final content = Row(mainAxisSize: MainAxisSize.min, children: [dots, const SizedBox(width: 4), label]);
@@ -557,7 +556,7 @@ Widget _ellipsisIndicator(ThemeData theme, int hidden, {required bool vertical})
     decoration: BoxDecoration(
       color: bg,
       borderRadius: BorderRadius.circular(26),
-  border: Border.all(color: neutral.withValues(alpha: 0.55), width: 0.8),
+      border: Border.all(color: neutral.withValues(alpha: 0.55), width: 0.8),
       boxShadow: [
         BoxShadow(
             color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.14 : 0.05),
@@ -583,8 +582,8 @@ class _ExpandableTimelineWrapperState extends State<_ExpandableTimelineWrapper> 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-  final highlight = theme.colorScheme.primary.withValues(alpha: theme.brightness == Brightness.dark ? 0.05 : 0.05);
-  final borderColor = theme.colorScheme.outlineVariant.withValues(alpha: theme.brightness == Brightness.dark ? 0.18 : 0.22);
+    final highlight = theme.colorScheme.primary.withValues(alpha: theme.brightness == Brightness.dark ? 0.05 : 0.05);
+    final borderColor = theme.colorScheme.outlineVariant.withValues(alpha: theme.brightness == Brightness.dark ? 0.18 : 0.22);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
