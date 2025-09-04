@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/app_services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/profile_picture_widget.dart';
 
@@ -54,6 +55,7 @@ class FriendsSearchContainer extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextField(
+                    key: const Key('friendsSearchField'),
                     controller: searchController,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search),
@@ -81,8 +83,8 @@ class FriendsSearchContainer extends StatelessWidget {
             ),
           ),
           if (filteredFriends.isNotEmpty)
-            ...filteredFriends.map((entry) => FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
+    ...filteredFriends.map((entry) => FutureBuilder<DocumentSnapshot>(
+      future: AppServicesScope.of(context).firestore.collection('users').doc(entry.key).get(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) return const SizedBox.shrink();
 
@@ -110,6 +112,7 @@ class FriendsSearchContainer extends StatelessWidget {
                         ),
                         title: Text(username),
                         trailing: IconButton(
+                          key: Key('toggleGhost_${entry.key}'),
                           icon: Icon(
                             isGhosted ? Icons.visibility_off : Icons.visibility,
                             color: isGhosted ? Colors.redAccent : Colors.green,
@@ -170,6 +173,7 @@ class FriendsSearchContainer extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     trailing: IconButton(
+                      key: Key('addFriend_${user['uid']}'),
                       icon: Icon(
                         sentRequests.contains(user['uid']) ? Icons.check : Icons.add,
                         color: Colors.green,

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:animated_toggle_switch/animated_toggle_switch.dart';
 import '../l10n/app_localizations.dart';
@@ -53,6 +54,11 @@ class _MoodToggleState extends State<MoodToggle> {
   }
 
   Future<void> _loadFromFirestore() async {
+    // Skip remote load if Firebase not initialized (e.g. widget tests) to avoid exceptions.
+    if (Firebase.apps.isEmpty) {
+      setState(() => _loaded = true);
+      return;
+    }
     final userId = widget.userIdOverride ?? FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
     try {

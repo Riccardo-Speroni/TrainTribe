@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'l10n/app_localizations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'utils/loading_indicator.dart';
@@ -37,6 +38,9 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
 
+    if (Firebase.apps.isEmpty) {
+      return const SafeArea(child: Center(child: Text('Firebase not initialized')));
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return SafeArea(

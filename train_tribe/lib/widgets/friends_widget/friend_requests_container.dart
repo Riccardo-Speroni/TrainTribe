@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/app_services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/profile_picture_widget.dart';
 
@@ -40,8 +41,8 @@ class FriendRequestsContainer extends StatelessWidget {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 12),
-          ...friendRequests.map((uid) => FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+      ...friendRequests.map((uid) => FutureBuilder<DocumentSnapshot>(
+        future: AppServicesScope.of(context).firestore.collection('users').doc(uid).get(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) return const SizedBox(height: 48);
                   final user = snapshot.data!.data() as Map<String, dynamic>? ?? {};
@@ -63,11 +64,13 @@ class FriendRequestsContainer extends StatelessWidget {
                           child: Text(user['username'] ?? 'Unknown', style: const TextStyle(fontSize: 16)),
                         ),
                         IconButton(
+                          key: Key('declineRequest_$uid'),
                           icon: const Icon(Icons.close, color: Colors.redAccent),
                           tooltip: localizations.translate('decline'),
                           onPressed: () => onDecline(uid),
                         ),
                         IconButton(
+                          key: Key('acceptRequest_$uid'),
                           icon: const Icon(Icons.check, color: Colors.green),
                           tooltip: localizations.translate('accept'),
                           onPressed: () => onAccept(uid),

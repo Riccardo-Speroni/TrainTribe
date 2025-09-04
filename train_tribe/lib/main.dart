@@ -18,6 +18,8 @@ import 'package:window_size/window_size.dart';
 import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'services/app_services.dart';
+import 'repositories/user_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -67,7 +69,12 @@ void main() async {
     FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
   }
 
-  runApp(MyApp());
+  final services = AppServices(
+    firestore: FirebaseFirestore.instance,
+    auth: FirebaseAuth.instance,
+    userRepository: FirestoreUserRepository(FirebaseFirestore.instance),
+  );
+  runApp(AppServicesScope(services: services, child: const MyApp()));
 }
 
 

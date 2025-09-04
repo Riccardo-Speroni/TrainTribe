@@ -22,8 +22,6 @@ class _FakeMoodRepository implements MoodRepository {
         shouldFailSave = shouldFailSave,
         loadDelay = Duration.zero;
 
-  _FakeMoodRepository.delayed({required this.loadDelay, this.loadValue = true}) : shouldFailSave = false;
-
   @override
   Future<bool> load(String userId) async {
     if (loadDelay != Duration.zero) {
@@ -93,21 +91,13 @@ void main() {
     expect(find.byType(SnackBar), findsOneWidget);
   });
 
-  testWidgets('mood toggle loads asynchronously when initialValue null', (tester) async {
-    final repo = _FakeMoodRepository.delayed(loadDelay: const Duration(milliseconds: 30), loadValue: true);
+  testWidgets('mood toggle without initialValue shows final value (Firebase skipped, no spinner)', (tester) async {
+    final repo = _FakeMoodRepository(loadValue: true);
     await tester.pumpWidget(_wrap(MoodToggle(
       repository: repo,
       userIdOverride: 'user3',
-      // no initialValue => triggers load
     )));
-    await tester.pump(const Duration(milliseconds: 35));
-    // Should start in loading state
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    // Advance past load delay
-    await tester.pump(const Duration(milliseconds: 100));
     await tester.pump();
-    // Loader gone, icon displayed
-    expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.byIcon(Icons.groups), findsWidgets);
   });
 

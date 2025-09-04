@@ -51,6 +51,8 @@ dev_dependencies:
     sdk: flutter
   mocktail: ^1.0.3
   coverage: ^1.8.0
+  fake_cloud_firestore: ^3.0.0
+  firebase_auth_mocks: ^0.14.0
 
 scripts:
   # (Facoltativo) puoi eseguire: dart run coverage:format_coverage

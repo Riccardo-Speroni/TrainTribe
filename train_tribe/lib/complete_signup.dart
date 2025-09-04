@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'services/app_services.dart';
 import 'widgets/user_details_page.dart';
 import 'l10n/app_localizations.dart';
 
@@ -35,11 +34,12 @@ class _CompleteSignUpPageState extends State<CompleteSignUpPage> {
   }
 
   Future<void> _saveUserToDatabase(BuildContext context) async {
-    final user = FirebaseAuth.instance.currentUser;
+    final services = AppServicesScope.of(context);
+    final user = services.auth.currentUser;
     if (user == null) return;
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      await services.userRepository.saveUserProfile(user.uid, {
         'email': widget.email,
         'name': nameController.text.trim(),
         'surname': surnameController.text.trim(),
@@ -49,8 +49,11 @@ class _CompleteSignUpPageState extends State<CompleteSignUpPage> {
       });
 
       // Navigate to the main app
-      if(context.mounted) { GoRouter.of(context).go('/root'); } 
-      else { throw Exception('Context is not mounted'); }
+      if (context.mounted) {
+        GoRouter.of(context).go('/root');
+      } else {
+        throw Exception('Context is not mounted');
+      }
     } catch (e) {
       _showErrorDialog(context, AppLocalizations.of(context).translate('error_unexpected'));
     }
@@ -76,6 +79,8 @@ class _CompleteSignUpPageState extends State<CompleteSignUpPage> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
 
+  AppServicesScope.of(context); // ensure scope present
+
     return Scaffold(
       appBar: AppBar(
         title: Center(
@@ -83,7 +88,7 @@ class _CompleteSignUpPageState extends State<CompleteSignUpPage> {
         ),
         automaticallyImplyLeading: false, // Remove default back button
       ),
-      body: UserDetailsPage(
+  body: UserDetailsPage(
         nameController: nameController,
         surnameController: surnameController,
         usernameController: usernameController,

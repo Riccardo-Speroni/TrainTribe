@@ -3,10 +3,14 @@ import '../l10n/app_localizations.dart';
 import 'dart:io';
 
 class FirebaseExceptionHandler {
+  /// Optional override used only in tests to simulate a specific platform.
+  /// If null, falls back to [Platform.isWindows].
+  static bool? debugIsWindowsOverride;
+
   static String signInErrorMessage(BuildContext context, String errorCode) {
     final localizations = AppLocalizations.of(context);
 
-    if (Platform.isWindows && errorCode == "unknown-error") {
+    if ((debugIsWindowsOverride ?? Platform.isWindows) && errorCode == "unknown-error") {
       return localizations.translate("firebase_windows_error");
     }
 
@@ -33,7 +37,7 @@ class FirebaseExceptionHandler {
   static String logInErrorMessage(BuildContext context, String errorCode) {
     final localizations = AppLocalizations.of(context);
 
-    if (Platform.isWindows && errorCode == "unknown-error") {
+    if ((debugIsWindowsOverride ?? Platform.isWindows) && errorCode == "unknown-error") {
       return localizations.translate("firebase_windows_error");
     }
 

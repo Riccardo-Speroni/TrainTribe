@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meta/meta.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,9 +10,15 @@ import 'widgets/train_card.dart';
 import 'widgets/train_card_widgets/responsive_card_list.dart';
 import 'utils/train_confirmation.dart';
 import 'widgets/legend_dialog.dart';
+import 'utils/train_utils.dart';
+import 'utils/train_route_utils.dart';
 
 class TrainsPage extends StatefulWidget {
-  const TrainsPage({super.key});
+  final bool testMode; // Skip network & Firestore when true
+  final TrainConfirmationService? confirmationServiceOverride; // for tests
+  final String? testUserId; // for tests when FirebaseAuth not available
+  final Map<String, List<dynamic>>? testEventsData; // optional injected events/routes for tests
+  const TrainsPage({super.key, this.testMode = false, this.confirmationServiceOverride, this.testUserId, this.testEventsData});
 
   @override
   State<TrainsPage> createState() => _TrainsPageState();
@@ -28,14 +35,37 @@ class _TrainsPageState extends State<TrainsPage> {
   Map<String, Map<String, dynamic>> eventDetails = {};
   // Now stores a route signature (all leg trainIds joined by '+') per event.
   final Map<String, String?> confirmedTrainPerEvent = {}; // eventId -> routeSignature
-  final TrainConfirmationService _confirmationService = TrainConfirmationService();
+  late TrainConfirmationService _confirmationService;
+  @visibleForTesting
+  set testConfirmationService(TrainConfirmationService svc) => _confirmationService = svc;
 
   @override
   void initState() {
     super.initState();
     daysOfWeekFull = [];
     daysOfWeekShort = [];
-    _loadData();
+    _confirmationService = widget.confirmationServiceOverride ?? TrainConfirmationService();
+    if (!widget.testMode) {
+      _loadData();
+    } else {
+      isLoading = false;
+      eventsData = widget.testEventsData ?? {
+        'event1': [
+          {
+            'leg1': {
+              'trip_id': 'T1',
+              'from': 'S1',
+              'to': 'S2',
+              'stops': [
+                {'stop_id': 'S1', 'departure_time': '08:00:00'},
+                {'stop_id': 'S2', 'arrival_time': '09:00:00'}
+              ],
+              'friends': []
+            }
+          }
+        ]
+      };
+    }
   }
 
   @override
@@ -60,15 +90,14 @@ class _TrainsPageState extends State<TrainsPage> {
   }
 
   Future<void> _loadData() async {
-    if (mounted) {
-      setState(() => isLoading = true);
-    }
+    if (widget.testMode) return; // testMode provides stub data in initState
+    if (!mounted) return;
+    setState(() => isLoading = true);
 
     final user = FirebaseAuth.instance.currentUser;
     final userId = user?.uid ?? '';
     final now = DateTime.now().add(Duration(days: selectedDayIndex));
     final dateStr = DateFormat('yyyy-MM-dd').format(now);
-
     Map<String, Map<String, dynamic>> details = {};
 
     try {
@@ -164,18 +193,10 @@ class _TrainsPageState extends State<TrainsPage> {
     }
   }
 
-  String _routeSignature(List<String> ids) => ids.join('+');
+  // Deprecated internal version kept for backward compatibility; use routeSignature().
+  String _routeSignature(List<String> ids) => routeSignature(ids);
 
-  bool _shouldUseShortDayLabels(BuildContext context, double totalWidth) {
-    // Approximate per-character width (bold 14) ~8 px; longest (Wednesday) 9 chars
-    final effectiveWidth = totalWidth - 16; // margin
-    final perCellWidth = effectiveWidth / 7.0;
-    const longestFullChars = 9; // e.g., Wednesday length in English (without localization variability)
-    const charPx = 8.0;
-    const chipHorizontalPad = 24.0; // padding + border spacing
-    final estimatedNeeded = longestFullChars * charPx + chipHorizontalPad;
-    return estimatedNeeded > perCellWidth;
-  }
+  bool _shouldUseShortDayLabels(BuildContext context, double totalWidth) => shouldUseShortDayLabels(totalWidth);
 
   @override
   Widget build(BuildContext context) {
@@ -229,7 +250,8 @@ class _TrainsPageState extends State<TrainsPage> {
             child: Builder(builder: (context) {
               final theme = Theme.of(context);
               final selColor = theme.colorScheme.primary;
-              final unselectedText = theme.brightness == Brightness.dark ? theme.colorScheme.onSurface.withValues(alpha: 0.60) : Colors.black87;
+              final unselectedText =
+                  theme.brightness == Brightness.dark ? theme.colorScheme.onSurface.withValues(alpha: 0.60) : Colors.black87;
               return LayoutBuilder(builder: (ctx, constraints) {
                 final useShort = _shouldUseShortDayLabels(ctx, constraints.maxWidth);
                 final labels = useShort ? daysOfWeekShort : daysOfWeekFull;
@@ -314,17 +336,8 @@ class _TrainsPageState extends State<TrainsPage> {
                               final routeIndex = routeEntry.key;
                               final route = routeEntry.value as Map<String, dynamic>;
 
-                              // Collect legs
-                              final legs = <Map<String, dynamic>>[];
-                              final legKeys = route.keys.where((k) => k.startsWith('leg')).toList()
-                                ..sort((a, b) {
-                                  int ai = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-                                  int bi = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-                                  return ai.compareTo(bi);
-                                });
-                              for (final k in legKeys) {
-                                legs.add(Map<String, dynamic>.from(route[k] as Map));
-                              }
+                              // Collect ordered legs via utility
+                              final legs = extractLegs(route);
 
                               // Gather route trainIds (all legs).
                               final List<String> routeTrainIds = [
@@ -333,76 +346,12 @@ class _TrainsPageState extends State<TrainsPage> {
                               ];
 
                               // Merge friend avatars across legs:
-                              final Map<String, Map<String, String>> userAvatarsMap = {};
-                              for (final leg in legs) {
-                                if (leg['friends'] != null) {
-                                  for (final friend in (leg['friends'] as List)) {
-                                    final friendUserId = (friend['user_id'] ?? '') as String;
-                                    final image = (friend['picture'] ?? '').toString();
-                                    final name = (friend['username'] ?? '').toString();
-                                    final from = (friend['from'] ?? '').toString();
-                                    final to = (friend['to'] ?? '').toString();
-                                    final legConfirmed = friend['confirmed'] == true;
-                                    final key = friendUserId.isNotEmpty ? friendUserId : '$image|$name';
-                                    if (!userAvatarsMap.containsKey(key)) {
-                                      userAvatarsMap[key] = {
-                                        'image': image,
-                                        'name': name,
-                                        'from': from,
-                                        'to': to,
-                                        // Start with this leg's confirmed value; we will AND across legs they appear in.
-                                        'confirmed': legConfirmed ? 'true' : 'false',
-                                        'user_id': friendUserId,
-                                      };
-                                    } else {
-                                      // Merge range
-                                      final prev = userAvatarsMap[key]!;
-                                      final prevFrom = prev['from'] ?? from;
-                                      final prevTo = prev['to'] ?? to;
-                                      prev['from'] = (from.compareTo(prevFrom) < 0) ? from : prevFrom;
-                                      prev['to'] = (to.compareTo(prevTo) > 0) ? to : prevTo;
-                                      // AND logic: friend considered route-confirmed only if confirmed in every leg they appear.
-                                      final prevConfirmed = prev['confirmed'] == 'true';
-                                      prev['confirmed'] = (prevConfirmed && legConfirmed).toString();
-                                    }
-                                  }
-                                }
-                              }
-                              final userAvatars = userAvatarsMap.values.toList();
+                              final userAvatars = mergeFriendAvatars(legs);
 
                               // Departure/arrival time: time the user boards/alights (match stop_id with 'from'/'to')
-                              String departureTime = '';
-                              String arrivalTime = '';
-                              String toHHmm(dynamic t) {
-                                final s = (t ?? '').toString();
-                                return s.length >= 5 ? s.substring(0, 5) : s;
-                              }
-
-                              if (legs.isNotEmpty) {
-                                final firstLeg = legs.first;
-                                final lastLeg = legs.last;
-
-                                final firstFromId = (firstLeg['from'] ?? '').toString();
-                                final lastToId = (lastLeg['to'] ?? '').toString();
-
-                                final firstStops = (firstLeg['stops'] as List<dynamic>? ?? []);
-                                final lastStops = (lastLeg['stops'] as List<dynamic>? ?? []);
-
-                                if (firstStops.isNotEmpty) {
-                                  final Map<String, dynamic> boardStop = (firstStops.firstWhere(
-                                    (s) => ((s as Map)['stop_id'] ?? '').toString() == firstFromId,
-                                    orElse: () => firstStops.first,
-                                  )) as Map<String, dynamic>;
-                                  departureTime = toHHmm(boardStop['departure_time'] ?? boardStop['arrival_time']);
-                                }
-                                if (lastStops.isNotEmpty) {
-                                  final Map<String, dynamic> alightStop = (lastStops.firstWhere(
-                                    (s) => ((s as Map)['stop_id'] ?? '').toString() == lastToId,
-                                    orElse: () => lastStops.last,
-                                  )) as Map<String, dynamic>;
-                                  arrivalTime = toHHmm(alightStop['arrival_time'] ?? alightStop['departure_time']);
-                                }
-                              }
+                              final times = computeDepartureArrivalTimes(legs);
+                              final departureTime = times['departure'] ?? '';
+                              final arrivalTime = times['arrival'] ?? '';
                               // isDirect: only one leg
                               final isDirect = legs.length == 1;
                               // legs for TrainCard: stops, trainNumber, operator, isDirect
@@ -439,7 +388,8 @@ class _TrainsPageState extends State<TrainsPage> {
                               // Multi-leg confirmation: route considered confirmed only if ALL its leg trainIds confirmed.
                               final routeSignature = _routeSignature(routeTrainIds);
                               final isConfirmed = confirmedTrainPerEvent[eventId] == routeSignature;
-                              final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                              final currentUserId =
+                                  widget.testMode ? (widget.testUserId ?? 'test-user') : FirebaseAuth.instance.currentUser?.uid;
                               return TrainCard(
                                 title: title,
                                 isExpanded: expandedCardIndex == (eventId.hashCode ^ cardIndex),
@@ -561,20 +511,20 @@ class _TrainsPageState extends State<TrainsPage> {
     final bool dark = theme.brightness == Brightness.dark;
 
     // Revert to earlier solid confirmed style (no glow later handled in widget).
-  final Color bg = confirmed ? basePrimary : (dark ? basePrimary.withValues(alpha: 0.18) : basePrimary.withValues(alpha: 0.12));
-  final Color border = confirmed ? baseSwatch[700]! : (dark ? basePrimary.withValues(alpha: 0.45) : basePrimary.withValues(alpha: 0.55));
-  final Color fg = confirmed ? Colors.white : (dark ? basePrimary.withValues(alpha: 0.95) : baseSwatch[800]!);
+    final Color bg = confirmed ? basePrimary : (dark ? basePrimary.withValues(alpha: 0.18) : basePrimary.withValues(alpha: 0.12));
+    final Color border = confirmed ? baseSwatch[700]! : (dark ? basePrimary.withValues(alpha: 0.45) : basePrimary.withValues(alpha: 0.55));
+    final Color fg = confirmed ? Colors.white : (dark ? basePrimary.withValues(alpha: 0.95) : baseSwatch[800]!);
 
     return _ConfirmButton(
+      key: ValueKey('confirmBtn_${eventId}_$routeSignature'),
       label: label,
       confirmed: confirmed,
       bg: bg,
       border: border,
       fg: fg,
       onTap: () async {
-        final user = FirebaseAuth.instance.currentUser;
-        final userId = user?.uid;
-        if (userId == null) return;
+        final String? userId = widget.testMode ? (widget.testUserId ?? 'test-user') : FirebaseAuth.instance.currentUser?.uid;
+        if (userId == null || userId.isEmpty) return;
         final Set<String> allTrainIds = {};
         if (routes is List) {
           for (final r in routes) {
@@ -617,6 +567,7 @@ class _ConfirmButton extends StatefulWidget {
   final Color fg;
   final VoidCallback onTap;
   const _ConfirmButton({
+    super.key,
     required this.label,
     required this.confirmed,
     required this.bg,
