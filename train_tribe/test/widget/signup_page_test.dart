@@ -58,4 +58,23 @@ void main() {
     btn = tester.widget(nextPwd);
     expect(btn.onPressed, isNotNull);
   });
+
+  testWidgets('back from password step returns to email step', (tester) async {
+    await tester.pumpWidget(_wrap(const SignUpPage()));
+    await tester.pump();
+
+    // Enter valid email and go to password page
+    await tester.enterText(find.byType(TextField).first, 'user@test.com');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('signupEmailNextButton')));
+    await tester.pumpAndSettle();
+
+    // On password page there is a back icon
+    expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+
+    // We should be back on the email page with the logo and email TextField visible first
+    expect(find.textContaining('Enter email'), findsOneWidget);
+  });
 }

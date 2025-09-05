@@ -29,6 +29,16 @@ import 'utils/app_globals.dart';
 import 'widgets/app_rail.dart';
 import 'widgets/app_bottom_navbar.dart';
 
+// Small injectable seams for router redirect (used in tests via createAppRouter)
+typedef CurrentUserUidGetter = Future<String?> Function();
+typedef UserDataGetter = Future<Map<String, dynamic>?> Function(String uid);
+
+@visibleForTesting
+CurrentUserUidGetter? testCurrentUserUidGetter;
+
+@visibleForTesting
+UserDataGetter? testUserDataGetter;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
@@ -78,9 +88,9 @@ void main() async {
   );
   runApp(AppServicesScope(services: services, child: const MyApp()));
 }
-
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final GoRouter? router; // allow tests to provide a custom router
+  const MyApp({super.key, this.router});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -156,66 +166,7 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  final GoRouter _router = GoRouter(
-    debugLogDiagnostics: true,
-    initialLocation: '/root',
-    redirect: (context, state) async {
-      final prefs = await SharedPreferences.getInstance();
-      final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
-      final user = FirebaseAuth.instance.currentUser; // Check current session
-
-      // Rule 1: Redirect to onboarding if not completed
-      if (!onboardingComplete && state.fullPath != '/onboarding') {
-        debugPrint('Redirecting to onboarding page...');
-        return '/onboarding';
-      }
-
-      // Rule 2: If not logged in, allow only onboarding/login/signup. Anything else -> login
-      if (user == null) {
-        final path = state.fullPath ?? '';
-        const allowedUnauthed = ['/onboarding', '/login', '/signup'];
-        if (!allowedUnauthed.contains(path)) {
-          debugPrint('Unauthenticated, redirecting to login page...');
-          return '/login';
-        }
-      }
-
-      // Rule 3: Check if the user's profile is complete
-      if (user != null) {
-        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        if (!userDoc.exists || userDoc.data()?['username'] == null) {
-          // Redirect to complete_signup if profile is incomplete
-          debugPrint('Redirecting to complete_signup page...');
-          //FirebaseAuth.instance.signOut();  // DEBUG PURPOSES
-          return '/complete_signup';
-          // Rule 4: Redirect to root if already logged in and on login/signup page
-        } else if (state.fullPath == '/login' || state.fullPath == '/signup') {
-          debugPrint('Already logged in, redirecting to root page...');
-          return '/root';
-        }
-      }
-
-      // No redirection needed
-      return null;
-    },
-    routes: [
-      GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingPage()),
-      GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
-      GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),
-      GoRoute(path: '/root', builder: (context, state) => const RootPage()),
-      GoRoute(
-        path: '/complete_signup',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?; // Retrieve extra data
-          return CompleteSignUpPage(
-            email: extra?['email'],
-            name: extra?['name'],
-            profilePicture: extra?['profilePicture'],
-          );
-        },
-      ),
-    ],
-  );
+  late final GoRouter _router = widget.router ?? createAppRouter();
 
   @override
   Widget build(BuildContext context) {
@@ -248,6 +199,70 @@ class _MyAppState extends State<MyApp> {
       },
     );
   }
+}
+
+GoRouter createAppRouter({CurrentUserUidGetter? getUid, UserDataGetter? getUserData}) {
+  return GoRouter(
+    debugLogDiagnostics: true,
+    initialLocation: '/root',
+    redirect: (context, state) async {
+      final prefs = await SharedPreferences.getInstance();
+      final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+
+      // Rule 1: Redirect to onboarding if not completed
+      if (!onboardingComplete && state.fullPath != '/onboarding') {
+        debugPrint('Redirecting to onboarding page...');
+        return '/onboarding';
+      }
+
+      // Obtain UID from injectable getter or Firebase
+      final String? uid = await (getUid?.call() ?? Future<String?>(() async => FirebaseAuth.instance.currentUser?.uid));
+
+      // Rule 2: If not logged in, allow only onboarding/login/signup. Anything else -> login
+      if (uid == null) {
+        final path = state.fullPath ?? '';
+        const allowedUnauthed = ['/onboarding', '/login', '/signup'];
+        if (!allowedUnauthed.contains(path)) {
+          debugPrint('Unauthenticated, redirecting to login page...');
+          return '/login';
+        }
+      }
+
+      // Rule 3: Check if the user's profile is complete
+      if (uid != null) {
+        final Map<String, dynamic>? data = getUserData != null
+            ? await getUserData(uid)
+            : (await FirebaseFirestore.instance.collection('users').doc(uid).get()).data();
+        if (data == null || data['username'] == null) {
+          debugPrint('Redirecting to complete_signup page...');
+          return '/complete_signup';
+        } else if (state.fullPath == '/login' || state.fullPath == '/signup') {
+          debugPrint('Already logged in, redirecting to root page...');
+          return '/root';
+        }
+      }
+
+      // No redirection needed
+      return null;
+    },
+  routes: [
+      GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingPage()),
+      GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
+      GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),
+      GoRoute(path: '/root', builder: (context, state) => const RootPage()),
+      GoRoute(
+        path: '/complete_signup',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?; // Retrieve extra data
+          return CompleteSignUpPage(
+            email: extra?['email'],
+            name: extra?['name'],
+            profilePicture: extra?['profilePicture'],
+          );
+        },
+      ),
+    ],
+  );
 }
 
 ThemeData _buildAppTheme(Brightness brightness) {

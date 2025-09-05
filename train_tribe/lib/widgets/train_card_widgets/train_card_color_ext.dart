@@ -7,3 +7,7 @@ extension _ColorShade on Color {
     return hslDark.toColor();
   }
 }
+
+// Exposed only for tests (kept small to avoid leaking internal implementation broadly)
+@visibleForTesting
+Color testColorDarken(Color c, [double amount = .12]) => c.darken(amount);

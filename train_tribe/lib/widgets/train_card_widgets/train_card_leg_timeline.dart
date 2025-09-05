@@ -636,6 +636,7 @@ Widget _ellipsisIndicator(ThemeData theme, int hidden, {required bool vertical})
   final label = Text('+$hidden', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: txt));
   final content = Row(mainAxisSize: MainAxisSize.min, children: [dots, const SizedBox(width: 4), label]);
   return AnimatedContainer(
+    key: ValueKey('ellipsis_${vertical ? 'v' : 'h'}_$hidden'),
     duration: const Duration(milliseconds: 180),
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
     decoration: BoxDecoration(
@@ -677,6 +678,7 @@ class _ExpandableTimelineWrapperState extends State<_ExpandableTimelineWrapper> 
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
         child: AnimatedContainer(
+          key: ValueKey('timelineWrapper_${widget.collapsed ? 'collapsed' : 'expanded'}'),
           duration: const Duration(milliseconds: 160),
           decoration: _hover
               ? BoxDecoration(

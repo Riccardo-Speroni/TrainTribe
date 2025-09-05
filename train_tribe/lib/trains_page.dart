@@ -12,6 +12,7 @@ import 'utils/train_confirmation.dart';
 import 'widgets/legend_dialog.dart';
 import 'utils/train_utils.dart';
 import 'utils/train_route_utils.dart';
+import 'utils/train_preload_utils.dart';
 
 class TrainsPage extends StatefulWidget {
   final bool testMode; // Skip network & Firestore when true
@@ -49,22 +50,23 @@ class _TrainsPageState extends State<TrainsPage> {
       _loadData();
     } else {
       isLoading = false;
-      eventsData = widget.testEventsData ?? {
-        'event1': [
+      eventsData = widget.testEventsData ??
           {
-            'leg1': {
-              'trip_id': 'T1',
-              'from': 'S1',
-              'to': 'S2',
-              'stops': [
-                {'stop_id': 'S1', 'departure_time': '08:00:00'},
-                {'stop_id': 'S2', 'arrival_time': '09:00:00'}
-              ],
-              'friends': []
-            }
-          }
-        ]
-      };
+            'event1': [
+              {
+                'leg1': {
+                  'trip_id': 'T1',
+                  'from': 'S1',
+                  'to': 'S2',
+                  'stops': [
+                    {'stop_id': 'S1', 'departure_time': '08:00:00'},
+                    {'stop_id': 'S2', 'arrival_time': '09:00:00'}
+                  ],
+                  'friends': []
+                }
+              }
+            ]
+          };
     }
   }
 
@@ -136,49 +138,15 @@ class _TrainsPageState extends State<TrainsPage> {
 
       // 3. Preload confirmed route signatures
       if (eventsData != null && userId.isNotEmpty) {
-        final Map<String, String?> preloadMap = {};
-        for (final entry in eventsData!.entries) {
-          final eventId = entry.key;
-          final routes = entry.value;
-          final Set<String> allEventTrainIds = {};
-          final List<List<String>> routeTrainIdLists = [];
-          for (final r in routes) {
-            if (r is Map<String, dynamic>) {
-              final List<String> routeTrainIds = [];
-              final legKeys = r.keys.where((k) => k.startsWith('leg')).toList()
-                ..sort((a, b) {
-                  int ai = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-                  int bi = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-                  return ai.compareTo(bi);
-                });
-              for (final lk in legKeys) {
-                final leg = r[lk];
-                if (leg is Map && leg['trip_id'] != null) {
-                  final tid = leg['trip_id'].toString();
-                  routeTrainIds.add(tid);
-                  allEventTrainIds.add(tid);
-                }
-              }
-              if (routeTrainIds.isNotEmpty) routeTrainIdLists.add(routeTrainIds);
-            }
-          }
-
-          if (allEventTrainIds.isEmpty) continue;
+        final preloadMap = await computePreloadedConfirmations(eventsData!, (eventId, allTrainIds) async {
           final confirmedIds = await _confirmationService.fetchConfirmedTrainIds(
             dateStr: dateStr,
             userId: userId,
-            trainIds: allEventTrainIds.toList(),
+            trainIds: allTrainIds.toList(),
           );
-          for (final routeIds in routeTrainIdLists) {
-            if (routeIds.every(confirmedIds.contains)) {
-              preloadMap[eventId] = _routeSignature(routeIds);
-              break; // one per event
-            }
-          }
-        }
-        if (preloadMap.isNotEmpty && mounted) {
-          setState(() => confirmedTrainPerEvent.addAll(preloadMap));
-        }
+          return confirmedIds;
+        });
+        if (preloadMap.isNotEmpty && mounted) setState(() => confirmedTrainPerEvent.addAll(preloadMap));
       }
     } catch (e, st) {
       debugPrint('Load data error: $e');
