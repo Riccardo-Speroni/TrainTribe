@@ -16,6 +16,21 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
+class ProfilePageTestOverrides {
+  static bool? debugOverrideInitialized;
+  static User? debugUser;
+  static FirebaseFirestore? debugFirestore;
+  static bool debugBypassFirebaseAuth = false; // when true, never touch FirebaseAuth.instance
+  static Future<void> Function()? debugSignOutFn; // optional test hook
+  static void reset() {
+    debugOverrideInitialized = null;
+    debugUser = null;
+    debugFirestore = null;
+    debugBypassFirebaseAuth = false;
+    debugSignOutFn = null;
+  }
+}
+
 class _ProfilePageState extends State<ProfilePage> {
   // Removed duplicate upload code (handled elsewhere if needed)
 
@@ -25,6 +40,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // Language & theme saving now handled by LocaleThemeSelector widget.
 
+
+  // (Runtime uses Firebase.* directly; tests set values on ProfilePageTestOverrides)
 
   Future<void> _resetOnboarding(BuildContext context, AppLocalizations l) async {
   final router = GoRouter.of(context); // capture before await
@@ -38,18 +55,28 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
 
-    if (Firebase.apps.isEmpty) {
+  final isInitialized = ProfilePageTestOverrides.debugOverrideInitialized ?? (() { try { return Firebase.apps.isNotEmpty; } catch (_) { return false; } })();
+  if (!isInitialized) {
       return const SafeArea(child: Center(child: Text('Firebase not initialized')));
     }
-    final user = FirebaseAuth.instance.currentUser;
+  User? user;
+  if (ProfilePageTestOverrides.debugBypassFirebaseAuth) {
+    user = ProfilePageTestOverrides.debugUser;
+  } else {
+    try {
+      user = ProfilePageTestOverrides.debugUser ?? FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      user = ProfilePageTestOverrides.debugUser; // fallback
+    }
+  }
     if (user == null) {
       return SafeArea(
         child: Center(child: Text(localizations.translate('error_loading_profile'))),
       );
     }
-    return SafeArea(
+  return SafeArea(
       child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+  stream: (ProfilePageTestOverrides.debugFirestore ?? FirebaseFirestore.instance).collection('users').doc(user.uid).snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const LoadingIndicator();
@@ -100,6 +127,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   SizedBox(
                     width: width,
                     child: ElevatedButton.icon(
+                      key: const Key('profile_reset_onboarding_button'),
                       icon: const Icon(Icons.restart_alt),
                       onPressed: () => _resetOnboarding(context, localizations),
                       label: Text(
@@ -113,10 +141,15 @@ class _ProfilePageState extends State<ProfilePage> {
                   SizedBox(
                     width: width,
                     child: ElevatedButton.icon(
+                      key: const Key('profile_logout_button'),
                       icon: const Icon(Icons.logout),
                       onPressed: () async {
                         final router = GoRouter.of(context); // capture
-                        await FirebaseAuth.instance.signOut();
+                        if (ProfilePageTestOverrides.debugSignOutFn != null) {
+                          await ProfilePageTestOverrides.debugSignOutFn!();
+                        } else {
+                          await FirebaseAuth.instance.signOut();
+                        }
                         if (!mounted) return;
                         router.go('/login');
                       },
@@ -138,6 +171,7 @@ class _ProfilePageState extends State<ProfilePage> {
             if (wrapLayout) {
               final buttons = buildButtons(double.infinity);
               bottomActions = Column(
+                key: const Key('profile_bottom_actions'),
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   buttons[0],
@@ -148,6 +182,7 @@ class _ProfilePageState extends State<ProfilePage> {
             } else {
               final btns = buildButtons(btnWidth);
               bottomActions = Row(
+                key: const Key('profile_bottom_actions'),
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: btns,
               );

@@ -13,6 +13,9 @@ class LocaleThemeSelector extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final Color? iconColor;
   final double spacing;
+  // Test hooks
+  final void Function(Locale locale)? debugOnSavedLanguage;
+  final void Function(ThemeMode mode)? debugOnSavedTheme;
 
   const LocaleThemeSelector({
     super.key,
@@ -21,19 +24,23 @@ class LocaleThemeSelector extends StatelessWidget {
     this.padding,
     this.iconColor,
     this.spacing = 4,
+  this.debugOnSavedLanguage,
+  this.debugOnSavedTheme,
   });
 
   Future<void> _saveLanguage(Locale locale) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('language_code', locale.languageCode);
-    appLocale.value = locale;
+  appLocale.value = locale; // update immediately for UI
+  debugOnSavedLanguage?.call(locale);
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('language_code', locale.languageCode);
   }
 
   Future<void> _saveTheme(ThemeMode mode) async {
-    final prefs = await SharedPreferences.getInstance();
-    final idx = mode == ThemeMode.light ? 0 : (mode == ThemeMode.dark ? 1 : 2);
-    await prefs.setInt('theme_mode', idx);
-    appTheme.value = mode;
+  appTheme.value = mode;
+  debugOnSavedTheme?.call(mode);
+  final prefs = await SharedPreferences.getInstance();
+  final idx = mode == ThemeMode.light ? 0 : (mode == ThemeMode.dark ? 1 : 2);
+  await prefs.setInt('theme_mode', idx);
   }
 
   @override
@@ -44,6 +51,7 @@ class LocaleThemeSelector extends StatelessWidget {
     if (showLanguage) {
       widgets.add(
         PopupMenuButton<Locale>(
+          key: const Key('locale_selector_language'),
           tooltip: l.translate('change_language'),
             icon: Icon(
               Icons.language,
@@ -52,6 +60,7 @@ class LocaleThemeSelector extends StatelessWidget {
           onSelected: (loc) => _saveLanguage(loc),
           itemBuilder: (ctx) => [
             PopupMenuItem(
+              key: const Key('locale_item_en'),
               value: const Locale('en'),
               child: Row(
                 children: [
@@ -62,6 +71,7 @@ class LocaleThemeSelector extends StatelessWidget {
               ),
             ),
             PopupMenuItem(
+              key: const Key('locale_item_it'),
               value: const Locale('it'),
               child: Row(
                 children: [
@@ -95,6 +105,7 @@ class LocaleThemeSelector extends StatelessWidget {
                 break;
             }
             return PopupMenuButton<ThemeMode>(
+              key: const Key('locale_selector_theme'),
               tooltip: l.translate('change_theme'),
               icon: Icon(
                 icon,
@@ -103,6 +114,7 @@ class LocaleThemeSelector extends StatelessWidget {
               onSelected: (m) => _saveTheme(m),
               itemBuilder: (ctx) => [
                 PopupMenuItem(
+                  key: const Key('theme_item_light'),
                   value: ThemeMode.light,
                   child: Row(
                     children: [
@@ -113,6 +125,7 @@ class LocaleThemeSelector extends StatelessWidget {
                   ),
                 ),
                 PopupMenuItem(
+                  key: const Key('theme_item_dark'),
                   value: ThemeMode.dark,
                   child: Row(
                     children: [
@@ -123,6 +136,7 @@ class LocaleThemeSelector extends StatelessWidget {
                   ),
                 ),
                 PopupMenuItem(
+                  key: const Key('theme_item_system'),
                   value: ThemeMode.system,
                   child: Row(
                     children: [

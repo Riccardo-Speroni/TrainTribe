@@ -127,6 +127,80 @@ class CalendarPageState extends State<CalendarPage> {
   void addTestEvents(List<CalendarEvent> list) => setState(() => events.addAll(list));
   @visibleForTesting
   List<String> get stationNamesForTest => _stationNames;
+  @visibleForTesting
+  Future<void> loadDefaultStationsForTest() async {
+    if (_stationNames.isEmpty) {
+      setState(() {
+        _stationNames = List<String>.from(default_data.stationNames);
+      });
+    }
+  }
+  @visibleForTesting
+  void simulateDragMove(CalendarEvent event, DateTime day, int newStartSlot) {
+    // Only adjust if event is part of state list
+    if (!events.contains(event)) return;
+    _draggedEvent = event;
+    _dragStartIndex = event.hour;
+    _dragEndIndex = newStartSlot;
+  // Temporarily force testMode path by bypassing Firestore update logic.
+  // Invoke internal logic; Firestore guarded by widget.testMode already.
+  _handleDragEventMove(day);
+  }
+  @visibleForTesting
+  void simulateDragCreate(DateTime day, int startSlot, int endSlot) {
+    _dragStartIndex = startSlot;
+    _dragEndIndex = endSlot;
+    _dragStartDay = day;
+    _handleDragEventCreation(day);
+  }
+  @visibleForTesting
+  void testLongPressStart(int cellIndex, DateTime day) => _handleLongPressStart(cellIndex, day);
+  @visibleForTesting
+  void testLongPressEnd(DateTime day) => _handleLongPressEnd(day);
+  @visibleForTesting
+  void testPrimeDragForRecurrent(CalendarEvent copy, int startIndex, int endIndex) {
+    _draggedEvent = copy;
+    _dragStartIndex = startIndex;
+    _dragEndIndex = endIndex;
+  }
+  @visibleForTesting
+  Future<void> testHandleDragEventMove(DateTime day) async => _handleDragEventMove(day);
+  @visibleForTesting
+  void testSetDragIndices(DateTime day, int startIndex, int endIndex, {CalendarEvent? dragged}) {
+    _dragStartIndex = startIndex;
+    _dragEndIndex = endIndex;
+    _dragStartDay = day;
+    _draggedEvent = dragged;
+  }
+  @visibleForTesting
+  CalendarEvent? testCreateEventFromDrag(DateTime day) {
+    if (!widget.testMode) return null;
+    if (_dragStartIndex == null || _dragEndIndex == null) return null;
+    int startIndex = _dragStartIndex!.clamp(0, hours.length - 1);
+    int endIndex = _dragEndIndex!.clamp(0, hours.length - 1);
+    if (startIndex > endIndex) {
+      final tmp = startIndex; startIndex = endIndex; endIndex = tmp;
+    }
+    final startSlot = startIndex;
+    final endSlot = endIndex + 1; // inclusive logic
+    if (endSlot >= startSlot) {
+      final dep = _stationNames.isNotEmpty ? _stationNames.first : 'A';
+      final arr = _stationNames.length > 1 ? _stationNames[1] : 'B';
+      final newEvent = CalendarEvent(
+        id: 'test_${DateTime.now().microsecondsSinceEpoch}',
+        date: day,
+        hour: startSlot,
+        endHour: endSlot,
+        departureStation: dep,
+        arrivalStation: arr,
+      );
+      setState(() { events.add(newEvent); });
+      _adjustOverlappingEvents(day);
+      _dragStartIndex = null; _dragEndIndex = null; _dragStartDay = null;
+      return newEvent;
+    }
+    return null;
+  }
 
   // Show the dialog to add a new event
   void _onAddEvent(DateTime day, int startIndex, [int? endIndex]) {
@@ -324,6 +398,12 @@ class CalendarPageState extends State<CalendarPage> {
       int newStartHour = hours[newStartIndex];
       int eventDuration = _draggedEvent!.endHour - _draggedEvent!.hour;
       int newEndHour = newStartHour + eventDuration;
+      // Clamp inside available range (end cannot exceed last slot + 1)
+      final int maxHour = hours.last + 1; // one past last index
+      if (newEndHour > maxHour) {
+        newEndHour = maxHour;
+        newStartHour = (newEndHour - eventDuration).clamp(0, maxHour - 1);
+      }
 
       setState(() {
         // Se è una copia ricorrente, aggiorna solo orario/durata nel generatore
@@ -352,8 +432,9 @@ class CalendarPageState extends State<CalendarPage> {
       });
 
       // Aggiorna su Firestore nel path corretto
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null && !widget.testMode) {
+      if (!widget.testMode) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
         String eventIdToUpdate = _draggedEvent!.generatedBy ?? _draggedEvent!.id;
         final eventDoc = FirebaseFirestore.instance.collection('users/${user.uid}/events').doc(eventIdToUpdate);
         // La data da salvare è quella del generatore, non della copia
@@ -382,6 +463,7 @@ class CalendarPageState extends State<CalendarPage> {
           'event_start': Timestamp.fromDate(eventStart),
           'event_end': Timestamp.fromDate(eventEnd),
         });
+        }
       }
     }
     _resetDragState();

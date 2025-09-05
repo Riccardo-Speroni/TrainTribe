@@ -28,6 +28,7 @@ class SuggestionsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     return Container(
+  key: const Key('suggestions_section_root'),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -84,6 +85,7 @@ class SuggestionsSection extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               FilledButton.icon(
+                key: const Key('suggestions_refresh_button'),
                 onPressed: loading ? null : onRefresh,
                 icon: loading
                     ? const SizedBox(
@@ -102,23 +104,24 @@ class SuggestionsSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          if (loading && suggestions.isEmpty)
+      if (loading && suggestions.isEmpty)
             Column(
               children: List.generate(3, (i) => i).map((_) => _loadingTile(context)).toList(),
             )
           else if (suggestions.isNotEmpty)
             Column(
               children: [
-                ...suggestions.map((user) => Padding(
+        ...suggestions.asMap().entries.map((entry) { final user = entry.value; final idx = entry.key; return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: SuggestionCard(
+            key: Key('suggestion_card_$idx'),
                         username: (user['username'] ?? '').toString(),
                         contactName: (user['contactName'] ?? '').toString().isNotEmpty ? (user['contactName'] ?? '').toString() : null,
                         picture: (user['picture'] ?? '').toString(),
                         sent: sentRequests.contains((user['uid'] ?? '').toString()),
                         onAdd: () => onAdd((user['uid'] ?? '').toString()),
                       ),
-                    )),
+          ); }),
               ],
             )
           else if (!loading && contactsRequested)

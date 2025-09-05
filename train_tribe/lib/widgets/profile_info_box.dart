@@ -27,6 +27,11 @@ class ProfileInfoBox extends StatelessWidget {
     this.stacked = false,
   });
 
+  // Testing overrides
+  static bool debugBypassFirebase = false; // when true do not touch Firebase
+  static Future<void> Function(String field, dynamic value)? debugUpdateField; // optional field update hook
+  static bool debugHidePicturePicker = false; // for widget tests to avoid building picker
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -37,21 +42,34 @@ class ProfileInfoBox extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            ProfilePicturePicker(
+            if (!debugHidePicturePicker)
+              ProfilePicturePicker(
               firstName: name,
               lastName: surname,
               username: username,
               initialImageUrl: picture is String ? picture : null,
               ringWidth: 5,
               onSelection: (sel) async {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user == null) return;
-                final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-                if (sel.removed) {
-                  await ref.update({'picture': FieldValue.delete()});
-                } else if (sel.generatedAvatarUrl != null) {
-                  await ref.update({'picture': sel.generatedAvatarUrl});
+                if (debugBypassFirebase) {
+                  if (debugUpdateField != null) {
+                    if (sel.removed) {
+                      await debugUpdateField!.call('picture', null);
+                    } else if (sel.generatedAvatarUrl != null) {
+                      await debugUpdateField!.call('picture', sel.generatedAvatarUrl);
+                    }
+                  }
+                  return;
                 }
+                try {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user == null) return;
+                  final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+                  if (sel.removed) {
+                    await ref.update({'picture': FieldValue.delete()});
+                  } else if (sel.generatedAvatarUrl != null) {
+                    await ref.update({'picture': sel.generatedAvatarUrl});
+                  }
+                } catch (_) {}
               },
               size: 120,
             ),
@@ -74,9 +92,11 @@ class ProfileInfoBox extends StatelessWidget {
   List<ProfileInfoRow> _buildRows(BuildContext context) {
     return [
       ProfileInfoRow(
+        fieldKey: 'username',
         label: l.translate('username'),
         value: username.isNotEmpty ? username : '-',
         extra: IconButton(
+          key: const Key('profile_username_copy_button'),
           icon: const Icon(Icons.copy, size: 18),
           tooltip: l.translate('copy_username'),
           padding: EdgeInsets.zero,
@@ -92,6 +112,7 @@ class ProfileInfoBox extends StatelessWidget {
         ),
         actions: [
           TextButton(
+            key: const Key('profile_username_edit_button'),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               minimumSize: const Size(0, 0),
@@ -128,10 +149,12 @@ class ProfileInfoBox extends StatelessWidget {
         ],
       ),
       ProfileInfoRow(
+        fieldKey: 'name',
         label: l.translate('name'),
         value: name.isNotEmpty ? name : '-',
         actions: [
           TextButton(
+    key: const Key('profile_name_edit_button'),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               minimumSize: const Size(0, 0),
@@ -154,11 +177,13 @@ class ProfileInfoBox extends StatelessWidget {
           ),
         ],
       ),
-      ProfileInfoRow(
+  ProfileInfoRow(
+        fieldKey: 'surname',
         label: l.translate('surname'),
         value: surname.isNotEmpty ? surname : '-',
         actions: [
           TextButton(
+    key: const Key('profile_surname_edit_button'),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               minimumSize: const Size(0, 0),
@@ -181,15 +206,18 @@ class ProfileInfoBox extends StatelessWidget {
           ),
         ],
       ),
-      ProfileInfoRow(
-        label: l.translate('email'),
-        value: email.isNotEmpty ? email : '-',
+  ProfileInfoRow(
+    fieldKey: 'email',
+    label: l.translate('email'),
+    value: email.isNotEmpty ? email : '-',
       ),
-      ProfileInfoRow(
-        label: l.translate('phone_number'),
-        value: (phone != null && phone!.isNotEmpty) ? phone! : '-',
+  ProfileInfoRow(
+    fieldKey: 'phone_number',
+    label: l.translate('phone_number'),
+    value: (phone != null && phone!.isNotEmpty) ? phone! : '-',
         actions: [
           TextButton(
+    key: const Key('profile_phone_edit_button'),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               minimumSize: const Size(0, 0),
@@ -209,7 +237,8 @@ class ProfileInfoRow {
   final String value;
   final List<Widget>? actions;
   final Widget? extra;
-  ProfileInfoRow({required this.label, required this.value, this.actions, this.extra});
+  final String? fieldKey; // stable identifier independent of localized label
+  ProfileInfoRow({required this.label, required this.value, this.actions, this.extra, this.fieldKey});
 }
 
 class _ProfileInfoTable extends StatelessWidget {
@@ -228,6 +257,7 @@ class _ProfileInfoTable extends StatelessWidget {
         children: [
           for (int i = 0; i < rows.length; i++) ...[
             Column(
+              key: ValueKey('profile_row_' + (rows[i].fieldKey ?? rows[i].label.toLowerCase())),
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -295,9 +325,15 @@ class _ProfileInfoTable extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Text(
-                  r.label,
-                  style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                child: Row(
+                  key: r.fieldKey != null ? ValueKey('profile_row_' + r.fieldKey!) : null,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      r.label,
+                      style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox.shrink(),

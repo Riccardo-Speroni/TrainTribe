@@ -26,6 +26,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:async';
 import 'utils/app_globals.dart';
+import 'widgets/app_rail.dart';
+import 'widgets/app_bottom_navbar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -308,7 +310,6 @@ class _RootPageState extends State<RootPage> {
     final width = MediaQuery.of(context).size.width;
     const railThreshold = 600.0;   // da questa larghezza in su mostra la rail
     final bool useRail = width >= railThreshold;
-    // Stato extended determinato solo dal toggle manuale ora
     final bool extended = railExpanded;
 
     List<Widget> pages = [
@@ -320,159 +321,19 @@ class _RootPageState extends State<RootPage> {
     ];
 
     if (useRail) {
-      // Rail personalizzata sempre comprimibile/espandibile
-      final ColorScheme scheme = Theme.of(context).colorScheme;
-      final TextStyle labelStyle = Theme.of(context).textTheme.bodyMedium ?? const TextStyle(fontSize: 14);
-
-      double computeMaxLabelWidth() {
-        double maxW = 0;
-        final TextDirection textDirection = Directionality.of(context);
-        for (final t in titles) {
-          final tp = TextPainter(
-            text: TextSpan(text: t, style: labelStyle),
-            maxLines: 1,
-            textDirection: textDirection,
-          )..layout();
-          if (tp.width > maxW) maxW = tp.width;
-        }
-        return maxW;
-      }
-
-      final double collapsedWidth = 72; // larghezza base stile NavigationRail
-      final double hPad = 16; // padding orizzontale interno
-      final double gap = 12;  // gap tra icona e label
-      final double maxLabelWidth = extended ? computeMaxLabelWidth() : 0;
-      final double dynamicExtendedWidth = collapsedWidth + (maxLabelWidth > 0 ? (maxLabelWidth + gap + hPad) : 0);
-
-      Widget buildDestination(int index) {
-        final bool selected = currentPage == index;
-        final Color selectedIconColor = scheme.primary;
-        final Color unselectedIconColor = scheme.onSurfaceVariant;
-  final Color selectedBg = scheme.primary.withValues(alpha: 0.12);
-        final iconList = [
-          Icons.home,
-          Icons.people,
-          Icons.train,
-          Icons.calendar_today,
-          Icons.person,
-        ];
-        final icon = Icon(iconList[index], color: selected ? selectedIconColor : unselectedIconColor, size: 24);
-        final label = Text(titles[index], style: labelStyle.copyWith(
-          color: selected ? selectedIconColor : scheme.onSurfaceVariant,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-        ));
-        return SizedBox(
-          height: 56,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => setState(() => currentPage = index),
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              decoration: BoxDecoration(
-                color: selected ? selectedBg : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  icon,
-                  if (extended) ...[
-                    SizedBox(width: gap),
-                    Flexible(child: label),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        );
-      }
-
-      Widget buildRail() {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final int itemCount = titles.length;
-            const double itemHeight = 56;
-            const double itemSpacing = 8; // margin vertical complessiva (4+4)
-            final double contentHeight = itemCount * itemHeight + (itemCount - 1) * itemSpacing;
-            const double toggleTotalHeight = 52; // bottone + padding
-            final double available = constraints.maxHeight;
-            double topPad = (available - toggleTotalHeight - contentHeight) / 2;
-            if (topPad < 12) topPad = 12;
-
-            if (!extended) {
-              return SizedBox(
-                width: collapsedWidth,
-                child: Column(
-                  children: [
-                    SizedBox(height: topPad),
-                    for (int i = 0; i < titles.length; i++)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 0),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () => setState(() => currentPage = i),
-                          child: Container(
-                            width: 56,
-                            height: itemHeight,
-                            decoration: BoxDecoration(
-                              color: currentPage == i ? scheme.primary.withValues(alpha: 0.12) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Icon(
-                              [Icons.home, Icons.people, Icons.train, Icons.calendar_today, Icons.person][i],
-                              color: currentPage == i ? scheme.primary : scheme.onSurfaceVariant,
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ),
-                    const Spacer(),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _RailToggleButton(
-                        expanded: false,
-                        onPressed: () => setState(() => railExpanded = true),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              width: dynamicExtendedWidth,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: topPad),
-                  for (int i = 0; i < titles.length; i++) buildDestination(i),
-                  const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: _RailToggleButton(
-                        expanded: true,
-                        onPressed: () => setState(() => railExpanded = false),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      }
-
       return Scaffold(
         body: Row(
           children: [
             Material(
               elevation: 1,
               color: Theme.of(context).colorScheme.surface,
-              child: buildRail(),
+              child: AppRail(
+                titles: titles,
+                currentIndex: currentPage,
+                onSelect: (i) => setState(() => currentPage = i),
+                expanded: extended,
+                onToggleExpanded: (value) => setState(() => railExpanded = value),
+              ),
             ),
             const VerticalDivider(width: 1),
             Expanded(
@@ -492,48 +353,13 @@ class _RootPageState extends State<RootPage> {
         padding: const EdgeInsets.all(16.0),
         child: pages[currentPage],
       ),
-      bottomNavigationBar: NavigationBar(
-        destinations: [
-          NavigationDestination(icon: const Icon(Icons.home), label: titles[0]),
-          NavigationDestination(icon: const Icon(Icons.people), label: titles[1]),
-          NavigationDestination(icon: const Icon(Icons.train), label: titles[2]),
-          NavigationDestination(icon: const Icon(Icons.calendar_today), label: titles[3]),
-          NavigationDestination(icon: const Icon(Icons.person), label: titles[4]),
-        ],
-        onDestinationSelected: (int index) {
-          setState(() { currentPage = index; });
-        },
-        selectedIndex: currentPage,
+      bottomNavigationBar: AppBottomNavBar(
+        titles: titles,
+        currentIndex: currentPage,
+        onDestinationSelected: (index) => setState(() => currentPage = index),
       ),
     );
   }
 }
 
-class _RailToggleButton extends StatelessWidget {
-  final bool expanded;
-  final VoidCallback onPressed;
-  const _RailToggleButton({required this.expanded, required this.onPressed});
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return Material(
-  color: scheme.surfaceContainerHighest.withValues(alpha: 0.8),
-      shape: const CircleBorder(),
-      elevation: 1,
-      child: InkWell(
-        onTap: onPressed,
-        customBorder: const CircleBorder(),
-        child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(
-            expanded ? Icons.chevron_left : Icons.chevron_right,
-            size: 22,
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
-      ),
-    );
-  }
-}
 

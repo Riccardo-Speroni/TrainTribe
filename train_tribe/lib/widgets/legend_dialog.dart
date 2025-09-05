@@ -40,6 +40,7 @@ Future<void> showLegendDialog({
           ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.92)
           : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.78);
       return AlertDialog(
+        key: const Key('legend_dialog'),
         insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         title: Padding(
           padding: const EdgeInsets.only(bottom: 4.0),
@@ -56,13 +57,14 @@ Future<void> showLegendDialog({
               children: [
                 const SizedBox(height: 12),
                 for (int i = 0; i < items.length; i++) ...[
-                  _LegendRow(item: items[i]),
+                  KeyedSubtree(key: Key('legend_item_$i'), child: _LegendRow(item: items[i])),
                   if (i != items.length - 1) const SizedBox(height: 14),
                 ],
                 if (infoText != null && infoText.trim().isNotEmpty) ...[
                   const SizedBox(height: 28),
                   Text(
                     infoText,
+                    key: const Key('legend_info'),
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontSize: 13,
                       height: 1.35,
@@ -83,7 +85,7 @@ Future<void> showLegendDialog({
               foregroundColor: theme.colorScheme.primary,
               textStyle: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            child: Text(okLabel),
+            child: Text(okLabel, key: const Key('legend_ok')),
           ),
         ],
       );

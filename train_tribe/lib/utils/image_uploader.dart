@@ -6,6 +6,10 @@ import 'package:image_picker/image_picker.dart';
 
 /// Provides static helpers to resize and upload profile images to Firebase Storage.
 class ImageUploader {
+  /// Test hook to inject a custom storage reference (e.g., mock or fake implementation).
+  static Reference Function()? debugRefBuilder;
+  /// Test hook to bypass Firebase completely: receives the finalized JPEG bytes and returns a URL.
+  static Future<String?> Function(List<int> bytes, {required bool web})? debugUploadBytesHook;
   /// Resize (max 300px on longest side) and upload an XFile or File.
   /// Returns the download URL or null on failure.
   static Future<String?> uploadProfileImage({XFile? xfile, File? file}) async {
@@ -17,6 +21,9 @@ class ImageUploader {
         if (decoded == null) return null;
         final resized = _resize(decoded);
         final data = img.encodeJpg(resized, quality: 85);
+        if (debugUploadBytesHook != null) {
+          return await debugUploadBytesHook!(data, web: true);
+        }
         final ref = _ref();
         final task = await ref.putData(data, SettableMetadata(contentType: 'image/jpeg'));
         return await task.ref.getDownloadURL();
@@ -31,7 +38,10 @@ class ImageUploader {
       final tmp = File('${Directory.systemTemp.path}/pp_${DateTime.now().microsecondsSinceEpoch}.jpg');
       await tmp.writeAsBytes(jpg);
       try {
-        final ref = _ref();
+        if (debugUploadBytesHook != null) {
+          return await debugUploadBytesHook!(jpg, web: false);
+        }
+        final ref = debugRefBuilder != null ? debugRefBuilder!() : _ref();
         final task = await ref.putFile(tmp, SettableMetadata(contentType: 'image/jpeg'));
         return await task.ref.getDownloadURL();
       } finally {
