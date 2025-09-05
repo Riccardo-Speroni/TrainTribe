@@ -171,6 +171,11 @@ class _LegTimelineState extends State<_LegTimeline> {
           final users = usersAtStop(stop['id'] ?? '');
           final isInUser = (fromIdx != -1 && toIdx != -1 && index >= fromIdx && index <= toIdx);
           final baseColor = theme.textTheme.bodyMedium?.color ?? Colors.black87;
+          // Treat desktop/web horizontal compact cells more generously: still show avatars like mobile view.
+          final bool isDesktop = kIsWeb ||
+              defaultTargetPlatform == TargetPlatform.windows ||
+              defaultTargetPlatform == TargetPlatform.macOS ||
+              defaultTargetPlatform == TargetPlatform.linux;
           final textStyle = TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: compact ? 12.5 : 13.5,
@@ -186,7 +191,113 @@ class _LegTimelineState extends State<_LegTimeline> {
             letterSpacing: 0.2,
             color: isInUser ? baseColor.withValues(alpha: 0.82) : baseColor.withValues(alpha: 0.55),
           );
-          final showAvatars = !compact && users.isNotEmpty;
+          final showAvatars = users.isNotEmpty && (!compact || (compact && isDesktop));
+
+          // Compact desktop avatar row (stacked / overlapping) to avoid vertical overflow.
+          Widget buildCompactDesktopAvatars() {
+            const double avatarSize = 18;
+            const double overlap = 10; // horizontal overlap
+            final maxShow = 4;
+            final display = users.take(maxShow).toList();
+            final extra = users.length - display.length;
+            final children = <Widget>[];
+            for (int i = 0; i < display.length; i++) {
+              final u = display[i];
+              final avatar = ProfilePicture(picture: u['image'], size: avatarSize);
+              final wrapped = widget.confirmedWrapper != null ? widget.confirmedWrapper!(u, child: avatar) : avatar;
+              children.add(Positioned(
+                left: i * overlap,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(avatarSize / 2),
+                  child: SizedBox(width: avatarSize, height: avatarSize, child: wrapped),
+                ),
+              ));
+            }
+            if (extra > 0) {
+              children.add(Positioned(
+                left: display.length * overlap,
+                child: Container(
+                  width: avatarSize,
+                  height: avatarSize,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: theme.brightness == Brightness.dark ? 0.30 : 0.15),
+                    borderRadius: BorderRadius.circular(avatarSize / 2),
+                    border: Border.all(
+                        color: theme.colorScheme.primary.withValues(alpha: theme.brightness == Brightness.dark ? 0.55 : 0.6), width: 1),
+                  ),
+                  child: Text('+$extra', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
+                ),
+              ));
+            }
+            final totalWidth = ((display.length + (extra > 0 ? 1 : 0)) * overlap + avatarSize).clamp(avatarSize, 90);
+            return SizedBox(
+              width: totalWidth.toDouble(),
+              height: avatarSize,
+              child: Stack(clipBehavior: Clip.none, children: children),
+            );
+          }
+
+          if (compact && isDesktop) {
+            // Compact desktop layout: station name + avatars + wrapped first names (no truncation) + optional +N indicator.
+            final maxShowNames = 6; // allow more names if short
+            final displayUsers = users.take(maxShowNames).toList();
+            final extraUsers = users.length - displayUsers.length;
+            List<Widget> nameWidgets = displayUsers.map((u) {
+              final raw = (u['name'] ?? '').trim();
+              final first = raw.isEmpty ? '?' : raw.split(' ').first; // use first token
+              return Text(
+                first,
+                style: TextStyle(
+                  fontSize: 10.4,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.15,
+                  color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.78) ?? Colors.grey[700],
+                ),
+              );
+            }).toList();
+            if (extraUsers > 0) {
+              nameWidgets.add(Text(
+                '+$extraUsers',
+                style: TextStyle(
+                  fontSize: 10.4,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
+                  color: theme.colorScheme.primary.withValues(alpha: 0.85),
+                ),
+              ));
+            }
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  stop['name'] ?? '',
+                  style: textStyle.copyWith(fontSize: 12.0),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+                if (showAvatars) ...[
+                  const SizedBox(height: 4),
+                  buildCompactDesktopAvatars(),
+                  if (nameWidgets.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 40),
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 6,
+                          runSpacing: 2,
+                          children: nameWidgets,
+                        ),
+                      ),
+                    ),
+                ]
+              ],
+            );
+          }
           return Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: align == TextAlign.center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
@@ -372,7 +483,7 @@ class _LegTimelineState extends State<_LegTimeline> {
 
         final needsScroll = displayedWidth > constraints.maxWidth;
         final horizontalTimelineCore = SizedBox(
-          height: 210,
+          height: 230, // slightly taller to accommodate wrapped names under avatars
           child: Stack(children: [
             if (needsScroll)
               Positioned.fill(
@@ -413,41 +524,15 @@ class _LegTimelineState extends State<_LegTimeline> {
                   ),
                 ),
               ),
-            if (needsScroll)
-              Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 6,
-                  child: IgnorePointer(
-                      child: Container(
-                          width: 20, // reduced fade distance
-                          decoration: BoxDecoration(
-                              gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [
-                            theme.cardColor,
-                            theme.cardColor.withValues(alpha: 0.0),
-                          ], stops: const [
-                            0.0,
-                            1.0
-                          ]))))),
-            if (needsScroll)
-              Positioned(
-                  right: 0,
-                  top: 0,
-                  bottom: 6,
-                  child: IgnorePointer(
-                      child: Container(
-                          width: 20, // reduced fade distance
-                          decoration: BoxDecoration(
-                              gradient: LinearGradient(begin: Alignment.centerRight, end: Alignment.centerLeft, colors: [
-                            theme.cardColor,
-                            theme.cardColor.withValues(alpha: 0.0),
-                          ], stops: const [
-                            0.0,
-                            1.0
-                          ]))))),
+            // Removed edge fade gradients (left/right) to eliminate unwanted shadow effect on desktop.
           ]),
         );
-        final Widget horizontalTimeline = horizontalTimelineCore; // removed AnimatedSwitcher to avoid controller duplication
+        // Center the horizontal timeline within the available card width when content fits (desktop view).
+        final double containerWidth = needsScroll ? constraints.maxWidth : displayedWidth;
+        final Widget horizontalTimeline = Align(
+          alignment: Alignment.center,
+          child: SizedBox(width: containerWidth, child: horizontalTimelineCore),
+        ); // removed AnimatedSwitcher to avoid controller duplication
         // Schedule centering after expand frame (horizontal)
         if (_pendingCenterOnExpand && !_collapsed) {
           WidgetsBinding.instance.addPostFrameCallback((_) {

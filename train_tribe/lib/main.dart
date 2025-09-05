@@ -48,13 +48,13 @@ void main() async {
 
   // Initialize Firebase
   try {
-  debugPrint('Initializing Firebase...');
+    debugPrint('Initializing Firebase...');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-  debugPrint('Firebase initialized successfully');
+    debugPrint('Firebase initialized successfully');
   } catch (e) {
-  debugPrint('Failed to initialize Firebase: $e');
+    debugPrint('Failed to initialize Firebase: $e');
   }
 
   const useEmulator = false; // Set to true to use Firebase emulators
@@ -79,7 +79,6 @@ void main() async {
   runApp(AppServicesScope(services: services, child: const MyApp()));
 }
 
-
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -97,8 +96,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
 
     // Note: Since Windows is not supported by flutter_local_notifications, we don't use them on Windows.
-    if(!Platform.isWindows)
-    {
+    if (!Platform.isWindows) {
       _initNotifications();
       _startNotificationPolling();
     }
@@ -113,10 +111,8 @@ class _MyAppState extends State<MyApp> {
   Future<void> _initNotifications() async {
     _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const DarwinInitializationSettings initializationSettingsDarwin =
-        DarwinInitializationSettings();
+    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const DarwinInitializationSettings initializationSettingsDarwin = DarwinInitializationSettings();
 
     final InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
@@ -128,12 +124,10 @@ class _MyAppState extends State<MyApp> {
 
   void _startNotificationPolling() {
     _notificationTimer?.cancel();
-    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+    _notificationTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-      final notificationsRef = FirebaseFirestore.instance
-          .collection('notifications')
-          .where('userId', isEqualTo: user.uid);
+      final notificationsRef = FirebaseFirestore.instance.collection('notifications').where('userId', isEqualTo: user.uid);
 
       final querySnapshot = await notificationsRef.get();
       for (final doc in querySnapshot.docs) {
@@ -172,7 +166,7 @@ class _MyAppState extends State<MyApp> {
 
       // Rule 1: Redirect to onboarding if not completed
       if (!onboardingComplete && state.fullPath != '/onboarding') {
-  debugPrint('Redirecting to onboarding page...');
+        debugPrint('Redirecting to onboarding page...');
         return '/onboarding';
       }
 
@@ -262,7 +256,7 @@ ThemeData _buildAppTheme(Brightness brightness) {
   return base.copyWith(
     colorScheme: scheme,
     navigationBarTheme: NavigationBarThemeData(
-  indicatorColor: scheme.primary.withValues(alpha: 0.15),
+      indicatorColor: scheme.primary.withValues(alpha: 0.15),
       backgroundColor: base.navigationBarTheme.backgroundColor, // keep default
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
@@ -308,7 +302,7 @@ class _RootPageState extends State<RootPage> {
   Widget build(BuildContext context) {
     final titles = pageTitles(context);
     final width = MediaQuery.of(context).size.width;
-    const railThreshold = 600.0;   // da questa larghezza in su mostra la rail
+    const railThreshold = 600.0; // da questa larghezza in su mostra la rail
     final bool useRail = width >= railThreshold;
     final bool extended = railExpanded;
 
@@ -361,5 +355,3 @@ class _RootPageState extends State<RootPage> {
     );
   }
 }
-
-
