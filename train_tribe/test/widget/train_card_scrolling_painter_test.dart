@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:train_tribe/widgets/train_card.dart';
+import 'package:train_tribe/widgets/trains_widgets/train_card.dart';
 
 Widget _wrapWithWidth({required double width, double height = 400, required Widget child}) => MaterialApp(
       home: Scaffold(

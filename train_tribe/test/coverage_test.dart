@@ -41,7 +41,7 @@ import 'package:train_tribe/widgets/logo_pattern_background.dart';
 import 'package:train_tribe/widgets/mood_toggle.dart';
 import 'package:train_tribe/widgets/profile_info_box.dart';
 import 'package:train_tribe/widgets/profile_picture_picker.dart';
-import 'package:train_tribe/widgets/train_card.dart';
+import 'package:train_tribe/widgets/trains_widgets/train_card.dart';
 import 'package:train_tribe/widgets/user_details_page.dart';
 import 'package:train_tribe/widgets/calendar_widgets/calendar_cells.dart';
 import 'package:train_tribe/widgets/calendar_widgets/calendar_columns.dart';
@@ -52,6 +52,6 @@ import 'package:train_tribe/widgets/friends_widget/friends_search_container.dart
 import 'package:train_tribe/widgets/friends_widget/friend_popup_dialog.dart';
 import 'package:train_tribe/widgets/friends_widget/friend_requests_container.dart';
 import 'package:train_tribe/widgets/friends_widget/suggestions_section.dart';
-import 'package:train_tribe/widgets/train_card_widgets/responsive_card_list.dart';
+import 'package:train_tribe/widgets/trains_widgets/responsive_card_list.dart';
 
 void main() {}

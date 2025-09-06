@@ -1,4 +1,4 @@
-part of '../train_card.dart';
+part of 'train_card.dart';
 
 class _LegTimeline extends StatefulWidget {
   final List<Map<String, String>> stops;

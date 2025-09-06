@@ -8,6 +8,7 @@ import 'utils/loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'widgets/locale_theme_selector.dart';
 import 'widgets/profile_info_box.dart';
+import 'widgets/logo_title.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -70,11 +71,26 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
     if (user == null) {
-      return SafeArea(
-        child: Center(child: Text(localizations.translate('error_loading_profile'))),
+      return Scaffold(
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          centerTitle: MediaQuery.of(context).size.width >= 600,
+          title: const LogoTitle(),
+        ),
+        body: SafeArea(child: Center(child: Text(localizations.translate('error_loading_profile')))),
       );
     }
-  return SafeArea(
+  return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        centerTitle: MediaQuery.of(context).size.width >= 600,
+        title: const LogoTitle(),
+      ),
+      body: SafeArea(
       child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
   stream: (ProfilePageTestOverrides.debugFirestore ?? FirebaseFirestore.instance).collection('users').doc(user.uid).snapshots(),
         builder: (context, snapshot) {
@@ -239,6 +255,7 @@ class _ProfilePageState extends State<ProfilePage> {
           });
         },
       ),
+    ),
     );
   }
 }

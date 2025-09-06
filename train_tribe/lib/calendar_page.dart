@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'dart:convert';
 import 'utils/station_names.dart' as default_data;
+import 'widgets/logo_title.dart';
 
 class CalendarPage extends StatefulWidget {
   final bool railExpanded;
@@ -641,7 +642,13 @@ class CalendarPageState extends State<CalendarPage> {
     final localizations = AppLocalizations.of(context);
     if (Firebase.apps.isEmpty && !widget.testMode) {
       return Scaffold(
-        appBar: AppBar(title: Text(localizations.translate('calendar'))),
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          centerTitle: MediaQuery.of(context).size.width >= 600,
+          title: const LogoTitle(),
+        ),
         body: const Center(child: Text('Firebase not initialized')),
       );
     }
@@ -652,9 +659,15 @@ class CalendarPageState extends State<CalendarPage> {
     final PageController pageController = PageController(initialPage: 0);
 
     return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+  centerTitle: MediaQuery.of(context).size.width >= 600,
+        title: const LogoTitle(),
+      ),
       body: Column(
         children: [
-          SizedBox(height: MediaQuery.of(context).padding.top),
           SizedBox(height: 10),
           Expanded(
             child: Row(

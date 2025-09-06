@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:train_tribe/widgets/train_card.dart';
+import 'package:train_tribe/widgets/trains_widgets/train_card.dart';
 
 void main() {
   group('TrainCard timeline', () {

@@ -121,7 +121,8 @@ class _MyAppState extends State<MyApp> {
   Future<void> _initNotifications() async {
     _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
-    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  // Use the app's launcher icon as the default small icon for notifications on Android
+  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/launcher_icon');
     const DarwinInitializationSettings initializationSettingsDarwin = DarwinInitializationSettings();
 
     final InitializationSettings initializationSettings = InitializationSettings(

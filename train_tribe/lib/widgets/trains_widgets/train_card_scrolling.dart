@@ -1,4 +1,4 @@
-part of '../train_card.dart';
+part of 'train_card.dart';
 
 // Thin, non-interactive progress indicator overlay for scroll position.
 class _ProgressScrollArea extends StatefulWidget {

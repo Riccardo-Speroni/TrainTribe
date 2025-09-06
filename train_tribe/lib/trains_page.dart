@@ -6,13 +6,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'l10n/app_localizations.dart';
-import 'widgets/train_card.dart';
-import 'widgets/train_card_widgets/responsive_card_list.dart';
+import 'widgets/trains_widgets/train_card.dart';
+import 'widgets/trains_widgets/responsive_card_list.dart';
 import 'utils/train_confirmation.dart';
 import 'widgets/legend_dialog.dart';
 import 'utils/train_utils.dart';
 import 'utils/train_route_utils.dart';
 import 'utils/train_preload_utils.dart';
+import 'widgets/logo_title.dart';
 
 class TrainsPage extends StatefulWidget {
   final bool testMode; // Skip network & Firestore when true
@@ -177,7 +178,8 @@ class _TrainsPageState extends State<TrainsPage> {
           shadowColor: Colors.transparent,
           backgroundColor: Theme.of(context).colorScheme.surface,
           surfaceTintColor: Colors.transparent, // remove Material3 scroll tint
-          title: SelectionContainer.disabled(child: Text(localizations.translate('trains'))),
+          centerTitle: MediaQuery.of(context).size.width >= 600,
+          title: const SelectionContainer.disabled(child: LogoTitle()),
           actions: [
             IconButton(
               tooltip: localizations.translate('train_confirm_legend_title'),

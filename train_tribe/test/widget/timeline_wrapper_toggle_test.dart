@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:train_tribe/widgets/train_card.dart';
+import 'package:train_tribe/widgets/trains_widgets/train_card.dart';
 
 // Build a TrainCard with enough stops to show a timeline and allow expansion.
 List<Map<String, dynamic>> _legs() {

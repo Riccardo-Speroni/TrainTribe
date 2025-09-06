@@ -11,6 +11,7 @@ import 'widgets/friends_widget/friends_search_container.dart';
 import 'widgets/friends_widget/friend_popup_dialog.dart';
 import 'widgets/friends_widget/suggestions_section.dart';
 import 'services/app_services.dart';
+import 'widgets/logo_title.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -332,7 +333,8 @@ class FriendsPageState extends State<FriendsPage> {
         return Scaffold(
           appBar: AppBar(
             elevation: 0,
-            title: Text(localizations.translate('friends')),
+            centerTitle: MediaQuery.of(context).size.width >= 600,
+            title: const LogoTitle(),
             actions: [
               IconButton(
                 tooltip: localizations.translate('friends_ghost_legend_title'),

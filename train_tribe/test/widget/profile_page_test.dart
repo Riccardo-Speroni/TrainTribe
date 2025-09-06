@@ -137,8 +137,10 @@ void main() {
       ProfilePageTestOverrides.debugSignOutFn = () async { signOutCalls = true; };
       await fake.collection('users').doc('u_nav').set({'username': 'navuser'});
       await tester.pumpWidget(_wrapWithRouter(const MediaQuery(data: MediaQueryData(size: Size(700, 900)), child: ProfilePage())));
-      await tester.pumpAndSettle(const Duration(milliseconds: 400));
-      await tester.tap(find.byKey(const Key('profile_logout_button')));
+  await tester.pumpAndSettle(const Duration(milliseconds: 400));
+  final logoutFinder = find.byKey(const Key('profile_logout_button'));
+  await tester.ensureVisible(logoutFinder);
+  await tester.tap(logoutFinder, warnIfMissed: false);
       await tester.pumpAndSettle();
       expect(signOutCalls, isTrue);
       expect(find.text('login'), findsOneWidget);
@@ -200,7 +202,7 @@ void main() {
     });
 
     testWidgets('narrow layout uses Column for bottom actions', (tester) async {
-      final binding = TestWidgetsFlutterBinding.ensureInitialized() as TestWidgetsFlutterBinding;
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
       binding.window.physicalSizeTestValue = const Size(250, 900);
       binding.window.devicePixelRatioTestValue = 1.0;
       addTearDown(() {
