@@ -1,4 +1,4 @@
-part of '../train_card.dart';
+part of 'train_card.dart';
 
 extension _ColorShade on Color {
   Color darken([double amount = .12]) {

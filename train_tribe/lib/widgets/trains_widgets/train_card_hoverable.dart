@@ -1,4 +1,4 @@
-part of '../train_card.dart';
+part of 'train_card.dart';
 
 // Simple hover detector wrapper for desktop/web to provide hover state.
 class _Hoverable extends StatefulWidget {

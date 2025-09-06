@@ -7,6 +7,7 @@ import 'package:train_tribe/services/app_services.dart';
 import 'package:train_tribe/repositories/user_repository.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:train_tribe/l10n/app_localizations.dart';
+import 'package:train_tribe/widgets/logo_title.dart';
 
 Widget _wrapFriends() {
   final firestore = FakeFirebaseFirestore();
@@ -42,7 +43,8 @@ void main() {
   testWidgets('FriendsPage renders and shows search container', (tester) async {
     await tester.pumpWidget(_wrapFriends());
     await tester.pumpAndSettle();
-    expect(find.text('Friends'), findsWidgets);
+  // Title is now a logo widget; check for it instead of text
+  expect(find.byType(LogoTitle), findsOneWidget);
     expect(find.byKey(const Key('friendsSearchContainer')), findsOneWidget);
   });
 }
