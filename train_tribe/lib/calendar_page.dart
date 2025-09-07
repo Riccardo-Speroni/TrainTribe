@@ -155,6 +155,21 @@ class CalendarPageState extends State<CalendarPage> {
     _handleDragEventCreation(day);
   }
   @visibleForTesting
+  Future<void> loadStationNamesForTest(bool download) async => _loadStationNames(download);
+  @visibleForTesting
+  Future<void> initPrefsForTest() async => _initPrefs();
+  @visibleForTesting
+  void editEventForTest(CalendarEvent e) => _onEditEvent(e);
+  @visibleForTesting
+  void testLongPressMoveUpdateDirect(
+    LongPressMoveUpdateDetails details,
+    BuildContext context,
+    ScrollController scrollController,
+    int pageIndex,
+  ) => _handleLongPressMoveUpdate(details, context, scrollController, pageIndex);
+  @visibleForTesting
+  ScrollController get dayScrollControllerForTest => _dayColumnsController;
+  @visibleForTesting
   void testLongPressStart(int cellIndex, DateTime day) => _handleLongPressStart(cellIndex, day);
   @visibleForTesting
   void testLongPressEnd(DateTime day) => _handleLongPressEnd(day);

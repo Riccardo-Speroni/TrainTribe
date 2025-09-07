@@ -172,10 +172,11 @@ class _LegTimelineState extends State<_LegTimeline> {
           final isInUser = (fromIdx != -1 && toIdx != -1 && index >= fromIdx && index <= toIdx);
           final baseColor = theme.textTheme.bodyMedium?.color ?? Colors.black87;
           // Treat desktop/web horizontal compact cells more generously: still show avatars like mobile view.
-          final bool isDesktop = kIsWeb ||
-              defaultTargetPlatform == TargetPlatform.windows ||
-              defaultTargetPlatform == TargetPlatform.macOS ||
-              defaultTargetPlatform == TargetPlatform.linux;
+      final bool isDesktop = (trainCardDebugForceDesktopUI == true) ||
+        kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.linux;
           final textStyle = TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: compact ? 12.5 : 13.5,
@@ -285,7 +286,7 @@ class _LegTimelineState extends State<_LegTimeline> {
                     Padding(
                       padding: const EdgeInsets.only(top: 4.0),
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 40),
+                        constraints: const BoxConstraints(maxHeight: 36),
                         child: Wrap(
                           alignment: WrapAlignment.center,
                           spacing: 6,

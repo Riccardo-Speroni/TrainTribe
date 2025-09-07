@@ -184,11 +184,14 @@ class _DesktopDragScroll extends StatefulWidget {
 class _DesktopDragScrollState extends State<_DesktopDragScroll> {
   bool _dragging = false;
 
-  bool get _enabledDesktop =>
-      kIsWeb ||
-      defaultTargetPlatform == TargetPlatform.windows ||
-      defaultTargetPlatform == TargetPlatform.linux ||
-      defaultTargetPlatform == TargetPlatform.macOS;
+  bool get _enabledDesktop {
+    final override = trainCardDebugForceDesktopDrag;
+    if (override != null) return override;
+    return kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+  }
 
   void _handlePanStart(DragStartDetails d) {
     if (!_enabledDesktop) return;

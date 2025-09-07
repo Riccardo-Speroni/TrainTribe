@@ -9,6 +9,7 @@ import 'utils/firebase_exception_handler.dart';
 import 'utils/loading_indicator.dart';
 import 'widgets/user_details_page.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:meta/meta.dart';
 import 'widgets/logo_pattern_background.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -38,7 +39,39 @@ class SignUpPageState extends State<SignUpPage> {
   bool _isLoading = false; // State to control loading indicator
   bool isUsernameUnique = true; // State to track username uniqueness
 
+  // Test-only control flags and accessors
+  @visibleForTesting
+  bool debugSkipFirebase = false;
+  @visibleForTesting
+  bool? debugForceWideScreen;
+  @visibleForTesting
+  void setSkipFirebaseForTest(bool v) => debugSkipFirebase = v;
+  @visibleForTesting
+  void setForceWideScreenForTest(bool? v) => setState(() => debugForceWideScreen = v);
+  @visibleForTesting
+  File? get profileImageForTest => _profileImage;
+  @visibleForTesting
+  String? get generatedAvatarUrlForTest => _generatedAvatarUrl;
+  @visibleForTesting
+  void setLoadingForTest(bool v) => setState(() => _isLoading = v);
+  @visibleForTesting
+  void onActionForTest() {
+    setState(() {
+      firstNameController.text = firstNameController.text.trim();
+      lastNameController.text = lastNameController.text.trim();
+      usernameController.text = usernameController.text.trim();
+      phoneController.text = phoneController.text.trim();
+    });
+    _createUserInFirebase();
+  }
+
   // Avatar generation state removed; handled by reusable picker widget
+  
+  // Test-only helpers to improve coverage without altering behavior
+  @visibleForTesting
+  Future<void> createUserForTest() => _createUserInFirebase();
+  @visibleForTesting
+  void showErrorDialogForTest(String message) => _showErrorDialog(message);
 
   void _nextPage() {
     final bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
@@ -93,6 +126,12 @@ class SignUpPageState extends State<SignUpPage> {
       final e164Regex = RegExp(r'^\+[1-9]\d{7,14}$');
       if (phone.isNotEmpty && !e164Regex.hasMatch(phone)) {
         _showErrorDialog(AppLocalizations.of(context).translate('invalid_phone'));
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Test-only early exit to avoid hitting Firebase in widget tests
+      if (debugSkipFirebase) {
         setState(() => _isLoading = false);
         return;
       }
@@ -161,7 +200,10 @@ class SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-    final bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
+    bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
+    if (debugForceWideScreen != null) {
+      isWideScreen = debugForceWideScreen!;
+    }
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     // Build main signup content stack (form + loading overlay)
     final Widget contentStack = Stack(

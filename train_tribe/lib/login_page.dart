@@ -31,6 +31,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   late AnimationController _animationController;
   late Animation<double> _opacityAnimation;
+  // Test-only: force layout branch
+  @visibleForTesting
+  bool? debugForceWideScreen;
+  @visibleForTesting
+  void setForceWideScreenForTest(bool? v) => setState(() => debugForceWideScreen = v);
 
   @override
   void initState() {
@@ -220,7 +225,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     }
 
     // Imposta la larghezza massima su desktop/web
-    final bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
+    bool isWideScreen = kIsWeb || (!Platform.isAndroid && !Platform.isIOS);
+    if (debugForceWideScreen != null) {
+      isWideScreen = debugForceWideScreen!;
+    }
     final double maxFormWidth = isWideScreen ? 400.0 : double.infinity;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 

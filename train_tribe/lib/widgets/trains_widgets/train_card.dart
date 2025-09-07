@@ -3,12 +3,20 @@ import 'package:timelines_plus/timelines_plus.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import '../../utils/profile_picture_widget.dart';
 import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 
 part 'train_card_hoverable.dart';
 part 'train_card_scrolling.dart';
 part 'train_card_leg_timeline.dart';
 part 'train_card_color_ext.dart';
 // Removed avatar tooltips dependence on localizations
+
+// Test-only: global override to force-enable desktop drag behavior in timeline
+// Set from widget tests; read by _DesktopDragScrollState._enabledDesktop
+@visibleForTesting
+bool? trainCardDebugForceDesktopDrag;
+@visibleForTesting
+bool? trainCardDebugForceDesktopUI;
 
 class TrainCard extends StatelessWidget {
   final String title;
