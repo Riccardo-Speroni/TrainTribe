@@ -278,7 +278,7 @@ class FriendsPageState extends State<FriendsPage> {
 
   // Modifica: recupera anche la foto profilo dell'amico e passala al dialog
   void _showFriendDialog(BuildContext context, String friendUid, String friendName, bool isGhosted, bool hasPhone) async {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(friendUid).get();
+    final doc = await _db.collection('users').doc(friendUid).get();
     final picture = (doc.data()?['picture'] ?? '').toString();
     // Retrieve first name and surname so we can render two initials consistently
     final firstName = (doc.data()?['name'] ?? '').toString();

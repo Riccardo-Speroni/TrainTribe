@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/app_services.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/phone_number_helper.dart';
 
@@ -45,8 +46,8 @@ Future<void> showEditSimpleFieldDialog(
       setStateLocal?.call(() {});
     }
     if (!skipWrites) {
-      final user = overrideUser ?? FirebaseAuth.instance.currentUser;
-      final firestore = overrideFirestore ?? FirebaseFirestore.instance;
+  final user = overrideUser ?? AppServicesScope.of(context).auth.currentUser;
+  final firestore = overrideFirestore ?? AppServicesScope.of(context).firestore;
       if (user != null) {
         await firestore.collection('users').doc(user.uid).update({fieldKey: raw});
       }
@@ -207,8 +208,8 @@ Future<void> showEditPhoneDialog(BuildContext context, AppLocalizations l, Strin
                   return;
                 }
                 if (!skipWrites) {
-                  final user = overrideUser ?? FirebaseAuth.instance.currentUser;
-                  final firestore = overrideFirestore ?? FirebaseFirestore.instance;
+                  final user = overrideUser ?? AppServicesScope.of(context).auth.currentUser;
+                  final firestore = overrideFirestore ?? AppServicesScope.of(context).firestore;
                   if (user != null) {
                     await firestore.collection('users').doc(user.uid).update({'phone': e164});
                   }

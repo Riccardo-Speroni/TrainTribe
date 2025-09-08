@@ -235,6 +235,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     final contentStack = Stack(
       children: [
         Scaffold(
+          key: const Key('login_page'),
           backgroundColor: isWideScreen
               ? Colors.transparent // pattern shows on desktop/web
               : (isDark ? Colors.black : Colors.white),

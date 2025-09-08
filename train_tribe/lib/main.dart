@@ -202,10 +202,30 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-GoRouter createAppRouter({CurrentUserUidGetter? getUid, UserDataGetter? getUserData}) {
+// Simple ChangeNotifier that triggers router refreshes on auth state changes
+class GoRouterRefreshStream extends ChangeNotifier {
+  late final StreamSubscription<dynamic> _sub;
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    _sub = stream.asBroadcastStream().listen((_) => notifyListeners());
+  }
+  @override
+  void dispose() {
+    _sub.cancel();
+    super.dispose();
+  }
+}
+
+GoRouter createAppRouter({
+  CurrentUserUidGetter? getUid,
+  UserDataGetter? getUserData,
+  Stream<dynamic>? authChanges,
+}) {
   return GoRouter(
     debugLogDiagnostics: true,
     initialLocation: '/root',
+    refreshListenable: GoRouterRefreshStream(
+      authChanges ?? FirebaseAuth.instance.authStateChanges(),
+    ),
     redirect: (context, state) async {
       final prefs = await SharedPreferences.getInstance();
       final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
