@@ -9,7 +9,6 @@ import 'utils/firebase_exception_handler.dart';
 import 'utils/loading_indicator.dart';
 import 'widgets/user_details_page.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:meta/meta.dart';
 import 'widgets/logo_pattern_background.dart';
 
 class SignUpPage extends StatefulWidget {

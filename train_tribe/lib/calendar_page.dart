@@ -5,7 +5,6 @@ import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
 import 'utils/events_firebase.dart';
 import 'utils/calendar_functions.dart';
 import 'models/calendar_event.dart';

@@ -17,10 +17,8 @@ class _FakeMoodRepository implements MoodRepository {
   final bool loadValue;
   final bool shouldFailSave;
   final Duration loadDelay;
-  _FakeMoodRepository({bool loadValue = false, bool shouldFailSave = false})
-      : loadValue = loadValue,
-        shouldFailSave = shouldFailSave,
-        loadDelay = Duration.zero;
+  _FakeMoodRepository({this.loadValue = false, this.shouldFailSave = false})
+      : loadDelay = Duration.zero;
 
   @override
   Future<bool> load(String userId) async {

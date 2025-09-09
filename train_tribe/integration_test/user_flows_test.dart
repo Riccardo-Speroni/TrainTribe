@@ -27,7 +27,7 @@ void main() {
     resetAppGlobals();
   });
 
-  Future<void> _pumpUntilSettled(WidgetTester tester, {Duration timeout = const Duration(seconds: 8)}) async {
+  Future<void> pumpUntilSettled(WidgetTester tester, {Duration timeout = const Duration(seconds: 8)}) async {
     final end = DateTime.now().add(timeout);
     await tester.pumpAndSettle();
     while (DateTime.now().isBefore(end)) {
@@ -39,7 +39,7 @@ void main() {
     }
   }
 
-  Future<void> _waitFor(WidgetTester tester, Finder finder, {Duration timeout = const Duration(seconds: 8)}) async {
+  Future<void> waitFor(WidgetTester tester, Finder finder, {Duration timeout = const Duration(seconds: 8)}) async {
     final end = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(end)) {
       await tester.pump(const Duration(milliseconds: 100));
@@ -74,10 +74,10 @@ void main() {
       );
 
       await tester.pumpWidget(AppServicesScope(services: services, child: MyApp(router: router)));
-      await _pumpUntilSettled(tester);
+      await pumpUntilSettled(tester);
 
       // On CompleteSignUpPage now
-      await _waitFor(tester, find.byType(CompleteSignUpPage));
+      await waitFor(tester, find.byType(CompleteSignUpPage));
 
       await tester.enterText(find.byKey(const Key('nameField')), 'John');
       await tester.enterText(find.byKey(const Key('surnameField')), 'Doe');
@@ -87,7 +87,7 @@ void main() {
 
       // Wait until Save becomes enabled
       final saveFinder = find.byKey(const Key('actionButton'));
-      await _waitFor(tester, saveFinder);
+      await waitFor(tester, saveFinder);
       ElevatedButton saveBtn = tester.widget(saveFinder);
       // give a frame for validation
       final end = DateTime.now().add(const Duration(seconds: 3));
@@ -97,10 +97,10 @@ void main() {
       }
       expect(saveBtn.onPressed, isNotNull);
       await tester.tap(saveFinder);
-      await _pumpUntilSettled(tester);
+      await pumpUntilSettled(tester);
 
       // Should navigate to Root (Home) containing MoodToggle
-      await _waitFor(tester, find.byType(MoodToggle));
+      await waitFor(tester, find.byType(MoodToggle));
 
       // Verify repo saved
       final saved = repo.getByUid(uid);
@@ -134,7 +134,7 @@ void main() {
       );
 
       await tester.pumpWidget(AppServicesScope(services: services, child: MyApp(router: router)));
-      await _pumpUntilSettled(tester);
+      await pumpUntilSettled(tester);
 
       // Initially disabled
       final loginBtn = find.byKey(const Key('loginButton'));
@@ -155,8 +155,8 @@ void main() {
 
       // Tap login and expect navigation to ROOT text
       await tester.tap(loginBtn);
-      await _pumpUntilSettled(tester);
-      await _waitFor(tester, find.text('ROOT'));
+      await pumpUntilSettled(tester);
+      await waitFor(tester, find.text('ROOT'));
 
       // Verify adapter was called
       expect(testAdapter.lastEmail, 'foo@example.com');

@@ -50,7 +50,7 @@ void main() {
 
     // Compute expected short labels for today..+6
     final now = DateTime.now();
-    final shortLabels = List.generate(7, (i) => toBeginningOfSentenceCase(DateFormat.E('en').format(now.add(Duration(days: i))))!);
+    final shortLabels = List.generate(7, (i) => toBeginningOfSentenceCase(DateFormat.E('en').format(now.add(Duration(days: i)))));
     // At least one of the short labels should be present
     final anyShort = shortLabels.any((s) => find.text(s).evaluate().isNotEmpty);
     expect(anyShort, isTrue);
@@ -58,7 +58,7 @@ void main() {
     // Wide surface -> long day labels (DateFormat.EEEE)
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     await tester.pumpAndSettle();
-    final longLabels = List.generate(7, (i) => toBeginningOfSentenceCase(DateFormat.EEEE('en').format(now.add(Duration(days: i))))!);
+    final longLabels = List.generate(7, (i) => toBeginningOfSentenceCase(DateFormat.EEEE('en').format(now.add(Duration(days: i)))));
     final anyLong = longLabels.any((s) => find.text(s).evaluate().isNotEmpty);
     expect(anyLong, isTrue);
   });
@@ -70,7 +70,7 @@ void main() {
       for (int i = 0; i < 20; i++)
         {
           'stop_id': 'S$i',
-          if (i == 0) 'departure_time': '08:00:00' else 'arrival_time': '08:${(i * 2) % 60}'.padLeft(2, '0') + ':00',
+          if (i == 0) 'departure_time': '08:00:00' else 'arrival_time': '${'08:${(i * 2) % 60}'.padLeft(2, '0')}:00',
         }
     ];
     final routes = [

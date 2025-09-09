@@ -24,7 +24,7 @@ class _FriendRequestsHarness extends StatefulWidget {
 }
 
 class _FriendRequestsHarnessState extends State<_FriendRequestsHarness> {
-  late List<String> _requests = List.of(widget.initialRequests);
+  late final List<String> _requests = List.of(widget.initialRequests);
   final Map<String, Map<String, dynamic>> _userData = {
     'reqA': {'username': 'alice'},
     'reqB': {'username': 'bob'},
@@ -49,11 +49,11 @@ class _FriendsSearchHarness extends StatefulWidget {
 
 class _FriendsSearchHarnessState extends State<_FriendsSearchHarness> {
   final TextEditingController _controller = TextEditingController();
-  Map<String, dynamic> _friendState = {'friend1': {'ghosted': false}};
-  List<Map<String, dynamic>> _usersToAdd = [
+  final Map<String, dynamic> _friendState = {'friend1': {'ghosted': false}};
+  final List<Map<String, dynamic>> _usersToAdd = [
     {'uid': 'zoeUser', 'username': 'zoe'},
   ];
-  List<String> _sentRequests = <String>[];
+  final List<String> _sentRequests = <String>[];
   final Map<String, Map<String, dynamic>> _userData = {
     'friend1': {'username': 'buddy', 'phone': '+39123123'},
     'zoeUser': {'username': 'zoe'},

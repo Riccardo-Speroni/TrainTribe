@@ -27,7 +27,7 @@ void main() {
     resetAppGlobals();
   });
 
-  Future<void> _pumpUntilSettled(WidgetTester tester, {Duration timeout = const Duration(seconds: 8)}) async {
+  Future<void> pumpUntilSettled(WidgetTester tester, {Duration timeout = const Duration(seconds: 8)}) async {
     final end = DateTime.now().add(timeout);
     await tester.pumpAndSettle();
     while (DateTime.now().isBefore(end)) {
@@ -39,7 +39,7 @@ void main() {
     }
   }
 
-  Future<void> _waitFor(WidgetTester tester, Finder finder, {Duration timeout = const Duration(seconds: 8)}) async {
+  Future<void> waitFor(WidgetTester tester, Finder finder, {Duration timeout = const Duration(seconds: 8)}) async {
     final end = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(end)) {
       await tester.pump(const Duration(milliseconds: 100));
@@ -80,10 +80,10 @@ void main() {
       );
 
       await tester.pumpWidget(AppServicesScope(services: services, child: MyApp(router: router)));
-      await _pumpUntilSettled(tester);
+      await pumpUntilSettled(tester);
 
       // On Home first
-      await _waitFor(tester, find.byType(MoodToggle));
+      await waitFor(tester, find.byType(MoodToggle));
 
       // Go to Profile via rail icon (or fallback to label text)
       final profileIcon = find.byIcon(Icons.person);
@@ -93,13 +93,13 @@ void main() {
         // Fallback for bottom nav: label text
         await tester.tap(find.text('Profile'));
       }
-      await _pumpUntilSettled(tester);
+      await pumpUntilSettled(tester);
 
       // Reset onboarding -> should redirect to Onboarding page (LocaleThemeSelector present)
-      await _waitFor(tester, find.byKey(const Key('profile_reset_onboarding_button')));
+      await waitFor(tester, find.byKey(const Key('profile_reset_onboarding_button')));
       await tester.tap(find.byKey(const Key('profile_reset_onboarding_button')));
-      await _pumpUntilSettled(tester);
-      await _waitFor(tester, find.byType(LocaleThemeSelector));
+      await pumpUntilSettled(tester);
+      await waitFor(tester, find.byType(LocaleThemeSelector));
 
       // SharedPreferences onboarding flag should be false now
       final prefs = await SharedPreferences.getInstance();

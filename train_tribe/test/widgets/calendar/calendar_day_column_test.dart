@@ -6,7 +6,7 @@ import 'package:train_tribe/widgets/calendar_widgets/calendar_columns.dart';
 void main() {
   group('CalendarDayColumn', () {
     // Helper to build widget with custom width
-    Future<void> _pump(WidgetTester tester, double width, List<CalendarEvent> events, {bool past = false}) async {
+    Future<void> pump(WidgetTester tester, double width, List<CalendarEvent> events, {bool past = false}) async {
       final hours = List.generate(20, (i) => i); // reduced list just for widget logic
       await tester.pumpWidget(MaterialApp(
         home: MediaQuery(
@@ -45,7 +45,7 @@ void main() {
         departureStation: 'A',
         arrivalStation: 'B',
       );
-      await _pump(tester, 500, [event]);
+      await pump(tester, 500, [event]);
       // One CalendarEventWidget
       expect(find.textContaining('A'), findsOneWidget);
       // Should build multiple empty cells -> check by Container count > 1
@@ -68,7 +68,7 @@ void main() {
         departureStation: 'CC',
         arrivalStation: 'DD',
       );
-      await _pump(tester, 700, [e1, e2]); // wide layout triggers daysToShow=7 branch
+      await pump(tester, 700, [e1, e2]); // wide layout triggers daysToShow=7 branch
       // Both events displayed
       expect(find.textContaining('AA'), findsOneWidget);
       expect(find.textContaining('CC'), findsOneWidget);
@@ -84,7 +84,7 @@ void main() {
         departureStation: 'P',
         arrivalStation: 'D',
       );
-      await _pump(tester, 500, [event], past: true);
+      await pump(tester, 500, [event], past: true);
       // GestureDetector inside should have onTap null -> we can attempt tap and nothing should throw.
       await tester.tap(find.textContaining('P'));
       await tester.pump();

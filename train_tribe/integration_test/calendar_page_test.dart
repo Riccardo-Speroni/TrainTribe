@@ -3,9 +3,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../lib/calendar_page.dart';
-import '../lib/models/calendar_event.dart';
-import '../lib/l10n/app_localizations.dart';
+import 'package:train_tribe/calendar_page.dart';
+import 'package:train_tribe/models/calendar_event.dart';
+import 'package:train_tribe/l10n/app_localizations.dart';
 
 Future<void> _pumpUntilSettled(WidgetTester tester, {Duration timeout = const Duration(seconds: 8)}) async {
   final end = DateTime.now().add(timeout);

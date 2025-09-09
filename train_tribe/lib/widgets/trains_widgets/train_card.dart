@@ -3,7 +3,6 @@ import 'package:timelines_plus/timelines_plus.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import '../../utils/profile_picture_widget.dart';
 import 'package:flutter/foundation.dart';
-import 'package:meta/meta.dart';
 
 part 'train_card_hoverable.dart';
 part 'train_card_scrolling.dart';

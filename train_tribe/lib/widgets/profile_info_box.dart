@@ -257,7 +257,7 @@ class _ProfileInfoTable extends StatelessWidget {
         children: [
           for (int i = 0; i < rows.length; i++) ...[
             Column(
-              key: ValueKey('profile_row_' + (rows[i].fieldKey ?? rows[i].label.toLowerCase())),
+              key: ValueKey('profile_row_${rows[i].fieldKey ?? rows[i].label.toLowerCase()}'),
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -326,7 +326,7 @@ class _ProfileInfoTable extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Row(
-                  key: r.fieldKey != null ? ValueKey('profile_row_' + r.fieldKey!) : null,
+                  key: r.fieldKey != null ? ValueKey('profile_row_${r.fieldKey!}') : null,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(

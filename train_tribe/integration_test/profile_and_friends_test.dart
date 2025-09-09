@@ -35,7 +35,7 @@ void main() {
     });
   });
 
-  Future<void> _pumpUntilSettled(WidgetTester tester, {Duration timeout = const Duration(seconds: 8)}) async {
+  Future<void> pumpUntilSettled(WidgetTester tester, {Duration timeout = const Duration(seconds: 8)}) async {
     final end = DateTime.now().add(timeout);
     await tester.pumpAndSettle();
     while (DateTime.now().isBefore(end)) {
@@ -48,7 +48,7 @@ void main() {
   }
 
   // Helper to create fakes and pump the app
-  Future<void> _pumpApp(
+  Future<void> pumpApp(
     WidgetTester tester, {
     String uid = 'test_uid',
     Map<String, dynamic>? userData,
@@ -73,11 +73,11 @@ void main() {
       authChanges: mockAuth.authStateChanges(),
     );
     await tester.pumpWidget(AppServicesScope(services: services, child: MyApp(router: router)));
-    await _pumpUntilSettled(tester);
+    await pumpUntilSettled(tester);
   }
 
   testWidgets('Profile editing: edit and verify profile fields', (tester) async {
-    await _pumpApp(tester, userData: {
+    await pumpApp(tester, userData: {
       'username': 'tester',
       'name': 'Old Name',
       'surname': 'User',
@@ -99,7 +99,7 @@ void main() {
   });
 
   testWidgets('Notifications: simulate and verify notification display', (tester) async {
-    await _pumpApp(tester, userData: {
+    await pumpApp(tester, userData: {
       'username': 'tester',
       'name': 'Test',
       'surname': 'User',
@@ -113,7 +113,7 @@ void main() {
   });
 
   testWidgets('Logout flow: log out and verify redirect', (tester) async {
-    await _pumpApp(tester, userData: {
+    await pumpApp(tester, userData: {
       'username': 'tester',
       'name': 'Test',
       'surname': 'User',
@@ -127,12 +127,12 @@ void main() {
     await tester.tap(find.byKey(const Key('profile_logout_button')));
     await tester.pumpAndSettle();
     // Verify redirected to login/onboarding
-    await _pumpUntilSettled(tester);
+    await pumpUntilSettled(tester);
     expect(find.byKey(const Key('login_page')), findsOneWidget);
   });
 
   testWidgets('Persistence: restart app and verify state', (tester) async {
-    await _pumpApp(tester, userData: {
+    await pumpApp(tester, userData: {
       'username': 'tester',
       'name': 'Test',
       'surname': 'User',
@@ -151,7 +151,7 @@ void main() {
     // Restart app
     await tester.pumpWidget(Container());
     await tester.pump();
-    await _pumpApp(tester, userData: {
+    await pumpApp(tester, userData: {
       'username': 'tester',
       'name': 'Test',
       'surname': 'User',

@@ -1,5 +1,6 @@
 ﻿/// *** GENERATED FILE - ANY CHANGES WOULD BE OBSOLETE ON NEXT GENERATION *** ///
 /// Helper to test coverage for all project files
+library;
 // ignore_for_file: unused_import
 import 'package:train_tribe/calendar_page.dart';
 import 'package:train_tribe/complete_signup.dart';

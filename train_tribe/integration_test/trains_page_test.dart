@@ -16,7 +16,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  Future<void> _pumpUntilSettled(WidgetTester tester, {Duration timeout = const Duration(seconds: 8)}) async {
+  Future<void> pumpUntilSettled(WidgetTester tester, {Duration timeout = const Duration(seconds: 8)}) async {
     final end = DateTime.now().add(timeout);
     await tester.pumpAndSettle();
     while (DateTime.now().isBefore(end)) {
@@ -53,7 +53,7 @@ void main() {
       );
 
       await tester.pumpWidget(widget);
-      await _pumpUntilSettled(tester);
+      await pumpUntilSettled(tester);
 
       // Default test data in TrainsPage has event1 with one leg T1
       final btnKey = const ValueKey('confirmBtn_event1_T1');
@@ -63,7 +63,7 @@ void main() {
       expect(find.descendant(of: find.byKey(btnKey), matching: find.text('Confirm')), findsOneWidget);
 
       await tester.tap(find.byKey(btnKey));
-      await _pumpUntilSettled(tester);
+      await pumpUntilSettled(tester);
 
       // After tap, should show "Confirmed"
       expect(find.descendant(of: find.byKey(btnKey), matching: find.text('Confirmed')), findsOneWidget);

@@ -13,23 +13,6 @@ void main() {
     appTheme.value = ThemeMode.system;
   });
 
-  Future<void> _pump(WidgetTester tester, {Locale? locale}) async {
-    await tester.pumpWidget(ValueListenableBuilder<Locale>(
-      valueListenable: appLocale,
-      builder: (_, loc, __) => MaterialApp(
-        locale: loc,
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [Locale('en'), Locale('it')],
-        home: Scaffold(body: Center(child: LocaleThemeSelector())),
-      ),
-    ));
-    await tester.pumpAndSettle();
-  }
 
   testWidgets('changes language to Italian', (tester) async {
     Locale? saved;

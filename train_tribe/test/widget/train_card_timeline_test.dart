@@ -9,8 +9,8 @@ void main() {
           stopCount,
           (i) => {
                 'name': 'Stop $i',
-                'arrivalTime': '0${i}:00',
-                'departureTime': '0${i}:05',
+                'arrivalTime': '0$i:00',
+                'departureTime': '0$i:05',
                 'id': 'S$i',
               });
       final leg = {

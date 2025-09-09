@@ -23,7 +23,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('FirebaseExceptionHandler.signInErrorMessage', () {
-    Future<String> _msg(WidgetTester tester, String code, {Locale locale = const Locale('en')}) async {
+    Future<String> msg0(WidgetTester tester, String code, {Locale locale = const Locale('en')}) async {
       String? result;
       await tester.pumpWidget(_TestApp(
         locale: locale,
@@ -37,19 +37,19 @@ void main() {
     }
 
     testWidgets('returns specific translation for known codes', (tester) async {
-      final msg = await _msg(tester, 'invalid-email');
+      final msg = await msg0(tester, 'invalid-email');
       expect(msg.isNotEmpty, true);
       expect(msg, isNot(contains('invalid-email'))); // Should be translated
     });
 
     testWidgets('falls back to unexpected for unknown code', (tester) async {
-      final msg = await _msg(tester, 'some-weird-code');
+      final msg = await msg0(tester, 'some-weird-code');
       expect(msg, isNotEmpty);
     });
   });
 
   group('FirebaseExceptionHandler.logInErrorMessage', () {
-    Future<String> _msg(WidgetTester tester, String code, {Locale locale = const Locale('en')}) async {
+    Future<String> msg0(WidgetTester tester, String code, {Locale locale = const Locale('en')}) async {
       String? result;
       await tester.pumpWidget(_TestApp(
         locale: locale,
@@ -63,12 +63,12 @@ void main() {
     }
 
     testWidgets('returns credential error for wrong-password', (tester) async {
-      final msg = await _msg(tester, 'wrong-password');
+      final msg = await msg0(tester, 'wrong-password');
       expect(msg.toLowerCase(), contains('invalid')); // English translation snippet
     });
 
     testWidgets('returns generic for unknown code', (tester) async {
-      final msg = await _msg(tester, 'xyz');
+      final msg = await msg0(tester, 'xyz');
       expect(msg.toLowerCase(), isNotEmpty);
     });
   });

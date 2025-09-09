@@ -40,7 +40,7 @@ void main() {
     setUp(() {
       ProfileInfoBox.debugHidePicturePicker = true;
     });
-  ProfileInfoBox _build({bool stacked = false, String username = 'user1', String name='John', String surname='Doe', String email='john@doe.com', String? phone='123'}) {
+  ProfileInfoBox build({bool stacked = false, String username = 'user1', String name='John', String surname='Doe', String email='john@doe.com', String? phone='123'}) {
       return ProfileInfoBox(
         username: username,
         name: name,
@@ -54,7 +54,7 @@ void main() {
     }
 
     testWidgets('renders basic fields (table layout)', (tester) async {
-  await tester.pumpWidget(_wrap(_build()));
+  await tester.pumpWidget(_wrap(build()));
   await tester.pump();
       // Row keys available in table layout via embedded Row
       expect(find.byKey(const Key('profile_row_username')), findsOneWidget);
@@ -67,7 +67,7 @@ void main() {
     });
 
     testWidgets('renders stacked layout rows with keys', (tester) async {
-  await tester.pumpWidget(_wrap(_build(stacked: true)));
+  await tester.pumpWidget(_wrap(build(stacked: true)));
   await tester.pump();
       // Each label row uses key 'profile_row_<label>' in lowercase
       expect(find.byKey(const Key('profile_row_username')), findsOneWidget);
@@ -78,14 +78,14 @@ void main() {
     });
 
     testWidgets('shows placeholders when values empty (stacked)', (tester) async {
-  await tester.pumpWidget(_wrap(_build(username: '', name: '', surname: '', email: '', phone: '', stacked: true)));
+  await tester.pumpWidget(_wrap(build(username: '', name: '', surname: '', email: '', phone: '', stacked: true)));
   await tester.pump();
       // dash placeholders for 5 fields
       expect(find.text('-'), findsNWidgets(5));
     });
 
     testWidgets('copy username button copies only when username present', (tester) async {
-  await tester.pumpWidget(_wrap(_build()));
+  await tester.pumpWidget(_wrap(build()));
   await tester.pump();
       final copyBtn = find.byKey(const Key('profile_username_copy_button'));
       expect(copyBtn, findsOneWidget);
@@ -96,7 +96,7 @@ void main() {
     });
 
     testWidgets('copy username does nothing when empty', (tester) async {
-  await tester.pumpWidget(_wrap(_build(username: '')));
+  await tester.pumpWidget(_wrap(build(username: '')));
   await tester.pump();
       final copyBtn = find.byKey(const Key('profile_username_copy_button'));
       await tester.tap(copyBtn);

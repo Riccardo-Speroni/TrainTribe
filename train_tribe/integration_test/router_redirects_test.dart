@@ -27,7 +27,7 @@ void main() {
   });
 
   // Wait helpers for async router redirects and page builds on desktop
-  Future<void> _pumpUntilSettled(WidgetTester tester, {Duration timeout = const Duration(seconds: 8)}) async {
+  Future<void> pumpUntilSettled(WidgetTester tester, {Duration timeout = const Duration(seconds: 8)}) async {
     final end = DateTime.now().add(timeout);
     // Initial settle
     await tester.pumpAndSettle();
@@ -42,7 +42,7 @@ void main() {
     }
   }
 
-  Future<void> _waitFor(WidgetTester tester, Finder finder, {Duration timeout = const Duration(seconds: 8)}) async {
+  Future<void> waitFor(WidgetTester tester, Finder finder, {Duration timeout = const Duration(seconds: 8)}) async {
     final end = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(end)) {
       await tester.pump(const Duration(milliseconds: 100));
@@ -69,7 +69,7 @@ void main() {
     );
 
     await tester.pumpWidget(app);
-    await _pumpUntilSettled(tester);
+    await pumpUntilSettled(tester);
   }
 
   group('Router redirects', () {
@@ -83,7 +83,7 @@ void main() {
       await pumpAppWithRouter(tester, router: router);
 
       // Onboarding shows the locale/theme selector on first page
-      await _waitFor(tester, find.byType(LocaleThemeSelector));
+      await waitFor(tester, find.byType(LocaleThemeSelector));
     });
 
     testWidgets('2) Completed onboarding + unauthenticated -> Login page', (tester) async {
@@ -97,8 +97,8 @@ void main() {
       await pumpAppWithRouter(tester, router: router);
 
       // Login page contains the email field keyed in the app
-      await _waitFor(tester, find.byKey(const Key('emailField')));
-      await _waitFor(tester, find.byKey(const Key('passwordField')));
+      await waitFor(tester, find.byKey(const Key('emailField')));
+      await waitFor(tester, find.byKey(const Key('passwordField')));
     });
 
     testWidgets('3) Authenticated but incomplete profile -> Complete Sign Up', (tester) async {
@@ -120,7 +120,7 @@ void main() {
       await pumpAppWithRouter(tester, router: router, services: fakeServices);
 
       // CompleteSignUp page composes a UserDetailsPage; assert the page type is present
-      await _waitFor(tester, find.byType(CompleteSignUpPage));
+      await waitFor(tester, find.byType(CompleteSignUpPage));
     });
 
     testWidgets('4) Authenticated with complete profile -> Root (Home) page', (tester) async {
@@ -141,7 +141,7 @@ void main() {
       await pumpAppWithRouter(tester, router: router, services: fakeServices);
 
       // Root page first tab is HomePage containing a MoodToggle widget
-      await _waitFor(tester, find.byType(MoodToggle));
+      await waitFor(tester, find.byType(MoodToggle));
     });
 
     testWidgets('5) Onboarding language change persists to SharedPreferences', (tester) async {
@@ -157,7 +157,7 @@ void main() {
 
       // Open language menu and select Italian
       final languageButton = find.byKey(const Key('locale_selector_language'));
-      await _waitFor(tester, languageButton);
+      await waitFor(tester, languageButton);
       await tester.tap(languageButton);
       await tester.pumpAndSettle();
 
@@ -180,7 +180,7 @@ void main() {
 
       // Force English labels for stable button text (Next/Finish)
       final langBtn = find.byKey(const Key('locale_selector_language'));
-      await _waitFor(tester, langBtn);
+      await waitFor(tester, langBtn);
       await tester.tap(langBtn);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('locale_item_en')));
@@ -201,7 +201,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should redirect to Login
-      await _waitFor(tester, find.byKey(const Key('emailField')));
+      await waitFor(tester, find.byKey(const Key('emailField')));
     });
 
     testWidgets('7) Onboarding theme change persists to SharedPreferences', (tester) async {
@@ -215,7 +215,7 @@ void main() {
       await pumpAppWithRouter(tester, router: router);
 
       final themeBtn = find.byKey(const Key('locale_selector_theme'));
-      await _waitFor(tester, themeBtn);
+      await waitFor(tester, themeBtn);
       await tester.tap(themeBtn);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('theme_item_dark')));
