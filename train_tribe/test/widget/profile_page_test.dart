@@ -3,6 +3,8 @@ import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:train_tribe/profile_page.dart';
+import 'package:train_tribe/services/app_services.dart';
+import 'package:train_tribe/repositories/user_repository.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:train_tribe/l10n/app_localizations.dart';
@@ -19,21 +21,29 @@ Widget _wrap(Widget child) => MaterialApp(
       home: child,
     );
 
-Widget _wrapWithRouter(Widget child) {
+Widget _wrapWithRouter(Widget child, {required FakeFirebaseFirestore firestore, required MockUser user}) {
   final router = GoRouter(routes: [
     GoRoute(path: '/', builder: (c, s) => child),
     GoRoute(path: '/login', builder: (c, s) => const Scaffold(body: Text('login'))),
     GoRoute(path: '/onboarding', builder: (c, s) => const Scaffold(body: Text('onboarding'))),
   ]);
-  return MaterialApp.router(
-    routerConfig: router,
-    localizationsDelegates: const [
-      AppLocalizations.delegate,
-      GlobalMaterialLocalizations.delegate,
-      GlobalWidgetsLocalizations.delegate,
-      GlobalCupertinoLocalizations.delegate,
-    ],
-    supportedLocales: const [Locale('en'), Locale('it')],
+  final services = AppServices(
+    firestore: firestore,
+    auth: MockFirebaseAuth(mockUser: user, signedIn: true),
+    userRepository: FirestoreUserRepository(firestore),
+  );
+  return AppServicesScope(
+    services: services,
+    child: MaterialApp.router(
+      routerConfig: router,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('en'), Locale('it')],
+    ),
   );
 }
 
@@ -73,8 +83,26 @@ void main() {
         'surname': 'User',
         'email': 'a@b.c'
       });
-      await tester.pumpWidget(_wrap(const MediaQuery(
-          data: MediaQueryData(size: Size(500, 800)), child: ProfilePage())));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('en'), Locale('it')],
+        home: AppServicesScope(
+          services: AppServices(
+            firestore: fake,
+            auth: MockFirebaseAuth(mockUser: user, signedIn: true),
+            userRepository: FirestoreUserRepository(fake),
+          ),
+          child: const MediaQuery(
+            data: MediaQueryData(size: Size(500, 800)),
+            child: ProfilePage(),
+          ),
+        ),
+      ));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
@@ -96,8 +124,26 @@ void main() {
         'surname': 'Layout',
         'email': 'z@b.c'
       });
-      await tester.pumpWidget(_wrap(const MediaQuery(
-          data: MediaQueryData(size: Size(900, 800)), child: ProfilePage())));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('en'), Locale('it')],
+        home: AppServicesScope(
+          services: AppServices(
+            firestore: fake,
+            auth: MockFirebaseAuth(mockUser: user, signedIn: true),
+            userRepository: FirestoreUserRepository(fake),
+          ),
+          child: const MediaQuery(
+            data: MediaQueryData(size: Size(900, 800)),
+            child: ProfilePage(),
+          ),
+        ),
+      ));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
@@ -115,7 +161,7 @@ void main() {
       ProfilePageTestOverrides.debugFirestore = fake;
       ProfilePageTestOverrides.debugSignOutFn = () async { signOutCalls++; };
       await fake.collection('users').doc('u3').set({'username': 'lo_user'});
-  await tester.pumpWidget(_wrapWithRouter(const MediaQuery(data: MediaQueryData(size: Size(800, 800)), child: ProfilePage())));
+  await tester.pumpWidget(_wrapWithRouter(const MediaQuery(data: MediaQueryData(size: Size(800, 800)), child: ProfilePage()), firestore: fake, user: user));
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       expect(find.byKey(const Key('profile_logout_button')), findsOneWidget);
   final logoutFinder = find.byKey(const Key('profile_logout_button'));
@@ -136,7 +182,7 @@ void main() {
       ProfilePageTestOverrides.debugFirestore = fake;
       ProfilePageTestOverrides.debugSignOutFn = () async { signOutCalls = true; };
       await fake.collection('users').doc('u_nav').set({'username': 'navuser'});
-      await tester.pumpWidget(_wrapWithRouter(const MediaQuery(data: MediaQueryData(size: Size(700, 900)), child: ProfilePage())));
+  await tester.pumpWidget(_wrapWithRouter(const MediaQuery(data: MediaQueryData(size: Size(700, 900)), child: ProfilePage()), firestore: fake, user: user));
   await tester.pumpAndSettle(const Duration(milliseconds: 400));
   final logoutFinder = find.byKey(const Key('profile_logout_button'));
   await tester.ensureVisible(logoutFinder);
@@ -155,7 +201,7 @@ void main() {
       ProfilePageTestOverrides.debugUser = user;
       ProfilePageTestOverrides.debugFirestore = fake;
       await fake.collection('users').doc('u4').set({'username': 'resetuser'});
-  await tester.pumpWidget(_wrapWithRouter(const MediaQuery(data: MediaQueryData(size: Size(600, 1200)), child: ProfilePage())));
+  await tester.pumpWidget(_wrapWithRouter(const MediaQuery(data: MediaQueryData(size: Size(600, 1200)), child: ProfilePage()), firestore: fake, user: user));
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       final resetFinder = find.byKey(const Key('profile_reset_onboarding_button'));
       expect(resetFinder, findsOneWidget);
@@ -174,7 +220,7 @@ void main() {
       ProfilePageTestOverrides.debugUser = user;
       ProfilePageTestOverrides.debugFirestore = fake;
       await fake.collection('users').doc('u_reset_nav').set({'username': 'resetnav'});
-      await tester.pumpWidget(_wrapWithRouter(const MediaQuery(data: MediaQueryData(size: Size(500, 900)), child: ProfilePage())));
+  await tester.pumpWidget(_wrapWithRouter(const MediaQuery(data: MediaQueryData(size: Size(500, 900)), child: ProfilePage()), firestore: fake, user: user));
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       final resetFinder = find.byKey(const Key('profile_reset_onboarding_button'));
       await tester.ensureVisible(resetFinder);
@@ -194,7 +240,7 @@ void main() {
       ProfilePageTestOverrides.debugUser = user;
       ProfilePageTestOverrides.debugFirestore = fake;
       await fake.collection('users').doc('u6').set({'username': 'wideagain'});
-  await tester.pumpWidget(_wrapWithRouter(const MediaQuery(data: MediaQueryData(size: Size(1000, 800)), child: ProfilePage())));
+  await tester.pumpWidget(_wrapWithRouter(const MediaQuery(data: MediaQueryData(size: Size(1000, 800)), child: ProfilePage()), firestore: fake, user: user));
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       final actionsParent = tester.widget(find.byKey(const Key('profile_bottom_actions')));
       expect(actionsParent, isA<Row>());
@@ -216,7 +262,7 @@ void main() {
       ProfilePageTestOverrides.debugUser = user;
       ProfilePageTestOverrides.debugFirestore = fake;
       await fake.collection('users').doc('u_col').set({'username': 'coluser'});
-      await tester.pumpWidget(_wrapWithRouter(const ProfilePage()));
+  await tester.pumpWidget(_wrapWithRouter(const ProfilePage(), firestore: fake, user: user));
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       final widgetObj = tester.widget(find.byKey(const Key('profile_bottom_actions')));
       expect(widgetObj, isA<Column>());

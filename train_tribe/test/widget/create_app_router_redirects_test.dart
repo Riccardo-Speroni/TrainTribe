@@ -39,6 +39,7 @@ void main() {
     final router = createAppRouter(
       getUid: () async => null,
       getUserData: (uid) async => null,
+      authChanges: const Stream.empty(), // avoid touching real FirebaseAuth
     );
     await tester.pumpWidget(_wrap(router));
     await tester.pumpAndSettle();
@@ -47,7 +48,11 @@ void main() {
 
   testWidgets('unauthenticated redirects to /login when onboarding complete', (tester) async {
     SharedPreferences.setMockInitialValues({'onboarding_complete': true});
-    final router = createAppRouter(getUid: () async => null, getUserData: (uid) async => null);
+    final router = createAppRouter(
+      getUid: () async => null,
+      getUserData: (uid) async => null,
+      authChanges: const Stream.empty(),
+    );
     await tester.pumpWidget(_wrap(router));
     await tester.pumpAndSettle();
     expect(router.routeInformationProvider.value.uri.path, '/login');
@@ -55,7 +60,11 @@ void main() {
 
   testWidgets('authenticated with incomplete profile goes to /complete_signup', (tester) async {
     SharedPreferences.setMockInitialValues({'onboarding_complete': true});
-    final router = createAppRouter(getUid: () async => 'uid1', getUserData: (uid) async => null);
+    final router = createAppRouter(
+      getUid: () async => 'uid1',
+      getUserData: (uid) async => null,
+      authChanges: const Stream.empty(),
+    );
     await tester.pumpWidget(_wrap(router));
     await tester.pumpAndSettle();
     expect(router.routeInformationProvider.value.uri.path, '/complete_signup');
@@ -66,6 +75,7 @@ void main() {
     final router = createAppRouter(
       getUid: () async => 'uid1',
       getUserData: (uid) async => {'username': 'ok'},
+      authChanges: const Stream.empty(),
     );
     await tester.pumpWidget(_wrap(router));
     // Navigate to /login to trigger redirect-away rule
