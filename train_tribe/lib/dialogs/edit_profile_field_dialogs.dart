@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/app_services.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/phone_number_helper.dart';
 
@@ -13,6 +14,11 @@ Future<void> showEditSimpleFieldDialog(
   required String Function() buildTitle,
   String? Function(String value)? validator,
   Future<String?> Function(String value)? asyncValidator,
+  // Test overrides
+  User? overrideUser,
+  FirebaseFirestore? overrideFirestore,
+  bool skipWrites = false,
+  bool skipAsyncValidation = false,
 }) async {
   final ctrl = TextEditingController(text: currentValue);
   String? errorText;
@@ -29,7 +35,7 @@ Future<void> showEditSimpleFieldDialog(
         return;
       }
     }
-  if (asyncValidator != null) {
+    if (!skipAsyncValidation && asyncValidator != null) {
       final res = await asyncValidator(raw);
       if (res != null) {
         final translated = l.translate(res);
@@ -39,9 +45,12 @@ Future<void> showEditSimpleFieldDialog(
       }
       setStateLocal?.call(() {});
     }
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({fieldKey: raw});
+    if (!skipWrites) {
+  final user = overrideUser ?? AppServicesScope.of(context).auth.currentUser;
+  final firestore = overrideFirestore ?? AppServicesScope.of(context).firestore;
+      if (user != null) {
+        await firestore.collection('users').doc(user.uid).update({fieldKey: raw});
+      }
     }
     if (!context.mounted) return;
     Navigator.of(context).pop();
@@ -58,6 +67,7 @@ Future<void> showEditSimpleFieldDialog(
             content: SizedBox(
               width: 400,
               child: TextField(
+                key: const Key('edit_simple_field_input'),
                 controller: ctrl,
                 autofocus: true,
                 maxLength: 40,
@@ -73,10 +83,12 @@ Future<void> showEditSimpleFieldDialog(
             ),
             actions: [
               TextButton(
+                key: const Key('edit_simple_field_cancel'),
                 onPressed: () => Navigator.of(ctx).pop(),
                 child: Text(l.translate('cancel')),
               ),
               ElevatedButton(
+                key: const Key('edit_simple_field_save'),
                 onPressed: save,
                 child: Text(l.translate('save')),
               ),
@@ -89,7 +101,7 @@ Future<void> showEditSimpleFieldDialog(
 }
 
 // Dialog per modificare / aggiungere il numero di telefono
-Future<void> showEditPhoneDialog(BuildContext context, AppLocalizations l, String currentE164) async {
+Future<void> showEditPhoneDialog(BuildContext context, AppLocalizations l, String currentE164, {User? overrideUser, FirebaseFirestore? overrideFirestore, bool skipWrites = false}) async {
   final dialCtrl = TextEditingController(text: kItalyPrefix);
   final numCtrl = TextEditingController();
   String? prefixError;
@@ -131,6 +143,7 @@ Future<void> showEditPhoneDialog(BuildContext context, AppLocalizations l, Strin
                   SizedBox(
                     width: 110,
                     child: TextField(
+                      key: const Key('edit_phone_prefix_input'),
                       controller: dialCtrl,
                       keyboardType: TextInputType.phone,
                       onChanged: (v) {
@@ -155,6 +168,7 @@ Future<void> showEditPhoneDialog(BuildContext context, AppLocalizations l, Strin
                   const SizedBox(width: 10),
                   Expanded(
                     child: TextField(
+                      key: const Key('edit_phone_number_input'),
                       controller: numCtrl,
                       keyboardType: TextInputType.phone,
                       onChanged: (v) {
@@ -186,15 +200,19 @@ Future<void> showEditPhoneDialog(BuildContext context, AppLocalizations l, Strin
               child: Text(l.translate('cancel')),
             ),
             ElevatedButton(
+              key: const Key('edit_phone_save'),
               onPressed: () async {
                 final e164 = composeE164(dialCtrl.text, numCtrl.text, allowEmpty: false);
                 if (e164 == null) {
                   validateInline(setStateLocal);
                   return;
                 }
-                final user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'phone': e164});
+                if (!skipWrites) {
+                  final user = overrideUser ?? AppServicesScope.of(context).auth.currentUser;
+                  final firestore = overrideFirestore ?? AppServicesScope.of(context).firestore;
+                  if (user != null) {
+                    await firestore.collection('users').doc(user.uid).update({'phone': e164});
+                  }
                 }
                 if (!ctx.mounted) return;
                 Navigator.of(ctx).pop();

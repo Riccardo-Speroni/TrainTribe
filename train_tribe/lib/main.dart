@@ -18,12 +18,26 @@ import 'package:window_size/window_size.dart';
 import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'services/app_services.dart';
+import 'repositories/user_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:async';
 import 'utils/app_globals.dart';
+import 'widgets/app_rail.dart';
+import 'widgets/app_bottom_navbar.dart';
+
+// Small injectable seams for router redirect (used in tests via createAppRouter)
+typedef CurrentUserUidGetter = Future<String?> Function();
+typedef UserDataGetter = Future<Map<String, dynamic>?> Function(String uid);
+
+@visibleForTesting
+CurrentUserUidGetter? testCurrentUserUidGetter;
+
+@visibleForTesting
+UserDataGetter? testUserDataGetter;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,13 +58,13 @@ void main() async {
 
   // Initialize Firebase
   try {
-  debugPrint('Initializing Firebase...');
+    debugPrint('Initializing Firebase...');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-  debugPrint('Firebase initialized successfully');
+    debugPrint('Firebase initialized successfully');
   } catch (e) {
-  debugPrint('Failed to initialize Firebase: $e');
+    debugPrint('Failed to initialize Firebase: $e');
   }
 
   const useEmulator = false; // Set to true to use Firebase emulators
@@ -67,12 +81,16 @@ void main() async {
     FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
   }
 
-  runApp(MyApp());
+  final services = AppServices(
+    firestore: FirebaseFirestore.instance,
+    auth: FirebaseAuth.instance,
+    userRepository: FirestoreUserRepository(FirebaseFirestore.instance),
+  );
+  runApp(AppServicesScope(services: services, child: const MyApp()));
 }
-
-
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final GoRouter? router; // allow tests to provide a custom router
+  const MyApp({super.key, this.router});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -88,8 +106,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
 
     // Note: Since Windows is not supported by flutter_local_notifications, we don't use them on Windows.
-    if(!Platform.isWindows)
-    {
+    if (!Platform.isWindows) {
       _initNotifications();
       _startNotificationPolling();
     }
@@ -104,10 +121,9 @@ class _MyAppState extends State<MyApp> {
   Future<void> _initNotifications() async {
     _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const DarwinInitializationSettings initializationSettingsDarwin =
-        DarwinInitializationSettings();
+  // Use the app's launcher icon as the default small icon for notifications on Android
+  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/launcher_icon');
+    const DarwinInitializationSettings initializationSettingsDarwin = DarwinInitializationSettings();
 
     final InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
@@ -119,12 +135,10 @@ class _MyAppState extends State<MyApp> {
 
   void _startNotificationPolling() {
     _notificationTimer?.cancel();
-    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+    _notificationTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-      final notificationsRef = FirebaseFirestore.instance
-          .collection('notifications')
-          .where('userId', isEqualTo: user.uid);
+      final notificationsRef = FirebaseFirestore.instance.collection('notifications').where('userId', isEqualTo: user.uid);
 
       final querySnapshot = await notificationsRef.get();
       for (final doc in querySnapshot.docs) {
@@ -153,66 +167,7 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  final GoRouter _router = GoRouter(
-    debugLogDiagnostics: true,
-    initialLocation: '/root',
-    redirect: (context, state) async {
-      final prefs = await SharedPreferences.getInstance();
-      final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
-      final user = FirebaseAuth.instance.currentUser; // Check current session
-
-      // Rule 1: Redirect to onboarding if not completed
-      if (!onboardingComplete && state.fullPath != '/onboarding') {
-  debugPrint('Redirecting to onboarding page...');
-        return '/onboarding';
-      }
-
-      // Rule 2: If not logged in, allow only onboarding/login/signup. Anything else -> login
-      if (user == null) {
-        final path = state.fullPath ?? '';
-        const allowedUnauthed = ['/onboarding', '/login', '/signup'];
-        if (!allowedUnauthed.contains(path)) {
-          debugPrint('Unauthenticated, redirecting to login page...');
-          return '/login';
-        }
-      }
-
-      // Rule 3: Check if the user's profile is complete
-      if (user != null) {
-        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        if (!userDoc.exists || userDoc.data()?['username'] == null) {
-          // Redirect to complete_signup if profile is incomplete
-          debugPrint('Redirecting to complete_signup page...');
-          //FirebaseAuth.instance.signOut();  // DEBUG PURPOSES
-          return '/complete_signup';
-          // Rule 4: Redirect to root if already logged in and on login/signup page
-        } else if (state.fullPath == '/login' || state.fullPath == '/signup') {
-          debugPrint('Already logged in, redirecting to root page...');
-          return '/root';
-        }
-      }
-
-      // No redirection needed
-      return null;
-    },
-    routes: [
-      GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingPage()),
-      GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
-      GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),
-      GoRoute(path: '/root', builder: (context, state) => const RootPage()),
-      GoRoute(
-        path: '/complete_signup',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?; // Retrieve extra data
-          return CompleteSignUpPage(
-            email: extra?['email'],
-            name: extra?['name'],
-            profilePicture: extra?['profilePicture'],
-          );
-        },
-      ),
-    ],
-  );
+  late final GoRouter _router = widget.router ?? createAppRouter();
 
   @override
   Widget build(BuildContext context) {
@@ -247,13 +202,97 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+// Simple ChangeNotifier that triggers router refreshes on auth state changes
+class GoRouterRefreshStream extends ChangeNotifier {
+  late final StreamSubscription<dynamic> _sub;
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    _sub = stream.asBroadcastStream().listen((_) => notifyListeners());
+  }
+  @override
+  void dispose() {
+    _sub.cancel();
+    super.dispose();
+  }
+}
+
+GoRouter createAppRouter({
+  CurrentUserUidGetter? getUid,
+  UserDataGetter? getUserData,
+  Stream<dynamic>? authChanges,
+}) {
+  return GoRouter(
+    debugLogDiagnostics: true,
+    initialLocation: '/root',
+    refreshListenable: GoRouterRefreshStream(
+      authChanges ?? FirebaseAuth.instance.authStateChanges(),
+    ),
+    redirect: (context, state) async {
+      final prefs = await SharedPreferences.getInstance();
+      final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+
+      // Rule 1: Redirect to onboarding if not completed
+      if (!onboardingComplete && state.fullPath != '/onboarding') {
+        debugPrint('Redirecting to onboarding page...');
+        return '/onboarding';
+      }
+
+      // Obtain UID from injectable getter or Firebase
+      final String? uid = await (getUid?.call() ?? Future<String?>(() async => FirebaseAuth.instance.currentUser?.uid));
+
+      // Rule 2: If not logged in, allow only onboarding/login/signup. Anything else -> login
+      if (uid == null) {
+        final path = state.fullPath ?? '';
+        const allowedUnauthed = ['/onboarding', '/login', '/signup'];
+        if (!allowedUnauthed.contains(path)) {
+          debugPrint('Unauthenticated, redirecting to login page...');
+          return '/login';
+        }
+      }
+
+      // Rule 3: Check if the user's profile is complete
+      if (uid != null) {
+        final Map<String, dynamic>? data = getUserData != null
+            ? await getUserData(uid)
+            : (await FirebaseFirestore.instance.collection('users').doc(uid).get()).data();
+        if (data == null || data['username'] == null) {
+          debugPrint('Redirecting to complete_signup page...');
+          return '/complete_signup';
+        } else if (state.fullPath == '/login' || state.fullPath == '/signup') {
+          debugPrint('Already logged in, redirecting to root page...');
+          return '/root';
+        }
+      }
+
+      // No redirection needed
+      return null;
+    },
+  routes: [
+      GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingPage()),
+      GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
+      GoRoute(path: '/signup', builder: (context, state) => const SignUpPage()),
+      GoRoute(path: '/root', builder: (context, state) => const RootPage()),
+      GoRoute(
+        path: '/complete_signup',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?; // Retrieve extra data
+          return CompleteSignUpPage(
+            email: extra?['email'],
+            name: extra?['name'],
+            profilePicture: extra?['profilePicture'],
+          );
+        },
+      ),
+    ],
+  );
+}
+
 ThemeData _buildAppTheme(Brightness brightness) {
   final base = brightness == Brightness.light ? ThemeData.light() : ThemeData.dark();
   final scheme = base.colorScheme.copyWith(primary: Colors.green);
   return base.copyWith(
     colorScheme: scheme,
     navigationBarTheme: NavigationBarThemeData(
-  indicatorColor: scheme.primary.withValues(alpha: 0.15),
+      indicatorColor: scheme.primary.withValues(alpha: 0.15),
       backgroundColor: base.navigationBarTheme.backgroundColor, // keep default
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
@@ -299,9 +338,8 @@ class _RootPageState extends State<RootPage> {
   Widget build(BuildContext context) {
     final titles = pageTitles(context);
     final width = MediaQuery.of(context).size.width;
-    const railThreshold = 600.0;   // da questa larghezza in su mostra la rail
+    const railThreshold = 600.0; // da questa larghezza in su mostra la rail
     final bool useRail = width >= railThreshold;
-    // Stato extended determinato solo dal toggle manuale ora
     final bool extended = railExpanded;
 
     List<Widget> pages = [
@@ -313,159 +351,19 @@ class _RootPageState extends State<RootPage> {
     ];
 
     if (useRail) {
-      // Rail personalizzata sempre comprimibile/espandibile
-      final ColorScheme scheme = Theme.of(context).colorScheme;
-      final TextStyle labelStyle = Theme.of(context).textTheme.bodyMedium ?? const TextStyle(fontSize: 14);
-
-      double computeMaxLabelWidth() {
-        double maxW = 0;
-        final TextDirection textDirection = Directionality.of(context);
-        for (final t in titles) {
-          final tp = TextPainter(
-            text: TextSpan(text: t, style: labelStyle),
-            maxLines: 1,
-            textDirection: textDirection,
-          )..layout();
-          if (tp.width > maxW) maxW = tp.width;
-        }
-        return maxW;
-      }
-
-      final double collapsedWidth = 72; // larghezza base stile NavigationRail
-      final double hPad = 16; // padding orizzontale interno
-      final double gap = 12;  // gap tra icona e label
-      final double maxLabelWidth = extended ? computeMaxLabelWidth() : 0;
-      final double dynamicExtendedWidth = collapsedWidth + (maxLabelWidth > 0 ? (maxLabelWidth + gap + hPad) : 0);
-
-      Widget buildDestination(int index) {
-        final bool selected = currentPage == index;
-        final Color selectedIconColor = scheme.primary;
-        final Color unselectedIconColor = scheme.onSurfaceVariant;
-  final Color selectedBg = scheme.primary.withValues(alpha: 0.12);
-        final iconList = [
-          Icons.home,
-          Icons.people,
-          Icons.train,
-          Icons.calendar_today,
-          Icons.person,
-        ];
-        final icon = Icon(iconList[index], color: selected ? selectedIconColor : unselectedIconColor, size: 24);
-        final label = Text(titles[index], style: labelStyle.copyWith(
-          color: selected ? selectedIconColor : scheme.onSurfaceVariant,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-        ));
-        return SizedBox(
-          height: 56,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => setState(() => currentPage = index),
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              decoration: BoxDecoration(
-                color: selected ? selectedBg : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  icon,
-                  if (extended) ...[
-                    SizedBox(width: gap),
-                    Flexible(child: label),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        );
-      }
-
-      Widget buildRail() {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final int itemCount = titles.length;
-            const double itemHeight = 56;
-            const double itemSpacing = 8; // margin vertical complessiva (4+4)
-            final double contentHeight = itemCount * itemHeight + (itemCount - 1) * itemSpacing;
-            const double toggleTotalHeight = 52; // bottone + padding
-            final double available = constraints.maxHeight;
-            double topPad = (available - toggleTotalHeight - contentHeight) / 2;
-            if (topPad < 12) topPad = 12;
-
-            if (!extended) {
-              return SizedBox(
-                width: collapsedWidth,
-                child: Column(
-                  children: [
-                    SizedBox(height: topPad),
-                    for (int i = 0; i < titles.length; i++)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 0),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () => setState(() => currentPage = i),
-                          child: Container(
-                            width: 56,
-                            height: itemHeight,
-                            decoration: BoxDecoration(
-                              color: currentPage == i ? scheme.primary.withValues(alpha: 0.12) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Icon(
-                              [Icons.home, Icons.people, Icons.train, Icons.calendar_today, Icons.person][i],
-                              color: currentPage == i ? scheme.primary : scheme.onSurfaceVariant,
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ),
-                    const Spacer(),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _RailToggleButton(
-                        expanded: false,
-                        onPressed: () => setState(() => railExpanded = true),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              width: dynamicExtendedWidth,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: topPad),
-                  for (int i = 0; i < titles.length; i++) buildDestination(i),
-                  const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: _RailToggleButton(
-                        expanded: true,
-                        onPressed: () => setState(() => railExpanded = false),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      }
-
       return Scaffold(
         body: Row(
           children: [
             Material(
               elevation: 1,
               color: Theme.of(context).colorScheme.surface,
-              child: buildRail(),
+              child: AppRail(
+                titles: titles,
+                currentIndex: currentPage,
+                onSelect: (i) => setState(() => currentPage = i),
+                expanded: extended,
+                onToggleExpanded: (value) => setState(() => railExpanded = value),
+              ),
             ),
             const VerticalDivider(width: 1),
             Expanded(
@@ -485,48 +383,11 @@ class _RootPageState extends State<RootPage> {
         padding: const EdgeInsets.all(16.0),
         child: pages[currentPage],
       ),
-      bottomNavigationBar: NavigationBar(
-        destinations: [
-          NavigationDestination(icon: const Icon(Icons.home), label: titles[0]),
-          NavigationDestination(icon: const Icon(Icons.people), label: titles[1]),
-          NavigationDestination(icon: const Icon(Icons.train), label: titles[2]),
-          NavigationDestination(icon: const Icon(Icons.calendar_today), label: titles[3]),
-          NavigationDestination(icon: const Icon(Icons.person), label: titles[4]),
-        ],
-        onDestinationSelected: (int index) {
-          setState(() { currentPage = index; });
-        },
-        selectedIndex: currentPage,
+      bottomNavigationBar: AppBottomNavBar(
+        titles: titles,
+        currentIndex: currentPage,
+        onDestinationSelected: (index) => setState(() => currentPage = index),
       ),
     );
   }
 }
-
-class _RailToggleButton extends StatelessWidget {
-  final bool expanded;
-  final VoidCallback onPressed;
-  const _RailToggleButton({required this.expanded, required this.onPressed});
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return Material(
-  color: scheme.surfaceContainerHighest.withValues(alpha: 0.8),
-      shape: const CircleBorder(),
-      elevation: 1,
-      child: InkWell(
-        onTap: onPressed,
-        customBorder: const CircleBorder(),
-        child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(
-            expanded ? Icons.chevron_left : Icons.chevron_right,
-            size: 22,
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
-      ),
-    );
-  }
-}
-

@@ -4,6 +4,7 @@ import 'l10n/app_localizations.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'utils/events_firebase.dart';
 import 'utils/calendar_functions.dart';
 import 'models/calendar_event.dart';
@@ -15,10 +16,18 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'dart:convert';
 import 'utils/station_names.dart' as default_data;
+import 'widgets/logo_title.dart';
 
 class CalendarPage extends StatefulWidget {
   final bool railExpanded;
-  const CalendarPage({super.key, required this.railExpanded});
+  final bool testMode; // Skip Firebase/Storage IO when true
+  final List<String>? initialStationNames; // Injected names for tests
+  const CalendarPage({
+    super.key,
+    required this.railExpanded,
+    this.testMode = false,
+    this.initialStationNames,
+  });
 
   @override
   CalendarPageState createState() => CalendarPageState();
@@ -27,17 +36,13 @@ class CalendarPage extends StatefulWidget {
 class CalendarPageState extends State<CalendarPage> {
   final double cellHeight = 20.0; // Slot Height
   // Adjust hours to represent 15-minute intervals starting from 6:00 to 00:00
-  late final List<int> hours =
-      List.generate(19 * 4, (index) => index); // 76 slots (19 hours * 4)
+  late final List<int> hours = List.generate(19 * 4, (index) => index); // 76 slots (19 hours * 4)
   final List<CalendarEvent> events = []; // List of created events
   List<String> _stationNames = [];
 
-  final LinkedScrollControllerGroup _scrollControllerGroup =
-      LinkedScrollControllerGroup(); // Group for synchronized scrolling
-  late final ScrollController _timeColumnController =
-      _scrollControllerGroup.addAndGet(); // Controller for the time column
-  late final ScrollController _dayColumnsController =
-      _scrollControllerGroup.addAndGet(); // Controller for the day columns
+  final LinkedScrollControllerGroup _scrollControllerGroup = LinkedScrollControllerGroup(); // Group for synchronized scrolling
+  late final ScrollController _timeColumnController = _scrollControllerGroup.addAndGet(); // Controller for the time column
+  late final ScrollController _dayColumnsController = _scrollControllerGroup.addAndGet(); // Controller for the day columns
 
   int? _dragStartIndex; // Index of the cell where the drag started
   int? _dragEndIndex; // Index of the cell where the drag ended
@@ -112,6 +117,106 @@ class CalendarPageState extends State<CalendarPage> {
     return null;
   }
 
+  @visibleForTesting
+  CalendarEvent? eventForCell(DateTime day, int hour) => _getEventForCell(day, hour);
+  @visibleForTesting
+  void adjustOverlappingForDay(DateTime day) => _adjustOverlappingEvents(day);
+  @visibleForTesting
+  void addTestEvent(CalendarEvent e) => setState(() => events.add(e));
+  @visibleForTesting
+  void addTestEvents(List<CalendarEvent> list) => setState(() => events.addAll(list));
+  @visibleForTesting
+  List<String> get stationNamesForTest => _stationNames;
+  @visibleForTesting
+  Future<void> loadDefaultStationsForTest() async {
+    if (_stationNames.isEmpty) {
+      setState(() {
+        _stationNames = List<String>.from(default_data.stationNames);
+      });
+    }
+  }
+  @visibleForTesting
+  void simulateDragMove(CalendarEvent event, DateTime day, int newStartSlot) {
+    // Only adjust if event is part of state list
+    if (!events.contains(event)) return;
+    _draggedEvent = event;
+    _dragStartIndex = event.hour;
+    _dragEndIndex = newStartSlot;
+  // Temporarily force testMode path by bypassing Firestore update logic.
+  // Invoke internal logic; Firestore guarded by widget.testMode already.
+  _handleDragEventMove(day);
+  }
+  @visibleForTesting
+  void simulateDragCreate(DateTime day, int startSlot, int endSlot) {
+    _dragStartIndex = startSlot;
+    _dragEndIndex = endSlot;
+    _dragStartDay = day;
+    _handleDragEventCreation(day);
+  }
+  @visibleForTesting
+  Future<void> loadStationNamesForTest(bool download) async => _loadStationNames(download);
+  @visibleForTesting
+  Future<void> initPrefsForTest() async => _initPrefs();
+  @visibleForTesting
+  void editEventForTest(CalendarEvent e) => _onEditEvent(e);
+  @visibleForTesting
+  void testLongPressMoveUpdateDirect(
+    LongPressMoveUpdateDetails details,
+    BuildContext context,
+    ScrollController scrollController,
+    int pageIndex,
+  ) => _handleLongPressMoveUpdate(details, context, scrollController, pageIndex);
+  @visibleForTesting
+  ScrollController get dayScrollControllerForTest => _dayColumnsController;
+  @visibleForTesting
+  void testLongPressStart(int cellIndex, DateTime day) => _handleLongPressStart(cellIndex, day);
+  @visibleForTesting
+  void testLongPressEnd(DateTime day) => _handleLongPressEnd(day);
+  @visibleForTesting
+  void testPrimeDragForRecurrent(CalendarEvent copy, int startIndex, int endIndex) {
+    _draggedEvent = copy;
+    _dragStartIndex = startIndex;
+    _dragEndIndex = endIndex;
+  }
+  @visibleForTesting
+  Future<void> testHandleDragEventMove(DateTime day) async => _handleDragEventMove(day);
+  @visibleForTesting
+  void testSetDragIndices(DateTime day, int startIndex, int endIndex, {CalendarEvent? dragged}) {
+    _dragStartIndex = startIndex;
+    _dragEndIndex = endIndex;
+    _dragStartDay = day;
+    _draggedEvent = dragged;
+  }
+  @visibleForTesting
+  CalendarEvent? testCreateEventFromDrag(DateTime day) {
+    if (!widget.testMode) return null;
+    if (_dragStartIndex == null || _dragEndIndex == null) return null;
+    int startIndex = _dragStartIndex!.clamp(0, hours.length - 1);
+    int endIndex = _dragEndIndex!.clamp(0, hours.length - 1);
+    if (startIndex > endIndex) {
+      final tmp = startIndex; startIndex = endIndex; endIndex = tmp;
+    }
+    final startSlot = startIndex;
+    final endSlot = endIndex + 1; // inclusive logic
+    if (endSlot >= startSlot) {
+      final dep = _stationNames.isNotEmpty ? _stationNames.first : 'A';
+      final arr = _stationNames.length > 1 ? _stationNames[1] : 'B';
+      final newEvent = CalendarEvent(
+        id: 'test_${DateTime.now().microsecondsSinceEpoch}',
+        date: day,
+        hour: startSlot,
+        endHour: endSlot,
+        departureStation: dep,
+        arrivalStation: arr,
+      );
+      setState(() { events.add(newEvent); });
+      _adjustOverlappingEvents(day);
+      _dragStartIndex = null; _dragEndIndex = null; _dragStartDay = null;
+      return newEvent;
+    }
+    return null;
+  }
+
   // Show the dialog to add a new event
   void _onAddEvent(DateTime day, int startIndex, [int? endIndex]) {
     showAddEventDialog(
@@ -174,8 +279,8 @@ class CalendarPageState extends State<CalendarPage> {
     });
   }
 
-  void _handleLongPressMoveUpdate(LongPressMoveUpdateDetails details,
-      BuildContext context, ScrollController scrollController, int pageIndex) {
+  void _handleLongPressMoveUpdate(
+      LongPressMoveUpdateDetails details, BuildContext context, ScrollController scrollController, int pageIndex) {
     if (_dragStartIndex != null && _dragStartDay != null) {
       setState(() {
         RenderBox box = context.findRenderObject() as RenderBox;
@@ -200,14 +305,13 @@ class CalendarPageState extends State<CalendarPage> {
           int eventDuration = _draggedEvent!.endHour - _draggedEvent!.hour;
           int newEndHour = newStartHour + eventDuration;
 
-          if (getAvailableEndHours(newDay, newStartHour, _draggedEvent)
-              .contains(newEndHour)) {
+          if (getAvailableEndHours(newDay, newStartHour, _draggedEvent).contains(newEndHour)) {
             // Se è una copia ricorrente, aggiorna solo orario/durata nel generatore
             if (_draggedEvent!.generatedBy != null) {
               CalendarEvent? generatorEvent = events.cast<CalendarEvent?>().firstWhere(
-                (e) => e?.id == _draggedEvent!.generatedBy,
-                orElse: () => null,
-              );
+                    (e) => e?.id == _draggedEvent!.generatedBy,
+                    orElse: () => null,
+                  );
               if (generatorEvent != null) {
                 generatorEvent.hour = newStartHour;
                 generatorEvent.endHour = newEndHour;
@@ -226,9 +330,7 @@ class CalendarPageState extends State<CalendarPage> {
 
             // Ensure the relative position of overlapping events remains consistent
             List<CalendarEvent> overlappingEvents = events.where((e) {
-              return isSameDay(e.date, newDay) &&
-                  ((e.hour < _draggedEvent!.endHour &&
-                      e.endHour > _draggedEvent!.hour));
+              return isSameDay(e.date, newDay) && ((e.hour < _draggedEvent!.endHour && e.endHour > _draggedEvent!.hour));
             }).toList();
 
             overlappingEvents.sort((a, b) => a.hour.compareTo(b.hour));
@@ -306,21 +408,25 @@ class CalendarPageState extends State<CalendarPage> {
 
   // Define the missing method to handle drag event movement
   void _handleDragEventMove(DateTime day) async {
-    if (_draggedEvent != null &&
-        _dragStartIndex != null &&
-        _dragEndIndex != null) {
+    if (_draggedEvent != null && _dragStartIndex != null && _dragEndIndex != null) {
       int newStartIndex = _dragEndIndex!.clamp(0, hours.length - 1);
       int newStartHour = hours[newStartIndex];
       int eventDuration = _draggedEvent!.endHour - _draggedEvent!.hour;
       int newEndHour = newStartHour + eventDuration;
+      // Clamp inside available range (end cannot exceed last slot + 1)
+      final int maxHour = hours.last + 1; // one past last index
+      if (newEndHour > maxHour) {
+        newEndHour = maxHour;
+        newStartHour = (newEndHour - eventDuration).clamp(0, maxHour - 1);
+      }
 
       setState(() {
         // Se è una copia ricorrente, aggiorna solo orario/durata nel generatore
         if (_draggedEvent!.generatedBy != null) {
           CalendarEvent? generatorEvent = events.cast<CalendarEvent?>().firstWhere(
-            (e) => e?.id == _draggedEvent!.generatedBy,
-            orElse: () => null,
-          );
+                (e) => e?.id == _draggedEvent!.generatedBy,
+                orElse: () => null,
+              );
           if (generatorEvent != null) {
             generatorEvent.hour = newStartHour;
             generatorEvent.endHour = newEndHour;
@@ -341,27 +447,30 @@ class CalendarPageState extends State<CalendarPage> {
       });
 
       // Aggiorna su Firestore nel path corretto
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
+      if (!widget.testMode) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
         String eventIdToUpdate = _draggedEvent!.generatedBy ?? _draggedEvent!.id;
-        final eventDoc = FirebaseFirestore.instance
-            .collection('users/${user.uid}/events')
-            .doc(eventIdToUpdate);
+        final eventDoc = FirebaseFirestore.instance.collection('users/${user.uid}/events').doc(eventIdToUpdate);
         // La data da salvare è quella del generatore, non della copia
         CalendarEvent? generatorEvent = _draggedEvent!.generatedBy != null
             ? events.cast<CalendarEvent?>().firstWhere(
-                (e) => e?.id == _draggedEvent!.generatedBy,
-                orElse: () => null,
-              )
+                  (e) => e?.id == _draggedEvent!.generatedBy,
+                  orElse: () => null,
+                )
             : null;
         DateTime baseDate = generatorEvent?.date ?? day;
         final eventStart = DateTime(
-          baseDate.year, baseDate.month, baseDate.day,
+          baseDate.year,
+          baseDate.month,
+          baseDate.day,
           6 + (newStartHour ~/ 4),
           (newStartHour % 4) * 15,
         );
         final eventEnd = DateTime(
-          baseDate.year, baseDate.month, baseDate.day,
+          baseDate.year,
+          baseDate.month,
+          baseDate.day,
           6 + (newEndHour ~/ 4),
           (newEndHour % 4) * 15,
         );
@@ -369,6 +478,7 @@ class CalendarPageState extends State<CalendarPage> {
           'event_start': Timestamp.fromDate(eventStart),
           'event_end': Timestamp.fromDate(eventEnd),
         });
+        }
       }
     }
     _resetDragState();
@@ -401,9 +511,7 @@ class CalendarPageState extends State<CalendarPage> {
     for (var event in dayEvents) {
       // Find all events that overlap with the current event
       List<CalendarEvent> overlappingEvents = dayEvents.where((e) {
-        return e != event &&
-            e.hour < event.endHour &&
-            e.endHour > event.hour; // Correct overlap logic
+        return e != event && e.hour < event.endHour && e.endHour > event.hour; // Correct overlap logic
       }).toList();
 
       // Include the current event in the overlapping group
@@ -423,20 +531,24 @@ class CalendarPageState extends State<CalendarPage> {
     }
   }
 
-  
   @override
   void initState() {
     super.initState();
-    _loadUserEvents();
-    _initPrefs();
+    if (widget.testMode) {
+      if (widget.initialStationNames != null) {
+        _stationNames = List<String>.from(widget.initialStationNames!);
+      }
+    } else {
+      _loadUserEvents();
+      _initPrefs();
+    }
   }
 
   Future<void> _initPrefs() async {
+    if (widget.testMode) return; // Skip in tests
     final prefs = await SharedPreferences.getInstance();
     final String? lastSyncDateStr = prefs.getString('last_sync_date');
-    final DateTime? lastSyncDate = lastSyncDateStr != null
-        ? DateTime.parse(lastSyncDateStr)
-        : null;
+    final DateTime? lastSyncDate = lastSyncDateStr != null ? DateTime.parse(lastSyncDateStr) : null;
     if (lastSyncDate == null || DateTime.now().difference(lastSyncDate).inDays > 7) {
       try {
         await _loadStationNames(true);
@@ -464,6 +576,7 @@ class CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> _loadUserEvents() async {
+    if (widget.testMode) return; // Skip in tests
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     List<CalendarEvent> loadedEvents = await fetchEventsFromFirebase(user.uid);
@@ -477,6 +590,12 @@ class CalendarPageState extends State<CalendarPage> {
 
   Future<void> _loadStationNames(bool download) async {
     try {
+      if (widget.testMode) {
+        if (_stationNames.isEmpty) {
+          _stationNames = List<String>.from(default_data.stationNames);
+        }
+        return; // No IO in tests
+      }
       if (download) {
         final storage = FirebaseStorage.instance;
         final ref = storage.refFromURL('gs://traintribe-f2c7b.firebasestorage.app/maps/all_stop_names.json');
@@ -535,17 +654,34 @@ class CalendarPageState extends State<CalendarPage> {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
+    if (Firebase.apps.isEmpty && !widget.testMode) {
+      return Scaffold(
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          centerTitle: MediaQuery.of(context).size.width >= 600,
+          title: const LogoTitle(),
+        ),
+        body: const Center(child: Text('Firebase not initialized')),
+      );
+    }
     final screenWidth = MediaQuery.of(context).size.width;
 
     // Determine the number of days to display based on screen width
-    final int daysToShow =
-        screenWidth > 600 ? 7 : 3; // 7 days for desktop, 3 days for mobile
+    final int daysToShow = screenWidth > 600 ? 7 : 3; // 7 days for desktop, 3 days for mobile
     final PageController pageController = PageController(initialPage: 0);
 
     return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+  centerTitle: MediaQuery.of(context).size.width >= 600,
+        title: const LogoTitle(),
+      ),
       body: Column(
         children: [
-          SizedBox(height: MediaQuery.of(context).padding.top),
           SizedBox(height: 10),
           Expanded(
             child: Row(
@@ -569,29 +705,23 @@ class CalendarPageState extends State<CalendarPage> {
                   child: PageView.builder(
                     controller: pageController,
                     itemBuilder: (context, pageIndex) {
-                      final DateTime startDay =
-                          DateTime.now().add(Duration(days: pageIndex * daysToShow));
-                      final List<DateTime> visibleDays = screenWidth > 600
-                          ? getWeekDays(startDay, daysToShow)
-                          : getDays(startDay, daysToShow);
+                      final DateTime startDay = DateTime.now().add(Duration(days: pageIndex * daysToShow));
+                      final List<DateTime> visibleDays =
+                          screenWidth > 600 ? getWeekDays(startDay, daysToShow) : getDays(startDay, daysToShow);
 
                       // Generate recurrent events for the visible days
-                      List<CalendarEvent> recurrentEvents =
-                          generateRecurrentEvents(visibleDays,events);
+                      List<CalendarEvent> recurrentEvents = generateRecurrentEvents(visibleDays, events);
 
                       return Column(
                         children: [
                           // Header: day headers
                           Row(
                             children: visibleDays.map((day) {
-                              final String dayFormat =
-                                  screenWidth > 600 ? 'EEEE, d MMM' : 'EEE, d MMM';
+                              final String dayFormat = screenWidth > 600 ? 'EEEE, d MMM' : 'EEE, d MMM';
                               final String formattedDay = toBeginningOfSentenceCase(
-                                DateFormat(dayFormat, localizations.languageCode())
-                                    .format(day),
+                                DateFormat(dayFormat, localizations.languageCode()).format(day),
                               )!;
-                              bool isPastDay = day.isBefore(DateTime.now()) &&
-                                  !isSameDay(day, DateTime.now());
+                              bool isPastDay = day.isBefore(DateTime.now()) && !isSameDay(day, DateTime.now());
                               bool isToday = isSameDay(day, DateTime.now());
                               return Expanded(
                                 child: Container(
@@ -599,18 +729,14 @@ class CalendarPageState extends State<CalendarPage> {
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     border: Border.all(
-                                      color: Theme.of(context).brightness == Brightness.dark
-                                          ? Colors.grey[800]!
-                                          : Colors.grey[300]!,
+                                      color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800]! : Colors.grey[300]!,
                                     ),
                                     color: isToday
                                         ? (Theme.of(context).brightness == Brightness.dark
                                             ? Theme.of(context).colorScheme.primary
                                             : Theme.of(context).colorScheme.primary)
                                         : (isPastDay
-                                            ? (Theme.of(context).brightness == Brightness.dark
-                                                ? Colors.grey[900]
-                                                : Colors.grey[300])
+                                            ? (Theme.of(context).brightness == Brightness.dark ? Colors.grey[900] : Colors.grey[300])
                                             : (Theme.of(context).brightness == Brightness.dark
                                                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)
                                                 : Theme.of(context).colorScheme.primary.withValues(alpha: 0.7))),
@@ -625,12 +751,8 @@ class CalendarPageState extends State<CalendarPage> {
                                       color: isToday
                                           ? Colors.white
                                           : (isPastDay
-                                              ? (Theme.of(context).brightness == Brightness.dark
-                                                  ? Colors.grey[400]
-                                                  : Colors.grey[600])
-                                              : (Theme.of(context).brightness == Brightness.dark
-                                                  ? Colors.white
-                                                  : Colors.black)),
+                                              ? (Theme.of(context).brightness == Brightness.dark ? Colors.grey[400] : Colors.grey[600])
+                                              : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
                                     ),
                                   ),
                                 ),
@@ -687,12 +809,10 @@ class CalendarPageState extends State<CalendarPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           // Show a dialog to add a new event
-          _onAddEvent(
-              DateTime.now(), 0); // Default to current day and first hour
+          _onAddEvent(DateTime.now(), 0); // Default to current day and first hour
         },
-        backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.primary,
+        backgroundColor:
+            Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.primary,
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );

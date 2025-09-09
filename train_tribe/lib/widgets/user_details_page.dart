@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/app_services.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/phone_number_helper.dart';
 import 'profile_picture_picker.dart';
@@ -118,11 +118,10 @@ class UserDetailsPageState extends State<UserDetailsPage> {
   }
 
   Future<void> _checkUsernameUniqueness(String username) async {
-    final querySnapshot = await FirebaseFirestore.instance.collection('users').where('username', isEqualTo: username).get();
-
-    setState(() {
-      isUsernameUnique = querySnapshot.docs.isEmpty;
-    });
+    final services = AppServicesScope.of(context);
+    final unique = await services.userRepository.isUsernameUnique(username);
+    if (!mounted) return;
+    setState(() => isUsernameUnique = unique);
   }
 
   void _validateMandatoryFields() {
@@ -177,6 +176,7 @@ class UserDetailsPageState extends State<UserDetailsPage> {
             ),
             const SizedBox(height: 15),
             TextField(
+              key: const Key('usernameField'),
               controller: widget.usernameController,
               onChanged: (value) {
                 _validateMandatoryFields();
@@ -198,6 +198,7 @@ class UserDetailsPageState extends State<UserDetailsPage> {
               children: [
                 Expanded(
                   child: TextField(
+                    key: const Key('nameField'),
                     controller: widget.nameController,
                     onChanged: (_) => _validateMandatoryFields(),
                     decoration: InputDecoration(
@@ -209,6 +210,7 @@ class UserDetailsPageState extends State<UserDetailsPage> {
                 const SizedBox(width: 15),
                 Expanded(
                   child: TextField(
+                    key: const Key('surnameField'),
                     controller: widget.surnameController,
                     onChanged: (_) => _validateMandatoryFields(),
                     decoration: InputDecoration(
@@ -231,6 +233,7 @@ class UserDetailsPageState extends State<UserDetailsPage> {
                 SizedBox(
                   width: 90,
                   child: TextField(
+                    key: const Key('dialField'),
                     controller: _dialController,
                     keyboardType: TextInputType.phone,
                     onChanged: (val) {
@@ -257,6 +260,7 @@ class UserDetailsPageState extends State<UserDetailsPage> {
                 const SizedBox(width: 15),
                 Expanded(
                   child: TextField(
+                    key: const Key('phoneField'),
                     controller: widget.phoneController,
                     keyboardType: TextInputType.phone,
                     onChanged: (value) {
@@ -285,6 +289,7 @@ class UserDetailsPageState extends State<UserDetailsPage> {
             ),
             const SizedBox(height: 30),
             ElevatedButton(
+              key: const Key('actionButton'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: areMandatoryFieldsFilled && isUsernameUnique ? Theme.of(context).colorScheme.primary : Colors.grey,
               ),

@@ -38,6 +38,7 @@ class FriendPopupDialog extends StatelessWidget {
         SizedBox(
           height: 44,
           child: CustomTextButton(
+            key: const Key('friend_popup_whatsapp'),
             text: 'Whatsapp',
             iconWidget: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 18),
             color: Colors.green,
@@ -53,6 +54,7 @@ class FriendPopupDialog extends StatelessWidget {
       SizedBox(
         height: 44,
         child: CustomTextButton(
+          key: const Key('friend_popup_toggle'),
           text: isGhosted ? localizations.translate('unghost') : localizations.translate('ghost'),
           icon: isGhosted ? Icons.visibility : Icons.visibility_off,
           color: isGhosted ? Colors.green : Colors.redAccent,
@@ -62,6 +64,7 @@ class FriendPopupDialog extends StatelessWidget {
       SizedBox(
         height: 44,
         child: CustomTextButton(
+          key: const Key('friend_popup_delete'),
           text: localizations.translate('delete'),
           icon: Icons.delete,
           color: Colors.redAccent,

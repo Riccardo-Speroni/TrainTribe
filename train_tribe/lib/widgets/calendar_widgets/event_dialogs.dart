@@ -8,6 +8,9 @@ import '../../utils/calendar_functions.dart';
 
 const double stationListMaxHeight = 290;
 
+@visibleForTesting
+bool eventDialogsDebugBypassFirebase = false; // when true skip Firestore/Auth side effects
+
 Future<void> showAddEventDialog({
   required BuildContext context,
   required DateTime day,
@@ -363,33 +366,55 @@ Future<void> showAddEventDialog({
                     stationError = null;
                   });
 
-                  final user = FirebaseAuth.instance.currentUser;
-                  if (user != null) {
-                    final eventsCollection = FirebaseFirestore.instance.collection('users/${user.uid}/events');
-                    final eventStart = DateTime(
-                      day.year, day.month, day.day,
-                      6 + (startSlot ~/ 4),
-                      (startSlot % 4) * 15,
-                    );
-                    final eventEnd = DateTime(
-                      day.year, day.month, day.day,
-                      6 + (selectedEndSlot ~/ 4),
-                      (selectedEndSlot % 4) * 15,
-                    );
-                    final eventData = {
-                      'origin': departureStation,
-                      'destination': arrivalStation,
-                      'event_start': Timestamp.fromDate(eventStart),
-                      'event_end': Timestamp.fromDate(eventEnd),
-                      'recurrence_end': isRecurrent && recurrenceEndDate != null
-                          ? Timestamp.fromDate(recurrenceEndDate!)
-                          : null,
-                      'recurrent': isRecurrent,
-                    };
-                    final newEventRef = await eventsCollection.add(eventData);
-                    final newEventId = newEventRef.id;
+                  if (!eventDialogsDebugBypassFirebase) {
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user != null) {
+                      final eventsCollection = FirebaseFirestore.instance.collection('users/${user.uid}/events');
+                      final eventStart = DateTime(
+                        day.year, day.month, day.day,
+                        6 + (startSlot ~/ 4),
+                        (startSlot % 4) * 15,
+                      );
+                      final eventEnd = DateTime(
+                        day.year, day.month, day.day,
+                        6 + (selectedEndSlot ~/ 4),
+                        (selectedEndSlot % 4) * 15,
+                      );
+                      final eventData = {
+                        'origin': departureStation,
+                        'destination': arrivalStation,
+                        'event_start': Timestamp.fromDate(eventStart),
+                        'event_end': Timestamp.fromDate(eventEnd),
+                        'recurrence_end': isRecurrent && recurrenceEndDate != null
+                            ? Timestamp.fromDate(recurrenceEndDate!)
+                            : null,
+                        'recurrent': isRecurrent,
+                      };
+                      final newEventRef = await eventsCollection.add(eventData);
+                      final newEventId = newEventRef.id;
+                      onEventAdded(CalendarEvent(
+                        id: newEventId,
+                        date: day,
+                        hour: startSlot,
+                        endHour: selectedEndSlot,
+                        departureStation: departureStation,
+                        arrivalStation: arrivalStation,
+                        isRecurrent: isRecurrent,
+                        recurrenceEndDate: recurrenceEndDate,
+                      ));
+                    } else {
+                      onEventAdded(CalendarEvent(
+                        date: day,
+                        hour: startSlot,
+                        endHour: selectedEndSlot,
+                        departureStation: departureStation,
+                        arrivalStation: arrivalStation,
+                        isRecurrent: isRecurrent,
+                        recurrenceEndDate: recurrenceEndDate,
+                      ));
+                    }
+                  } else {
                     onEventAdded(CalendarEvent(
-                      id: newEventId,
                       date: day,
                       hour: startSlot,
                       endHour: selectedEndSlot,
@@ -793,31 +818,33 @@ Future<void> showEditEventDialog({
                 }
                 onEventUpdated();
 
-                final user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  final eventDoc = FirebaseFirestore.instance
-                      .collection('users/${user.uid}/events')
-                      .doc(generatorEvent.id);
-                  final eventStart = DateTime(
-                    selectedDay.year, selectedDay.month, selectedDay.day,
-                    6 + (selectedStartSlot ~/ 4),
-                    (selectedStartSlot % 4) * 15,
-                  );
-                  final eventEnd = DateTime(
-                    selectedDay.year, selectedDay.month, selectedDay.day,
-                    6 + (selectedEndSlot ~/ 4),
-                    (selectedEndSlot % 4) * 15,
-                  );
-                  await eventDoc.update({
-                    'origin': departureStation,
-                    'destination': arrivalStation,
-                    'event_start': Timestamp.fromDate(eventStart),
-                    'event_end': Timestamp.fromDate(eventEnd),
-                    'recurrence_end': isRecurrent && recurrenceEndDate != null
-                        ? Timestamp.fromDate(recurrenceEndDate!)
-                        : null,
-                    'recurrent': isRecurrent,
-                  });
+                if (!eventDialogsDebugBypassFirebase) {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    final eventDoc = FirebaseFirestore.instance
+                        .collection('users/${user.uid}/events')
+                        .doc(generatorEvent.id);
+                    final eventStart = DateTime(
+                      selectedDay.year, selectedDay.month, selectedDay.day,
+                      6 + (selectedStartSlot ~/ 4),
+                      (selectedStartSlot % 4) * 15,
+                    );
+                    final eventEnd = DateTime(
+                      selectedDay.year, selectedDay.month, selectedDay.day,
+                      6 + (selectedEndSlot ~/ 4),
+                      (selectedEndSlot % 4) * 15,
+                    );
+                    await eventDoc.update({
+                      'origin': departureStation,
+                      'destination': arrivalStation,
+                      'event_start': Timestamp.fromDate(eventStart),
+                      'event_end': Timestamp.fromDate(eventEnd),
+                      'recurrence_end': isRecurrent && recurrenceEndDate != null
+                          ? Timestamp.fromDate(recurrenceEndDate!)
+                          : null,
+                      'recurrent': isRecurrent,
+                    });
+                  }
                 }
                 if (!context.mounted) return;
                 Navigator.pop(context);
@@ -855,12 +882,14 @@ Future<void> showEditEventDialog({
                 );
                 if (confirmDelete) {
                   onEventDeleted(generatorEvent.id);
-                  final user = FirebaseAuth.instance.currentUser;
-                  if (user != null) {
-                    await FirebaseFirestore.instance
-                        .collection('users/${user.uid}/events')
-                        .doc(generatorEvent.id)
-                        .delete();
+                  if (!eventDialogsDebugBypassFirebase) {
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user != null) {
+                      await FirebaseFirestore.instance
+                          .collection('users/${user.uid}/events')
+                          .doc(generatorEvent.id)
+                          .delete();
+                    }
                   }
                   if (context.mounted) Navigator.pop(context);
                 }

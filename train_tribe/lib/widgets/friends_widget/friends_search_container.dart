@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/app_services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/profile_picture_widget.dart';
 
@@ -14,6 +15,8 @@ class FriendsSearchContainer extends StatelessWidget {
   final void Function(BuildContext, String, String, bool, bool) onShowFriendDialog;
   final void Function(String) onSendFriendRequest;
   final bool searching;
+  // Test override: if provided, Firestore is bypassed and user data is resolved synchronously.
+  final Map<String, Map<String, dynamic>> Function()? debugUserDataResolver;
 
   const FriendsSearchContainer({
     super.key,
@@ -27,12 +30,14 @@ class FriendsSearchContainer extends StatelessWidget {
     required this.onShowFriendDialog,
     required this.onSendFriendRequest,
     required this.searching,
+  this.debugUserDataResolver,
   });
 
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     return Container(
+  key: const Key('friends_search_container'),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -54,6 +59,7 @@ class FriendsSearchContainer extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextField(
+                    key: const Key('friendsSearchField'),
                     controller: searchController,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search),
@@ -81,47 +87,83 @@ class FriendsSearchContainer extends StatelessWidget {
             ),
           ),
           if (filteredFriends.isNotEmpty)
-            ...filteredFriends.map((entry) => FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance.collection('users').doc(entry.key).get(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) return const SizedBox.shrink();
-
-                    final friendData = entry.value as Map<String, dynamic>;
-                    final isGhosted = friendData['ghosted'] == true;
-                    final user = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-                    final username = (user['username'] ?? 'Unknown').toString();
-                    final hasPhone = (user['phone'] ?? '').toString().isNotEmpty;
-                    final picture = (user['picture'] ?? '').toString();
-
-                    final query = searchController.text.trim().toLowerCase();
-                    final matches = query.isEmpty || username.toLowerCase().startsWith(query);
-                    if (!matches) return const SizedBox.shrink();
-
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: ListTile(
-                        leading: ProfilePicture(
-                          picture: picture,
-                          size: 25,
-                          firstName: (user['name'] ?? '').toString(),
-                          lastName: (user['surname'] ?? '').toString(),
-                          username: username,
-                          ringWidth: 2,
-                        ),
-                        title: Text(username),
-                        trailing: IconButton(
-                          icon: Icon(
-                            isGhosted ? Icons.visibility_off : Icons.visibility,
-                            color: isGhosted ? Colors.redAccent : Colors.green,
-                          ),
-                          tooltip: isGhosted ? localizations.translate('unghost') : localizations.translate('ghost'),
-                          onPressed: () => onToggleVisibility(entry.key, isGhosted),
-                        ),
-                        onTap: () => onShowFriendDialog(context, entry.key, username, isGhosted, hasPhone),
+            ...filteredFriends.map((entry) {
+              final friendData = entry.value as Map<String, dynamic>;
+              final isGhosted = friendData['ghosted'] == true;
+              if (debugUserDataResolver != null) {
+                final all = debugUserDataResolver!();
+                final user = all[entry.key] ?? {};
+                final username = (user['username'] ?? 'Unknown').toString();
+                final hasPhone = (user['phone'] ?? '').toString().isNotEmpty;
+                final picture = (user['picture'] ?? '').toString();
+                final query = searchController.text.trim().toLowerCase();
+                final matches = query.isEmpty || username.toLowerCase().startsWith(query);
+                if (!matches) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: ListTile(
+                    key: Key('friend_tile_${entry.key}'),
+                    leading: ProfilePicture(
+                      picture: picture,
+                      size: 25,
+                      firstName: (user['name'] ?? '').toString(),
+                      lastName: (user['surname'] ?? '').toString(),
+                      username: username,
+                      ringWidth: 2,
+                    ),
+                    title: Text(username),
+                    trailing: IconButton(
+                      key: Key('toggleGhost_${entry.key}'),
+                      icon: Icon(
+                        isGhosted ? Icons.visibility_off : Icons.visibility,
+                        color: isGhosted ? Colors.redAccent : Colors.green,
                       ),
-                    );
-                  },
-                )),
+                      tooltip: isGhosted ? localizations.translate('unghost') : localizations.translate('ghost'),
+                      onPressed: () => onToggleVisibility(entry.key, isGhosted),
+                    ),
+                    onTap: () => onShowFriendDialog(context, entry.key, username, isGhosted, hasPhone),
+                  ),
+                );
+              }
+              return FutureBuilder<DocumentSnapshot>(
+                future: AppServicesScope.of(context).firestore.collection('users').doc(entry.key).get(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const SizedBox.shrink();
+                  final user = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+                  final username = (user['username'] ?? 'Unknown').toString();
+                  final hasPhone = (user['phone'] ?? '').toString().isNotEmpty;
+                  final picture = (user['picture'] ?? '').toString();
+                  final query = searchController.text.trim().toLowerCase();
+                  final matches = query.isEmpty || username.toLowerCase().startsWith(query);
+                  if (!matches) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: ListTile(
+                      key: Key('friend_tile_${entry.key}'),
+                      leading: ProfilePicture(
+                        picture: picture,
+                        size: 25,
+                        firstName: (user['name'] ?? '').toString(),
+                        lastName: (user['surname'] ?? '').toString(),
+                        username: username,
+                        ringWidth: 2,
+                      ),
+                      title: Text(username),
+                      trailing: IconButton(
+                        key: Key('toggleGhost_${entry.key}'),
+                        icon: Icon(
+                          isGhosted ? Icons.visibility_off : Icons.visibility,
+                          color: isGhosted ? Colors.redAccent : Colors.green,
+                        ),
+                        tooltip: isGhosted ? localizations.translate('unghost') : localizations.translate('ghost'),
+                        onPressed: () => onToggleVisibility(entry.key, isGhosted),
+                      ),
+                      onTap: () => onShowFriendDialog(context, entry.key, username, isGhosted, hasPhone),
+                    ),
+                  );
+                },
+              );
+            }),
           if (filteredFriends.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
@@ -170,6 +212,7 @@ class FriendsSearchContainer extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     trailing: IconButton(
+                      key: Key('addFriend_${user['uid']}'),
                       icon: Icon(
                         sentRequests.contains(user['uid']) ? Icons.check : Icons.add,
                         color: Colors.green,

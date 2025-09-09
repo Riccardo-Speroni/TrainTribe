@@ -1,13 +1,40 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+/// Abstraction over the persistence layer (Firestore) for easier testing.
+abstract class ConfirmationStore {
+  Future<void> setConfirmation(
+      {required String dateStr, required String trainId, required String userId, required bool confirmed, required Timestamp now});
+  Future<bool> getConfirmation({required String dateStr, required String trainId, required String userId});
+}
+
+class FirestoreConfirmationStore implements ConfirmationStore {
+  final FirebaseFirestore _firestore;
+  FirestoreConfirmationStore(this._firestore);
+
+  @override
+  Future<void> setConfirmation(
+      {required String dateStr, required String trainId, required String userId, required bool confirmed, required Timestamp now}) async {
+    final docRef = _firestore.collection('trains_match').doc(dateStr).collection('trains').doc(trainId).collection('users').doc(userId);
+    await docRef.set({'confirmed': confirmed, 'updatedAt': now}, SetOptions(merge: true));
+  }
+
+  @override
+  Future<bool> getConfirmation({required String dateStr, required String trainId, required String userId}) async {
+    final doc =
+        await _firestore.collection('trains_match').doc(dateStr).collection('trains').doc(trainId).collection('users').doc(userId).get();
+    return doc.exists && (doc.data()?['confirmed'] == true);
+  }
+}
+
 /// Handles confirming a train for an event. Only one confirmed train per event per user.
 /// We represent a confirmed train by setting:
 /// trains_match / {yyyy-MM-dd} / trains / {trainId} / users / {userId}  { confirmed: true, updatedAt: Timestamp }
 /// All other trains for the same date (and therefore same event day) for that user will be set to confirmed:false.
 class TrainConfirmationService {
-  final FirebaseFirestore _firestore;
-  TrainConfirmationService({FirebaseFirestore? firestore}) : _firestore = firestore ?? FirebaseFirestore.instance;
+  final ConfirmationStore _store;
+  TrainConfirmationService({FirebaseFirestore? firestore, ConfirmationStore? store})
+      : _store = store ?? FirestoreConfirmationStore(firestore ?? FirebaseFirestore.instance);
 
   /// (Deprecated single-train helper) Retained for backward compatibility.
   /// Uses new multi-train route logic with a single selected + event set.
@@ -37,23 +64,19 @@ class TrainConfirmationService {
   }) async {
     final uniqueAll = allEventTrainIds.toSet();
     final selectedSet = selectedRouteTrainIds.toSet();
-    final batch = _firestore.batch();
     final now = Timestamp.now();
 
     try {
       for (final trainId in uniqueAll) {
-        final docRef = _firestore.collection('trains_match').doc(dateStr).collection('trains').doc(trainId).collection('users').doc(userId);
-
         final isSelected = selectedSet.contains(trainId);
-        batch.set(
-            docRef,
-            {
-              'confirmed': isSelected,
-              'updatedAt': now,
-            },
-            SetOptions(merge: true));
+        await _store.setConfirmation(
+          dateStr: dateStr,
+          trainId: trainId,
+          userId: userId,
+          confirmed: isSelected,
+          now: now,
+        );
       }
-      await batch.commit();
       return (null, 'route_confirmed');
     } catch (e, st) {
       debugPrint('confirmRoute error: $e\n$st');
@@ -70,17 +93,8 @@ class TrainConfirmationService {
     final confirmed = <String>{};
     try {
       for (final trainId in trainIds.toSet()) {
-        final doc = await _firestore
-            .collection('trains_match')
-            .doc(dateStr)
-            .collection('trains')
-            .doc(trainId)
-            .collection('users')
-            .doc(userId)
-            .get();
-        if (doc.exists && (doc.data()?['confirmed'] == true)) {
-          confirmed.add(trainId);
-        }
+        final isConfirmed = await _store.getConfirmation(dateStr: dateStr, trainId: trainId, userId: userId);
+        if (isConfirmed) confirmed.add(trainId);
       }
     } catch (e, st) {
       debugPrint('fetchConfirmedTrainIds error: $e\n$st');

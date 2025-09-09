@@ -10,6 +10,8 @@ import 'widgets/friends_widget/friend_requests_container.dart';
 import 'widgets/friends_widget/friends_search_container.dart';
 import 'widgets/friends_widget/friend_popup_dialog.dart';
 import 'widgets/friends_widget/suggestions_section.dart';
+import 'services/app_services.dart';
+import 'widgets/logo_title.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -19,8 +21,8 @@ class FriendsPage extends StatefulWidget {
 }
 
 class FriendsPageState extends State<FriendsPage> {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  late FirebaseFirestore _db;
+  late FirebaseAuth _auth;
 
   // Helper to get current user ID
   String get _uid => _auth.currentUser?.uid ?? '';
@@ -48,6 +50,14 @@ class FriendsPageState extends State<FriendsPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final services = AppServicesScope.of(context);
+    _db = services.firestore;
+    _auth = services.auth;
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -56,13 +66,13 @@ class FriendsPageState extends State<FriendsPage> {
   // --- Firestore logic ---
 
   Future<void> _sendFriendRequest(String targetUid) async {
-  final localizations = AppLocalizations.of(context); // capture early if needed later
-  final myData = await _db.collection('users').doc(_uid).get();
-  final targetData = await _db.collection('users').doc(targetUid).get();
+    final localizations = AppLocalizations.of(context); // capture early if needed later
+    final myData = await _db.collection('users').doc(_uid).get();
+    final targetData = await _db.collection('users').doc(targetUid).get();
     if (!targetData.exists) return;
 
     // Add to my sent requests
-  await _db.collection('users').doc(_uid).update({
+    await _db.collection('users').doc(_uid).update({
       'sentRequests': FieldValue.arrayUnion([targetUid])
     });
     // Add to target's received requests
@@ -81,9 +91,9 @@ class FriendsPageState extends State<FriendsPage> {
   }
 
   Future<void> _acceptFriendRequest(String requesterUid) async {
-  final localizations = AppLocalizations.of(context);
-  final myData = await _db.collection('users').doc(_uid).get();
-  final targetData = await _db.collection('users').doc(requesterUid).get();
+    final localizations = AppLocalizations.of(context);
+    final myData = await _db.collection('users').doc(_uid).get();
+    final targetData = await _db.collection('users').doc(requesterUid).get();
 
     if (!targetData.exists) return;
 
@@ -177,9 +187,9 @@ class FriendsPageState extends State<FriendsPage> {
       return;
     }
     // Require user to have a phone in DB first; otherwise notify and return.
-  final localizations = AppLocalizations.of(context);
-  final messenger = ScaffoldMessenger.of(context); // capture before awaits
-  final myDocPre = await _db.collection('users').doc(_uid).get();
+    final localizations = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context); // capture before awaits
+    final myDocPre = await _db.collection('users').doc(_uid).get();
     final myPhone = (myDocPre.data()?['phone'] ?? '').toString();
     if (myPhone.isEmpty) {
       if (mounted) {
@@ -220,7 +230,7 @@ class FriendsPageState extends State<FriendsPage> {
         }
       }
       if (numbers.isEmpty) {
-    if (mounted) setState(() => _loadingContacts = false);
+        if (mounted) setState(() => _loadingContacts = false);
         return;
       }
 
@@ -268,7 +278,7 @@ class FriendsPageState extends State<FriendsPage> {
 
   // Modifica: recupera anche la foto profilo dell'amico e passala al dialog
   void _showFriendDialog(BuildContext context, String friendUid, String friendName, bool isGhosted, bool hasPhone) async {
-  final doc = await FirebaseFirestore.instance.collection('users').doc(friendUid).get();
+    final doc = await _db.collection('users').doc(friendUid).get();
     final picture = (doc.data()?['picture'] ?? '').toString();
     // Retrieve first name and surname so we can render two initials consistently
     final firstName = (doc.data()?['name'] ?? '').toString();
@@ -299,15 +309,19 @@ class FriendsPageState extends State<FriendsPage> {
 
   @override
   Widget build(BuildContext context) {
-  final localizations = AppLocalizations.of(context);
+    final localizations = AppLocalizations.of(context);
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: _userDocStream,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        final userData = snapshot.data!.data() ?? {};
-        final friends = userData['friends'] as Map<String, dynamic>? ?? {};
+        final userData = snapshot.data!.data() ?? <String, dynamic>{};
+        Map<String, dynamic> friends = <String, dynamic>{};
+        final rawFriends = userData['friends'];
+        if (rawFriends is Map) {
+          friends = rawFriends.map((k, v) => MapEntry(k.toString(), v));
+        }
         final receivedRequests = List<String>.from(userData['receivedRequests'] ?? []);
         final sentRequests = List<String>.from(userData['sentRequests'] ?? []);
 
@@ -319,7 +333,8 @@ class FriendsPageState extends State<FriendsPage> {
         return Scaffold(
           appBar: AppBar(
             elevation: 0,
-            title: Text(localizations.translate('friends')),
+            centerTitle: MediaQuery.of(context).size.width >= 600,
+            title: const LogoTitle(),
             actions: [
               IconButton(
                 tooltip: localizations.translate('friends_ghost_legend_title'),
@@ -359,11 +374,13 @@ class FriendsPageState extends State<FriendsPage> {
                 children: [
                   if (receivedRequests.isNotEmpty)
                     FriendRequestsContainer(
+                      key: const Key('friendRequestsContainer'),
                       friendRequests: receivedRequests,
                       onAccept: _acceptFriendRequest,
                       onDecline: _declineFriendRequest,
                     ),
                   FriendsSearchContainer(
+                    key: const Key('friendsSearchContainer'),
                     searchController: _searchController,
                     onSearchChanged: _onSearchChanged,
                     onSearchSubmitted: _onSearchSubmitted,

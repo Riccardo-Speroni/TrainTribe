@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:animated_toggle_switch/animated_toggle_switch.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/mood_repository.dart';
 
 /// Reusable slider/toggle for selecting the user's mood (solo / group).
 /// Handles:
@@ -17,6 +18,8 @@ class MoodToggle extends StatefulWidget {
   final Duration saveDebounce;
   final Duration animationDuration;
   final void Function(bool value)? onChanged; // callback after local state change
+  final MoodRepository? repository; // injectable
+  final String? userIdOverride; // testing override
 
   const MoodToggle({
     super.key,
@@ -25,6 +28,8 @@ class MoodToggle extends StatefulWidget {
     this.saveDebounce = const Duration(milliseconds: 500),
     this.animationDuration = const Duration(milliseconds: 300),
     this.onChanged,
+    this.repository,
+    this.userIdOverride,
   });
 
   @override
@@ -49,22 +54,16 @@ class _MoodToggleState extends State<MoodToggle> {
   }
 
   Future<void> _loadFromFirestore() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    // Skip remote load if Firebase not initialized (e.g. widget tests) to avoid exceptions.
+    if (Firebase.apps.isEmpty) {
+      setState(() => _loaded = true);
+      return;
+    }
+    final userId = widget.userIdOverride ?? FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
     try {
-      final snap = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      bool newVal = true;
-      if (snap.exists) {
-        final mood = snap.data()?['mood'];
-        if (mood is bool) {
-          newVal = mood;
-        } else {
-          // ensure field exists
-          FirebaseFirestore.instance.collection('users').doc(user.uid).set({'mood': newVal}, SetOptions(merge: true));
-        }
-      } else {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({'mood': newVal}, SetOptions(merge: true));
-      }
+      final repo = widget.repository ?? FirebaseMoodRepository();
+      final newVal = await repo.load(userId);
       if (!mounted) return;
       setState(() {
         _value = newVal;
@@ -76,8 +75,8 @@ class _MoodToggleState extends State<MoodToggle> {
   }
 
   void _toggle(bool v) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return; // cannot save; ignore
+    final userId = widget.userIdOverride ?? FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return; // cannot save; ignore
     setState(() {
       _value = v;
     });
@@ -85,7 +84,8 @@ class _MoodToggleState extends State<MoodToggle> {
     _debounce?.cancel();
     _debounce = Timer(widget.saveDebounce, () async {
       try {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({'mood': v}, SetOptions(merge: true));
+        final repo = widget.repository ?? FirebaseMoodRepository();
+        await repo.save(userId, v);
       } catch (e) {
         if (!mounted) return;
         setState(() {
