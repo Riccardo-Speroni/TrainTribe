@@ -57,7 +57,7 @@ class CalendarDayColumn extends StatelessWidget {
     int daysToShow = MediaQuery.of(context).size.width > 600 ? 7 : 3;
 
     int correctionFactor = isRailExpanded
-        ? (MediaQuery.of(context).size.width > 600 ? 38 : 30)
+        ? (MediaQuery.of(context).size.width > 600 ? 36 : 30)
         : (MediaQuery.of(context).size.width > 600 ? 24 : 30);
 
     double cellWidth = MediaQuery.of(context).size.width / daysToShow;
